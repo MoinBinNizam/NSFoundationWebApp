@@ -1,0 +1,24 @@
+The most important business rules that must remain intact include:
+
+- 2024 share changes are historical/interim.
+- December 2024 final share count is used for 2024 annual reconciliation.
+- 2024 underpayment must be settled.
+- 2024 overpayment becomes 2025 advance and must never be double-counted.
+- From January 1, 2025, normal share changes are locked.
+- Post-2024 share transfer is supported, but buyer's accumulated distribution entitlement is NOT YET FINALIZED.
+- Member funds form a common pooled investment fund.
+- The system does NOT allocate specific investment ownership to individual members.
+- Moin is Primary Accountant.
+- Samrat is Assistant Accountant.
+- Accountant custody is separate from accountant personal money.
+- Investment deployment decreases accountant Foundation custody.
+- Moving money from accountant custody to an investment is not a Foundation expense.
+- Investment maturity records actual return/profit/loss.
+- Investment money remaining in a project/external wallet does not automatically increase accountant custody.
+- Reinvestment must deduct only newly supplied accountant funds.
+- Investment liquidation proceeds may be consolidated into Moin's custody.
+- Samrat can transfer Foundation custody to Moin.
+- Expenses reduce Foundation funds.
+- Internal custody transfers do not create income or expense.
+- Expected ROI and actual profit must remain separate.
+- Final distribution must not double-count historical contributions already represented in current assets.

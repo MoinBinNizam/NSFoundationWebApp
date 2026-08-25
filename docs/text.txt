@@ -1,0 +1,15 @@
+আমি GitHub-এ মোটামুটি এই hierarchy রাখব:
+#1 Project Foundation
+#2 Database & Domain Models
+#3 Authentication & RBAC
+#4 Member Management
+#5 Share & Annual Account
+#6 Contribution & Payment
+#7 Accountant Custody Ledger
+#8 Investment Management
+#9 Reinvestment & Project Wallet
+#10 Expense Management
+#11 Dashboard & Reports
+#12 Final Distribution
+#13 Audit, Security & Testing
+#14 Deployment & Backup
