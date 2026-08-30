@@ -1,0 +1,12 @@
+{
+  "name": "ns-foundation-web-app",
+  "version": "1.0.0",
+  "description": "NS Foundation Cooperative Society Management System",
+  "scripts": {
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
