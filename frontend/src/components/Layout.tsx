@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -12,12 +12,15 @@ import {
   LogOut,
   Shield,
   Building2,
+  Menu,
+  X,
 } from 'lucide-react';
 
 export const Layout: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -40,21 +43,43 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-[#0B0F19] text-gray-100">
-      {/* Sidebar */}
-      <aside className="w-[270px] bg-[#111827] border-r border-white/10 flex flex-col sticky top-0 h-screen z-50 shrink-0">
+      {/* Mobile Drawer Backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar - Desktop (fixed) & Mobile (drawer) */}
+      <aside
+        className={`fixed md:sticky top-0 h-screen z-50 shrink-0 w-[270px] bg-[#111827] border-r border-white/10 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
         {/* Brand Header */}
-        <div className="p-5 border-b border-white/10 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
-            <Building2 size={22} className="text-white" />
+        <div className="p-5 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
+              <Building2 size={22} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-sm font-extrabold tracking-tight text-white">
+                NS Foundation
+              </h1>
+              <p className="text-[11px] text-gray-400 font-medium">
+                এন এস ফাউন্ডেশন সমবায়
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-sm font-extrabold tracking-tight text-white">
-              NS Foundation
-            </h1>
-            <p className="text-[11px] text-gray-400 font-medium">
-              এন এস ফাউন্ডেশন সমবায়
-            </p>
-          </div>
+
+          {/* Close button for mobile drawer */}
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="md:hidden text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {/* Navigation Items */}
@@ -81,6 +106,7 @@ export const Layout: React.FC = () => {
               <NavLink
                 key={item.path}
                 to={item.path}
+                onClick={() => setMobileOpen(false)}
                 className={({ isActive }) =>
                   `flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs transition-all duration-200 ${
                     isActive
@@ -137,10 +163,21 @@ export const Layout: React.FC = () => {
       {/* Main Content Body */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header Bar */}
-        <header className="h-16 border-b border-white/10 bg-[#111827]/75 backdrop-blur-md flex items-center justify-between px-8 sticky top-0 z-40">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-gray-500">Modules /</span>
-            <span className="font-semibold text-white">{currentModuleTitle}</span>
+        <header className="h-16 border-b border-white/10 bg-[#111827]/75 backdrop-blur-md flex items-center justify-between px-4 sm:px-8 sticky top-0 z-40">
+          <div className="flex items-center gap-3">
+            {/* Mobile Hamburger Toggle */}
+            <button
+              onClick={() => setMobileOpen(true)}
+              className="md:hidden text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5"
+              aria-label="Toggle navigation menu"
+            >
+              <Menu size={20} />
+            </button>
+
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-gray-500 hidden sm:inline">Modules /</span>
+              <span className="font-semibold text-white">{currentModuleTitle}</span>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -151,7 +188,7 @@ export const Layout: React.FC = () => {
         </header>
 
         {/* Page Outlet */}
-        <main className="flex-1 p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
           <Outlet />
         </main>
       </div>

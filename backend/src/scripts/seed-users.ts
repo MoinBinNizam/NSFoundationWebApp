@@ -34,11 +34,17 @@ async function seed() {
     ];
 
     for (const u of usersToSeed) {
+      const passwordHash = await hashPassword(u.password);
       const existing = await User.findOne({ email: u.email });
       if (existing) {
-        console.log(`[SKIP] User '${u.email}' already exists.`);
+        existing.passwordHash = passwordHash;
+        existing.name = u.name;
+        existing.role = u.role;
+        existing.accountantType = u.accountantType;
+        existing.status = u.status;
+        await existing.save();
+        console.log(`[UPDATED] User '${u.email}' password and details refreshed.`);
       } else {
-        const passwordHash = await hashPassword(u.password);
         await User.create({
           name: u.name,
           email: u.email,
