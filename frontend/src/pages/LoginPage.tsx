@@ -41,90 +41,49 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'radial-gradient(ellipse at 50% 20%, #1e293b 0%, #0b0f19 80%)',
-        padding: '20px',
-      }}
-    >
-      <div style={{ maxWidth: '440px', width: '100%' }}>
+    <div className="min-h-screen flex items-center justify-center p-5 bg-[#0B0F19] bg-[radial-gradient(ellipse_at_50%_20%,#1e293b_0%,#0b0f19_80%)]">
+      <div className="max-w-md w-full">
         {/* Brand Heading */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div
-            style={{
-              width: '56px',
-              height: '56px',
-              borderRadius: 'var(--radius-lg)',
-              background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 8px 24px var(--primary-glow)',
-              marginBottom: '16px',
-            }}
-          >
-            <Building2 size={28} color="#ffffff" />
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 inline-flex items-center justify-center shadow-lg shadow-blue-500/30 mb-4">
+            <Building2 size={28} className="text-white" />
           </div>
-          <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.02em' }}>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
             NS Foundation
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p className="text-gray-400 text-sm mt-1">
             Cooperative Society Management Portal
           </p>
         </div>
 
         {/* Login Card */}
-        <div className="glass-card" style={{ padding: '32px' }}>
-          <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '6px' }}>
+        <div className="glass-card p-8">
+          <h2 className="text-lg font-bold text-white mb-1.5">
             Sign In to your account
           </h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-subtle)', marginBottom: '24px' }}>
+          <p className="text-xs text-gray-400 mb-6">
             Enter your authorized staff credentials to continue.
           </p>
 
           {error && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '12px',
-                background: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                borderRadius: 'var(--radius-md)',
-                color: '#F87171',
-                fontSize: '0.85rem',
-                marginBottom: '20px',
-              }}
-            >
-              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+            <div className="flex items-center gap-2.5 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm mb-5">
+              <AlertCircle size={18} className="shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="form-group mb-0">
               <label className="form-label">Email Address</label>
-              <div style={{ position: 'relative' }}>
+              <div className="relative">
                 <Mail
                   size={18}
-                  style={{
-                    position: 'absolute',
-                    left: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: 'var(--text-subtle)',
-                  }}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
                 />
                 <input
                   type="email"
                   required
-                  className="form-input"
-                  style={{ paddingLeft: '40px' }}
+                  className="form-input pl-10"
                   placeholder="admin@nsfoundation.org"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -132,24 +91,17 @@ export const LoginPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="form-group">
+            <div className="form-group mb-0">
               <label className="form-label">Password</label>
-              <div style={{ position: 'relative' }}>
+              <div className="relative">
                 <Lock
                   size={18}
-                  style={{
-                    position: 'absolute',
-                    left: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: 'var(--text-subtle)',
-                  }}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
                 />
                 <input
                   type="password"
                   required
-                  className="form-input"
-                  style={{ paddingLeft: '40px' }}
+                  className="form-input pl-10"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -160,8 +112,7 @@ export const LoginPage: React.FC = () => {
             <button
               type="submit"
               disabled={submitting}
-              className="btn btn-primary"
-              style={{ width: '100%', marginTop: '8px', padding: '12px' }}
+              className="btn btn-primary w-full py-3 mt-3"
             >
               {submitting ? (
                 'Verifying...'
@@ -175,27 +126,25 @@ export const LoginPage: React.FC = () => {
           </form>
 
           {/* Quick Credential Helpers */}
-          <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid var(--border)' }}>
-            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-subtle)', marginBottom: '10px' }}>
-              ONE-CLICK DEV SEEDED CREDENTIALS:
+          <div className="mt-7 pt-5 border-t border-white/10">
+            <p className="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2.5">
+              One-Click Dev Seeded Credentials:
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="btn btn-secondary btn-sm text-xs py-2"
                 onClick={() => fillCredentials('ADMIN')}
-                style={{ fontSize: '0.75rem' }}
               >
-                <ShieldCheck size={14} color="#60A5FA" />
+                <ShieldCheck size={14} className="text-blue-400" />
                 <span>Primary Admin</span>
               </button>
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="btn btn-secondary btn-sm text-xs py-2"
                 onClick={() => fillCredentials('ACCOUNTANT')}
-                style={{ fontSize: '0.75rem' }}
               >
-                <ShieldCheck size={14} color="#34D399" />
+                <ShieldCheck size={14} className="text-emerald-400" />
                 <span>Assistant Acc.</span>
               </button>
             </div>

@@ -310,25 +310,25 @@ export const SharesPage: React.FC = () => {
   const canModify = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT' || user?.role === 'SUPER_ADMIN';
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Header Title */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
             Shares & Annual Account Management
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p className="text-gray-400 text-sm mt-1">
             Authoritative share positions, post-2024 share locks, peer transfers, and annual reconciliations.
           </p>
         </div>
 
         {canModify && (
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={() => handleOpenAdjust()} className="btn btn-secondary">
+          <div className="flex gap-2.5 shrink-0 self-start sm:self-auto">
+            <button onClick={() => handleOpenAdjust()} className="btn btn-secondary text-xs">
               <Plus size={16} />
               <span>Adjust Shares</span>
             </button>
-            <button onClick={() => handleOpenTransfer()} className="btn btn-primary">
+            <button onClick={() => handleOpenTransfer()} className="btn btn-primary text-xs">
               <ArrowRightLeft size={16} />
               <span>Transfer Shares</span>
             </button>
@@ -337,102 +337,82 @@ export const SharesPage: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '20px',
-          marginBottom: '28px',
-        }}
-      >
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              TOTAL SOCIETY SHARES
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Total Society Shares
             </span>
-            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.15)', color: '#60A5FA' }}>
+            <div className="p-2 rounded-lg bg-blue-500/15 text-blue-400">
               <PieChart size={20} />
             </div>
           </div>
-          <p style={{ fontSize: '2rem', fontWeight: 800, color: '#ffffff', marginTop: '12px' }}>
-            {stats.totalActiveShares}
-          </p>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
+          <p className="text-3xl font-extrabold text-white mt-3">{stats.totalActiveShares}</p>
+          <span className="text-xs text-gray-500 mt-1 block">
             Active share distribution pool
           </span>
         </div>
 
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              MONTHLY OBLIGATION POOL
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Monthly Obligation Pool
             </span>
-            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', color: '#34D399' }}>
+            <div className="p-2 rounded-lg bg-emerald-500/15 text-emerald-400">
               <Coins size={20} />
             </div>
           </div>
-          <p style={{ fontSize: '2rem', fontWeight: 800, color: '#34D399', marginTop: '12px' }}>
+          <p className="text-3xl font-extrabold text-emerald-400 mt-3">
             ৳ {stats.monthlyObligationPool.toLocaleString()}
           </p>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
+          <span className="text-xs text-gray-500 mt-1 block">
             @ ৳{stats.shareValue}/share monthly
           </span>
         </div>
 
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              2024 RECONCILED SETTLED
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              2024 Reconciled Settled
             </span>
-            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(99, 102, 241, 0.15)', color: '#A5B4FC' }}>
+            <div className="p-2 rounded-lg bg-indigo-500/15 text-indigo-400">
               <CalendarCheck size={20} />
             </div>
           </div>
-          <p style={{ fontSize: '2rem', fontWeight: 800, color: '#A5B4FC', marginTop: '12px' }}>
+          <p className="text-3xl font-extrabold text-indigo-300 mt-3">
             {stats.total2024Reconciled}
           </p>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
+          <span className="text-xs text-gray-500 mt-1 block">
             Finalized against Dec 2024 shares
           </span>
         </div>
 
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              PEER SHARE TRANSFERS
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Peer Share Transfers
             </span>
-            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', color: '#FBBF24' }}>
+            <div className="p-2 rounded-lg bg-amber-500/15 text-amber-400">
               <Repeat size={20} />
             </div>
           </div>
-          <p style={{ fontSize: '2rem', fontWeight: 800, color: '#FBBF24', marginTop: '12px' }}>
-            {stats.totalTransfers}
-          </p>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
+          <p className="text-3xl font-extrabold text-amber-400 mt-3">{stats.totalTransfers}</p>
+          <span className="text-xs text-gray-500 mt-1 block">
             Post-2024 secondary movements
           </span>
         </div>
       </div>
 
       {/* Tabs Header */}
-      <div style={{ display: 'flex', gap: '12px', borderBottom: '1px solid var(--border)', marginBottom: '24px' }}>
+      <div className="flex gap-3 border-b border-white/10 pb-px">
         <button
           type="button"
           onClick={() => setActiveTab('positions')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 18px',
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'positions' ? '2px solid var(--primary)' : '2px solid transparent',
-            color: activeTab === 'positions' ? '#ffffff' : 'var(--text-muted)',
-            fontWeight: 600,
-            fontSize: '0.9rem',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
+          className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold transition-all border-b-2 ${
+            activeTab === 'positions'
+              ? 'border-blue-500 text-white'
+              : 'border-transparent text-gray-400 hover:text-white'
+          }`}
         >
           <Layers size={18} />
           <span>Member Shares & Positions</span>
@@ -441,20 +421,11 @@ export const SharesPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('history')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 18px',
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'history' ? '2px solid var(--primary)' : '2px solid transparent',
-            color: activeTab === 'history' ? '#ffffff' : 'var(--text-muted)',
-            fontWeight: 600,
-            fontSize: '0.9rem',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
+          className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold transition-all border-b-2 ${
+            activeTab === 'history'
+              ? 'border-blue-500 text-white'
+              : 'border-transparent text-gray-400 hover:text-white'
+          }`}
         >
           <History size={18} />
           <span>Share Event Timeline</span>
@@ -463,20 +434,11 @@ export const SharesPage: React.FC = () => {
         <button
           type="button"
           onClick={() => setActiveTab('annual')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '12px 18px',
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'annual' ? '2px solid var(--primary)' : '2px solid transparent',
-            color: activeTab === 'annual' ? '#ffffff' : 'var(--text-muted)',
-            fontWeight: 600,
-            fontSize: '0.9rem',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
+          className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold transition-all border-b-2 ${
+            activeTab === 'annual'
+              ? 'border-blue-500 text-white'
+              : 'border-transparent text-gray-400 hover:text-white'
+          }`}
         >
           <FileCheck size={18} />
           <span>Annual Reconciliation Ledger</span>
@@ -485,7 +447,7 @@ export const SharesPage: React.FC = () => {
 
       {/* TAB 1: MEMBER SHARES & POSITIONS */}
       {activeTab === 'positions' && (
-        <div className="table-container glass-card">
+        <div className="table-container glass-card overflow-hidden">
           <table className="data-table">
             <thead>
               <tr>
@@ -494,19 +456,20 @@ export const SharesPage: React.FC = () => {
                 <th>Monthly Obligation</th>
                 <th>Effective Month</th>
                 <th>2024 Reconciliation Status</th>
-                <th style={{ textAlign: 'right' }}>Actions</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loadingPositions ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                    Loading share positions...
+                  <td colSpan={6} className="text-center py-12 text-gray-400">
+                    <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
+                    <span>Loading share positions...</span>
                   </td>
                 </tr>
               ) : membersShares.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                  <td colSpan={6} className="text-center py-12 text-gray-400">
                     No members registered yet.
                   </td>
                 </tr>
@@ -514,88 +477,76 @@ export const SharesPage: React.FC = () => {
                 membersShares.map((m) => {
                   const ya = m.yearAccount2024;
                   return (
-                    <tr key={m._id}>
+                    <tr key={m._id} className="hover:bg-white/[0.02] transition-colors">
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span
-                            style={{
-                              fontFamily: 'var(--font-mono)',
-                              fontWeight: 700,
-                              fontSize: '0.8rem',
-                              color: '#60A5FA',
-                              background: 'rgba(59, 130, 246, 0.1)',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                            }}
-                          >
+                        <div className="flex items-center gap-2.5">
+                          <span className="font-mono font-bold text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
                             {m.memberId}
                           </span>
                           <div>
-                            <p style={{ fontWeight: 600, color: '#fff' }}>{m.name}</p>
-                            <p style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>{m.phone}</p>
+                            <p className="font-semibold text-white text-sm">{m.name}</p>
+                            <p className="text-xs text-gray-400">{m.phone}</p>
                           </div>
                         </div>
                       </td>
                       <td>
                         <span
-                          style={{
-                            fontSize: '1rem',
-                            fontWeight: 800,
-                            color: m.currentShares > 0 ? '#34D399' : 'var(--text-subtle)',
-                          }}
+                          className={`font-extrabold text-sm ${
+                            m.currentShares > 0 ? 'text-emerald-400' : 'text-gray-500'
+                          }`}
                         >
                           {m.currentShares} {m.currentShares === 1 ? 'Share' : 'Shares'}
                         </span>
                       </td>
                       <td>
-                        <span style={{ fontWeight: 700, color: '#ffffff' }}>
+                        <span className="font-bold text-white text-sm">
                           ৳ {m.monthlyObligation.toLocaleString()}
                         </span>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}> /month</span>
+                        <span className="text-xs text-gray-500"> /month</span>
                       </td>
                       <td>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
+                        <span className="font-mono text-xs text-gray-300">
                           {m.effectiveMonth}
                         </span>
                       </td>
                       <td>
                         {ya ? (
                           ya.isSettled ? (
-                            <span className="badge badge-active">
+                            <span className="badge badge-active text-[10px]">
                               <CheckCircle2 size={12} /> Settled
                             </span>
                           ) : (
-                            <span className="badge badge-inactive">
+                            <span className="badge badge-inactive text-[10px]">
                               <AlertTriangle size={12} /> Shortfall ৳{ya.shortfall.toLocaleString()}
                             </span>
                           )
                         ) : (
-                          <span className="badge badge-dropped" style={{ opacity: 0.6 }}>
+                          <span className="badge badge-dropped text-[10px] opacity-60">
                             Not Reconciled
                           </span>
                         )}
                       </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', gap: '6px' }}>
+                      <td className="text-right">
+                        <div className="inline-flex gap-1.5">
                           {canModify && (
                             <>
                               <button
                                 onClick={() => handleOpenAdjust(m)}
-                                className="btn btn-secondary btn-sm"
+                                className="btn btn-secondary btn-sm text-xs py-1 px-2.5"
                                 title="Adjust Shares"
                               >
                                 Adjust
                               </button>
                               <button
                                 onClick={() => handleOpenTransfer(m)}
-                                className="btn btn-secondary btn-sm"
+                                className="btn btn-secondary btn-sm text-xs py-1 px-2.5"
                                 title="Transfer Shares"
                               >
                                 Transfer
                               </button>
                               <button
                                 onClick={() => handleOpenReconcile(m)}
-                                className="btn btn-secondary btn-sm"
+                                className="btn btn-secondary btn-sm text-xs py-1 px-2.5"
                                 title="Reconcile Year Account"
                               >
                                 Reconcile
@@ -615,59 +566,43 @@ export const SharesPage: React.FC = () => {
 
       {/* TAB 2: SHARE EVENT TIMELINE */}
       {activeTab === 'history' && (
-        <div>
+        <div className="space-y-4">
           {/* History Filters */}
-          <div
-            className="glass-card"
-            style={{
-              padding: '16px 20px',
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '16px',
-            }}
-          >
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                EVENT FILTER:
+          <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex gap-1.5 items-center flex-wrap">
+              <span className="text-xs font-semibold text-gray-400 mr-2 uppercase tracking-wider">
+                Event:
               </span>
               {['ALL', 'TEMPORARY_CHANGE', 'TRANSFER', 'ANNUAL_FINALIZATION'].map((type) => (
                 <button
                   key={type}
                   type="button"
                   onClick={() => setHistoryFilterType(type)}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: '9999px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '0.725rem',
-                    fontWeight: 700,
-                    background: historyFilterType === type ? 'var(--primary)' : 'rgba(255, 255, 255, 0.06)',
-                    color: historyFilterType === type ? '#ffffff' : 'var(--text-muted)',
-                  }}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
+                    historyFilterType === type
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                      : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                  }`}
                 >
                   {type}
                 </button>
               ))}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                MONTH:
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Month:
               </span>
               <input
                 type="month"
-                className="form-input"
-                style={{ width: '160px', padding: '4px 8px', fontSize: '0.8rem' }}
+                className="form-input text-xs w-40 py-1.5 px-3"
                 value={historyMonthFilter === 'ALL' ? '' : historyMonthFilter}
                 onChange={(e) => setHistoryMonthFilter(e.target.value || 'ALL')}
               />
               {historyMonthFilter !== 'ALL' && (
                 <button
                   type="button"
-                  className="btn btn-secondary btn-sm"
+                  className="btn btn-secondary btn-sm text-xs py-1"
                   onClick={() => setHistoryMonthFilter('ALL')}
                 >
                   Clear
@@ -676,7 +611,7 @@ export const SharesPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="table-container glass-card">
+          <div className="table-container glass-card overflow-hidden">
             <table className="data-table">
               <thead>
                 <tr>
@@ -692,13 +627,14 @@ export const SharesPage: React.FC = () => {
               <tbody>
                 {loadingHistory ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                      Loading share history...
+                    <td colSpan={7} className="text-center py-12 text-gray-400">
+                      <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
+                      <span>Loading share history...</span>
                     </td>
                   </tr>
                 ) : history.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                    <td colSpan={7} className="text-center py-12 text-gray-400">
                       No share history events found.
                     </td>
                   </tr>
@@ -708,21 +644,21 @@ export const SharesPage: React.FC = () => {
                     const diff = ev.shareCount - ev.previousShareCount;
 
                     return (
-                      <tr key={ev._id}>
+                      <tr key={ev._id} className="hover:bg-white/[0.02] transition-colors">
                         <td>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#60A5FA' }}>
+                          <span className="font-mono font-bold text-xs text-blue-400">
                             {ev.effectiveMonth}
                           </span>
                         </td>
                         <td>
-                          <p style={{ fontWeight: 600, color: '#fff' }}>{ev.memberId?.name}</p>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
+                          <p className="font-semibold text-white text-sm">{ev.memberId?.name}</p>
+                          <span className="font-mono text-xs text-gray-400">
                             {ev.memberId?.memberId}
                           </span>
                         </td>
                         <td>
                           <span
-                            className="badge"
+                            className="badge text-[10px]"
                             style={{
                               background:
                                 ev.eventType === 'TRANSFER'
@@ -741,38 +677,32 @@ export const SharesPage: React.FC = () => {
                             {ev.eventType}
                           </span>
                           {ev.isAdministrativeOverride && (
-                            <span
-                              className="badge"
-                              style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#F87171', marginLeft: '4px' }}
-                            >
+                            <span className="badge text-[10px] bg-rose-500/15 text-rose-400 ml-1">
                               Admin Override
                             </span>
                           )}
                         </td>
                         <td>
-                          <span style={{ color: 'var(--text-subtle)' }}>{ev.previousShareCount}</span>
+                          <span className="text-gray-400 text-sm">{ev.previousShareCount}</span>
                         </td>
                         <td>
-                          <span style={{ fontWeight: 800, color: '#fff' }}>{ev.shareCount}</span>
+                          <span className="font-bold text-white text-sm">{ev.shareCount}</span>
                           <span
-                            style={{
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              marginLeft: '6px',
-                              color: isIncrease ? '#34D399' : '#F87171',
-                            }}
+                            className={`text-xs font-bold ml-1.5 ${
+                              isIncrease ? 'text-emerald-400' : 'text-rose-400'
+                            }`}
                           >
                             ({diff > 0 ? `+${diff}` : diff})
                           </span>
                         </td>
                         <td>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          <p className="text-xs text-gray-300">
                             {ev.transferDetails?.transferNote || ev.notes || '—'}
                           </p>
                         </td>
                         <td>
-                          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{ev.changedBy?.name}</p>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-subtle)' }}>
+                          <p className="text-xs text-gray-200 font-medium">{ev.changedBy?.name}</p>
+                          <span className="text-[11px] text-gray-500">
                             {new Date(ev.createdAt).toLocaleDateString()}
                           </span>
                         </td>
@@ -788,38 +718,24 @@ export const SharesPage: React.FC = () => {
 
       {/* TAB 3: ANNUAL RECONCILIATION LEDGER */}
       {activeTab === 'annual' && (
-        <div>
+        <div className="space-y-4">
           {/* Year selector */}
-          <div
-            className="glass-card"
-            style={{
-              padding: '16px 20px',
-              marginBottom: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <Calendar size={18} color="#60A5FA" />
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                SELECT ACCOUNTING YEAR:
+          <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Calendar size={18} className="text-blue-400" />
+              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Accounting Year:
               </span>
               {[2024, 2025].map((yr) => (
                 <button
                   key={yr}
                   type="button"
                   onClick={() => setSelectedYear(yr)}
-                  style={{
-                    padding: '6px 14px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    background: selectedYear === yr ? 'var(--primary)' : 'rgba(255, 255, 255, 0.06)',
-                    color: selectedYear === yr ? '#ffffff' : 'var(--text-muted)',
-                  }}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    selectedYear === yr
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                      : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                  }`}
                 >
                   Year {yr}
                 </button>
@@ -827,14 +743,14 @@ export const SharesPage: React.FC = () => {
             </div>
 
             {canModify && (
-              <button onClick={() => handleOpenReconcile()} className="btn btn-secondary btn-sm">
+              <button onClick={() => handleOpenReconcile()} className="btn btn-secondary btn-sm text-xs">
                 <CalendarCheck size={16} />
                 <span>Reconcile Member</span>
               </button>
             )}
           </div>
 
-          <div className="table-container glass-card">
+          <div className="table-container glass-card overflow-hidden">
             <table className="data-table">
               <thead>
                 <tr>
@@ -850,53 +766,54 @@ export const SharesPage: React.FC = () => {
               <tbody>
                 {loadingAnnual ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
-                      Loading annual accounts...
+                    <td colSpan={7} className="text-center py-12 text-gray-400">
+                      <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
+                      <span>Loading annual accounts...</span>
                     </td>
                   </tr>
                 ) : yearAccounts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                    <td colSpan={7} className="text-center py-12 text-gray-400">
                       No reconciliation records generated for year {selectedYear} yet.
                     </td>
                   </tr>
                 ) : (
                   yearAccounts.map((ya) => (
-                    <tr key={ya._id}>
+                    <tr key={ya._id} className="hover:bg-white/[0.02] transition-colors">
                       <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#60A5FA' }}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-xs text-blue-400">
                             {ya.memberId?.memberId}
                           </span>
-                          <span style={{ fontWeight: 600, color: '#fff' }}>{ya.memberId?.name}</span>
+                          <span className="font-semibold text-white text-sm">{ya.memberId?.name}</span>
                         </div>
                       </td>
                       <td>
-                        <span style={{ fontWeight: 700, color: '#34D399' }}>{ya.finalShares} Shares</span>
+                        <span className="font-bold text-emerald-400 text-sm">{ya.finalShares} Shares</span>
                       </td>
                       <td>
-                        <span style={{ fontWeight: 700, color: '#ffffff' }}>
+                        <span className="font-bold text-white text-sm">
                           ৳ {ya.annualObligation.toLocaleString()}
                         </span>
                       </td>
                       <td>
-                        <span style={{ color: '#60A5FA' }}>৳ {ya.totalPrincipalPaid.toLocaleString()}</span>
+                        <span className="text-blue-400 text-sm">৳ {ya.totalPrincipalPaid.toLocaleString()}</span>
                       </td>
                       <td>
-                        <span style={{ color: ya.shortfall > 0 ? '#F87171' : 'var(--text-subtle)', fontWeight: 700 }}>
+                        <span className={`text-sm font-bold ${ya.shortfall > 0 ? 'text-rose-400' : 'text-gray-500'}`}>
                           ৳ {ya.shortfall.toLocaleString()}
                         </span>
                       </td>
                       <td>
-                        <span style={{ color: ya.excessAdvance > 0 ? '#34D399' : 'var(--text-subtle)', fontWeight: 700 }}>
+                        <span className={`text-sm font-bold ${ya.excessAdvance > 0 ? 'text-emerald-400' : 'text-gray-500'}`}>
                           ৳ {ya.excessAdvance.toLocaleString()}
                         </span>
                       </td>
                       <td>
                         {ya.isSettled ? (
-                          <span className="badge badge-active">Settled</span>
+                          <span className="badge badge-active text-[10px]">Settled</span>
                         ) : (
-                          <span className="badge badge-inactive">Unsettled Shortfall</span>
+                          <span className="badge badge-inactive text-[10px]">Unsettled Shortfall</span>
                         )}
                       </td>
                     </tr>
@@ -911,61 +828,39 @@ export const SharesPage: React.FC = () => {
       {/* MODAL 1: ADJUST SHARE COUNT */}
       {showAdjustModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ padding: '28px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div className="modal-content p-7">
+            <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>Adjust Share Count</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-subtle)' }}>
+                <h3 className="text-lg font-bold text-white">Adjust Share Count</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
                   Record interim adjustments (2024) or finalizations.
                 </p>
               </div>
               <button
                 onClick={() => setShowAdjustModal(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer' }}
+                className="text-gray-400 hover:text-white p-1 rounded-md"
               >
                 <X size={20} />
               </button>
             </div>
 
             {formError && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: 'var(--radius-md)',
-                  color: '#F87171',
-                  fontSize: '0.85rem',
-                  marginBottom: '16px',
-                }}
-              >
+              <div className="p-3 bg-red-500/15 border border-red-500/30 rounded-lg text-red-400 text-xs mb-4">
                 {formError}
               </div>
             )}
 
             {isPost2024Adjust && (
-              <div
-                style={{
-                  padding: '12px',
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                  borderRadius: 'var(--radius-md)',
-                  color: '#FBBF24',
-                  fontSize: '0.8rem',
-                  marginBottom: '16px',
-                  display: 'flex',
-                  gap: '8px',
-                }}
-              >
-                <AlertTriangle size={18} style={{ flexShrink: 0 }} />
+              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-xs mb-4 flex gap-2">
+                <AlertTriangle size={18} className="shrink-0 text-amber-400" />
                 <span>
                   <strong>Post-2024 Share Lock Warning:</strong> Normal share adjustments are locked from 1 January 2025 onward. Changes require an administrative override or must be executed via Peer Transfer.
                 </span>
               </div>
             )}
 
-            <form onSubmit={handleAdjustSubmit}>
-              <div className="form-group">
+            <form onSubmit={handleAdjustSubmit} className="space-y-4">
+              <div className="form-group mb-0">
                 <label className="form-label">Member *</label>
                 <select
                   className="form-select"
@@ -980,36 +875,36 @@ export const SharesPage: React.FC = () => {
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div className="form-group">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="form-group mb-0">
                   <label className="form-label">Effective Month (YYYY-MM) *</label>
                   <input
                     type="month"
                     required
-                    className="form-input"
+                    className="form-input text-xs"
                     value={adjustData.effectiveMonth}
                     onChange={(e) => setAdjustData({ ...adjustData, effectiveMonth: e.target.value })}
                   />
                 </div>
 
-                <div className="form-group">
+                <div className="form-group mb-0">
                   <label className="form-label">New Total Share Count *</label>
                   <input
                     type="number"
                     min={1}
                     max={100}
                     required
-                    className="form-input"
+                    className="form-input text-xs"
                     value={adjustData.shareCount}
                     onChange={(e) => setAdjustData({ ...adjustData, shareCount: parseInt(e.target.value, 10) || 1 })}
                   />
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="form-group mb-0">
                 <label className="form-label">Event Type</label>
                 <select
-                  className="form-select"
+                  className="form-select text-xs"
                   value={adjustData.eventType}
                   onChange={(e) => setAdjustData({ ...adjustData, eventType: e.target.value })}
                 >
@@ -1019,23 +914,24 @@ export const SharesPage: React.FC = () => {
               </div>
 
               {isPost2024Adjust && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '14px 0' }}>
+                <div className="flex items-center gap-2 my-3">
                   <input
                     type="checkbox"
                     id="adminOverrideCheck"
+                    className="rounded border-white/20 bg-gray-900 text-blue-500 focus:ring-blue-500"
                     checked={adjustData.isAdministrativeOverride}
                     onChange={(e) => setAdjustData({ ...adjustData, isAdministrativeOverride: e.target.checked })}
                   />
-                  <label htmlFor="adminOverrideCheck" style={{ fontSize: '0.85rem', color: '#F87171', fontWeight: 600 }}>
+                  <label htmlFor="adminOverrideCheck" className="text-xs text-rose-400 font-semibold cursor-pointer">
                     Confirm Administrative Override for post-2024 share change
                   </label>
                 </div>
               )}
 
-              <div className="form-group">
+              <div className="form-group mb-0">
                 <label className="form-label">Reason / Notes</label>
                 <textarea
-                  className="form-textarea"
+                  className="form-textarea text-xs"
                   rows={2}
                   placeholder="Mandatory if administrative override..."
                   value={adjustData.notes}
@@ -1043,11 +939,11 @@ export const SharesPage: React.FC = () => {
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowAdjustModal(false)}>
+              <div className="flex justify-end gap-2.5 pt-3">
+                <button type="button" className="btn btn-secondary text-xs" onClick={() => setShowAdjustModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary">
+                <button type="submit" disabled={submitting} className="btn btn-primary text-xs">
                   {submitting ? 'Recording...' : 'Record Share Change'}
                 </button>
               </div>
@@ -1059,62 +955,40 @@ export const SharesPage: React.FC = () => {
       {/* MODAL 2: TRANSFER SHARES */}
       {showTransferModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ padding: '28px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div className="modal-content p-7">
+            <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>Peer Share Transfer</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-subtle)' }}>
+                <h3 className="text-lg font-bold text-white">Peer Share Transfer</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
                   Secondary transfer between existing members (Post-2024 supported).
                 </p>
               </div>
               <button
                 onClick={() => setShowTransferModal(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer' }}
+                className="text-gray-400 hover:text-white p-1 rounded-md"
               >
                 <X size={20} />
               </button>
             </div>
 
             {formError && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: 'var(--radius-md)',
-                  color: '#F87171',
-                  fontSize: '0.85rem',
-                  marginBottom: '16px',
-                }}
-              >
+              <div className="p-3 bg-red-500/15 border border-red-500/30 rounded-lg text-red-400 text-xs mb-4">
                 {formError}
               </div>
             )}
 
-            <div
-              style={{
-                padding: '12px',
-                background: 'rgba(59, 130, 246, 0.1)',
-                border: '1px solid rgba(59, 130, 246, 0.25)',
-                borderRadius: 'var(--radius-md)',
-                color: '#60A5FA',
-                fontSize: '0.8rem',
-                marginBottom: '16px',
-                display: 'flex',
-                gap: '8px',
-              }}
-            >
-              <Info size={18} style={{ flexShrink: 0 }} />
+            <div className="p-3 bg-blue-500/10 border border-blue-500/25 rounded-lg text-blue-400 text-xs mb-4 flex gap-2">
+              <Info size={18} className="shrink-0 text-blue-400" />
               <span>
                 <strong>Authoritative Note:</strong> Share transfers are formally supported after December 2024. Buyer's future distribution entitlement on transferred shares remains pending policy finalization.
               </span>
             </div>
 
-            <form onSubmit={handleTransferSubmit}>
-              <div className="form-group">
+            <form onSubmit={handleTransferSubmit} className="space-y-4">
+              <div className="form-group mb-0">
                 <label className="form-label">Transfer FROM (Seller Member) *</label>
                 <select
-                  className="form-select"
+                  className="form-select text-xs"
                   value={transferData.fromMemberId}
                   onChange={(e) => setTransferData({ ...transferData, fromMemberId: e.target.value })}
                 >
@@ -1126,10 +1000,10 @@ export const SharesPage: React.FC = () => {
                 </select>
               </div>
 
-              <div className="form-group">
+              <div className="form-group mb-0">
                 <label className="form-label">Transfer TO (Buyer Member) *</label>
                 <select
-                  className="form-select"
+                  className="form-select text-xs"
                   value={transferData.toMemberId}
                   onChange={(e) => setTransferData({ ...transferData, toMemberId: e.target.value })}
                 >
@@ -1143,47 +1017,47 @@ export const SharesPage: React.FC = () => {
                 </select>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div className="form-group">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="form-group mb-0">
                   <label className="form-label">Shares to Transfer *</label>
                   <input
                     type="number"
                     min={1}
                     required
-                    className="form-input"
+                    className="form-input text-xs"
                     value={transferData.shareCount}
                     onChange={(e) => setTransferData({ ...transferData, shareCount: parseInt(e.target.value, 10) || 1 })}
                   />
                 </div>
 
-                <div className="form-group">
+                <div className="form-group mb-0">
                   <label className="form-label">Effective Month *</label>
                   <input
                     type="month"
                     required
-                    className="form-input"
+                    className="form-input text-xs"
                     value={transferData.effectiveMonth}
                     onChange={(e) => setTransferData({ ...transferData, effectiveMonth: e.target.value })}
                   />
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="form-group mb-0">
                 <label className="form-label">Transfer Note / Agreement Reference</label>
                 <input
                   type="text"
-                  className="form-input"
+                  className="form-input text-xs"
                   placeholder="e.g. Mutual consent transfer agreement ref #..."
                   value={transferData.notes}
                   onChange={(e) => setTransferData({ ...transferData, notes: e.target.value })}
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowTransferModal(false)}>
+              <div className="flex justify-end gap-2.5 pt-3">
+                <button type="button" className="btn btn-secondary text-xs" onClick={() => setShowTransferModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary">
+                <button type="submit" disabled={submitting} className="btn btn-primary text-xs">
                   {submitting ? 'Processing Transfer...' : 'Confirm Transfer'}
                 </button>
               </div>
@@ -1195,58 +1069,38 @@ export const SharesPage: React.FC = () => {
       {/* MODAL 3: RECONCILE ANNUAL ACCOUNT */}
       {showReconcileModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ padding: '28px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div className="modal-content p-7">
+            <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>Reconcile Annual Account</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-subtle)' }}>
+                <h3 className="text-lg font-bold text-white">Reconcile Annual Account</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
                   Normalize annual principal obligation against December closing shares.
                 </p>
               </div>
               <button
                 onClick={() => setShowReconcileModal(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer' }}
+                className="text-gray-400 hover:text-white p-1 rounded-md"
               >
                 <X size={20} />
               </button>
             </div>
 
             {formError && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: 'var(--radius-md)',
-                  color: '#F87171',
-                  fontSize: '0.85rem',
-                  marginBottom: '16px',
-                }}
-              >
+              <div className="p-3 bg-red-500/15 border border-red-500/30 rounded-lg text-red-400 text-xs mb-4">
                 {formError}
               </div>
             )}
 
-            <div
-              style={{
-                padding: '12px',
-                background: 'rgba(16, 185, 129, 0.1)',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                borderRadius: 'var(--radius-md)',
-                color: '#34D399',
-                fontSize: '0.8rem',
-                marginBottom: '16px',
-              }}
-            >
+            <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-lg text-emerald-400 text-xs mb-4">
               <strong>Formula (SRS Section 1.1A):</strong> Annual Obligation = Closing December Shares × ৳500 × 12.
               Shortfalls must be settled within the year; excesses carry over as advance credits for the following year.
             </div>
 
-            <form onSubmit={handleReconcileSubmit}>
-              <div className="form-group">
+            <form onSubmit={handleReconcileSubmit} className="space-y-4">
+              <div className="form-group mb-0">
                 <label className="form-label">Member *</label>
                 <select
-                  className="form-select"
+                  className="form-select text-xs"
                   value={reconcileData.memberId}
                   onChange={(e) => setReconcileData({ ...reconcileData, memberId: e.target.value })}
                 >
@@ -1258,10 +1112,10 @@ export const SharesPage: React.FC = () => {
                 </select>
               </div>
 
-              <div className="form-group">
+              <div className="form-group mb-0">
                 <label className="form-label">Reconciliation Year *</label>
                 <select
-                  className="form-select"
+                  className="form-select text-xs"
                   value={reconcileData.year}
                   onChange={(e) => setReconcileData({ ...reconcileData, year: parseInt(e.target.value, 10) })}
                 >
@@ -1270,11 +1124,11 @@ export const SharesPage: React.FC = () => {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
-                <button type="button" className="btn btn-secondary" onClick={() => setShowReconcileModal(false)}>
+              <div className="flex justify-end gap-2.5 pt-3">
+                <button type="button" className="btn btn-secondary text-xs" onClick={() => setShowReconcileModal(false)}>
                   Cancel
                 </button>
-                <button type="submit" disabled={submitting} className="btn btn-primary">
+                <button type="submit" disabled={submitting} className="btn btn-primary text-xs">
                   {submitting ? 'Reconciling...' : 'Run Reconciliation'}
                 </button>
               </div>

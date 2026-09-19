@@ -8,11 +8,10 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-main)' }}>
-        <div style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-          <div style={{ width: '40px', height: '40px', border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-          <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
-          <p>Verifying secure session...</p>
+      <div className="flex items-center justify-center h-screen bg-[#0B0F19]">
+        <div className="text-center text-gray-400">
+          <div className="w-10 h-10 border-[3px] border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-sm font-medium">Verifying secure session...</p>
         </div>
       </div>
     );

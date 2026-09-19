@@ -84,7 +84,7 @@ export const MembersPage: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1); // Reset to page 1 on new search
+      setPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
@@ -169,7 +169,6 @@ export const MembersPage: React.FC = () => {
     setShowDeleteModal(true);
   };
 
-  // Submit Add Member
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -189,7 +188,6 @@ export const MembersPage: React.FC = () => {
     }
   };
 
-  // Submit Edit Member
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedMember) return;
@@ -210,7 +208,6 @@ export const MembersPage: React.FC = () => {
     }
   };
 
-  // Confirm Delete / Drop
   const handleDeleteConfirm = async () => {
     if (!selectedMember) return;
     setSubmitting(true);
@@ -232,20 +229,20 @@ export const MembersPage: React.FC = () => {
   const canDelete = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   return (
-    <div>
+    <div className="space-y-6">
       {/* Header & Title */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.02em' }}>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
             Member Management
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '4px' }}>
+          <p className="text-gray-400 text-sm mt-1">
             Registry and profiles of cooperative members eligible for distributions and share accounts.
           </p>
         </div>
 
         {canEdit && (
-          <button onClick={handleOpenAddModal} className="btn btn-primary">
+          <button onClick={handleOpenAddModal} className="btn btn-primary shrink-0 self-start sm:self-auto">
             <Plus size={18} />
             <span>Add Member</span>
           </button>
@@ -253,104 +250,71 @@ export const MembersPage: React.FC = () => {
       </div>
 
       {/* KPI Stats Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '20px',
-          marginBottom: '28px',
-        }}
-      >
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              TOTAL REGISTERED
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Total Registered
             </span>
-            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.15)', color: '#60A5FA' }}>
+            <div className="p-2 rounded-lg bg-blue-500/15 text-blue-400">
               <Users size={20} />
             </div>
           </div>
-          <p style={{ fontSize: '2rem', fontWeight: 800, color: '#ffffff', marginTop: '12px' }}>
-            {stats.total}
-          </p>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>Total society members</span>
+          <p className="text-3xl font-extrabold text-white mt-3">{stats.total}</p>
+          <span className="text-xs text-gray-500 mt-1 block">Total society members</span>
         </div>
 
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              ACTIVE MEMBERS
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Active Members
             </span>
-            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', color: '#34D399' }}>
+            <div className="p-2 rounded-lg bg-emerald-500/15 text-emerald-400">
               <UserCheck size={20} />
             </div>
           </div>
-          <p style={{ fontSize: '2rem', fontWeight: 800, color: '#34D399', marginTop: '12px' }}>
-            {stats.active}
-          </p>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>Eligible for shares & dividends</span>
+          <p className="text-3xl font-extrabold text-emerald-400 mt-3">{stats.active}</p>
+          <span className="text-xs text-gray-500 mt-1 block">Eligible for shares & dividends</span>
         </div>
 
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              INACTIVE MEMBERS
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Inactive Members
             </span>
-            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', color: '#FBBF24' }}>
+            <div className="p-2 rounded-lg bg-amber-500/15 text-amber-400">
               <UserMinus size={20} />
             </div>
           </div>
-          <p style={{ fontSize: '2rem', fontWeight: 800, color: '#FBBF24', marginTop: '12px' }}>
-            {stats.inactive}
-          </p>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>Temporarily dormant</span>
+          <p className="text-3xl font-extrabold text-amber-400 mt-3">{stats.inactive}</p>
+          <span className="text-xs text-gray-500 mt-1 block">Temporarily dormant</span>
         </div>
 
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-              DROPPED / ARCHIVED
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Dropped / Archived
             </span>
-            <div style={{ padding: '8px', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.15)', color: '#F87171' }}>
+            <div className="p-2 rounded-lg bg-rose-500/15 text-rose-400">
               <UserX size={20} />
             </div>
           </div>
-          <p style={{ fontSize: '2rem', fontWeight: 800, color: '#F87171', marginTop: '12px' }}>
-            {stats.dropped}
-          </p>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-subtle)' }}>Released / settled shares</span>
+          <p className="text-3xl font-extrabold text-rose-400 mt-3">{stats.dropped}</p>
+          <span className="text-xs text-gray-500 mt-1 block">Released / settled shares</span>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div
-        className="glass-card"
-        style={{
-          padding: '16px 20px',
-          marginBottom: '20px',
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '16px',
-        }}
-      >
+      <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-4">
         {/* Search input with Debounce */}
-        <div style={{ position: 'relative', minWidth: '320px', flex: 1 }}>
+        <div className="relative flex-1 min-w-[280px]">
           <Search
             size={18}
-            style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              color: 'var(--text-subtle)',
-            }}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
           />
           <input
             type="text"
-            className="form-input"
-            style={{ paddingLeft: '40px' }}
+            className="form-input pl-10 text-sm"
             placeholder="Search by name, phone number, or Member ID (e.g. NSF001)..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -358,7 +322,7 @@ export const MembersPage: React.FC = () => {
         </div>
 
         {/* Status Filter Pills */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div className="flex gap-1.5 items-center flex-wrap">
           {['ALL', 'ACTIVE', 'INACTIVE', 'DROPPED'].map((st) => (
             <button
               key={st}
@@ -367,18 +331,11 @@ export const MembersPage: React.FC = () => {
                 setStatusFilter(st);
                 setPage(1);
               }}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '9999px',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                letterSpacing: '0.04em',
-                transition: 'all 0.2s ease',
-                background: statusFilter === st ? 'var(--primary)' : 'rgba(255, 255, 255, 0.06)',
-                color: statusFilter === st ? '#ffffff' : 'var(--text-muted)',
-              }}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wider transition-all duration-200 ${
+                statusFilter === st
+                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
+                  : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+              }`}
             >
               {st}
             </button>
@@ -387,7 +344,7 @@ export const MembersPage: React.FC = () => {
       </div>
 
       {/* Member Data Table */}
-      <div className="table-container glass-card">
+      <div className="table-container glass-card overflow-hidden">
         <table className="data-table">
           <thead>
             <tr>
@@ -396,31 +353,21 @@ export const MembersPage: React.FC = () => {
               <th>Contact Info</th>
               <th>Status</th>
               <th>Join Date</th>
-              <th style={{ textAlign: 'right' }}>Actions</th>
+              <th className="text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-                  <div
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      border: '3px solid var(--border)',
-                      borderTopColor: 'var(--primary)',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite',
-                      margin: '0 auto 12px',
-                    }}
-                  />
+                <td colSpan={6} className="text-center py-12 text-gray-400">
+                  <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
                   <span>Loading members registry...</span>
                 </td>
               </tr>
             ) : members.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
-                  <Users size={32} style={{ opacity: 0.3, margin: '0 auto 12px' }} />
+                <td colSpan={6} className="text-center py-12 text-gray-400">
+                  <Users size={32} className="opacity-30 mx-auto mb-3" />
                   <p>No members found matching your search criteria.</p>
                 </td>
               </tr>
@@ -434,46 +381,21 @@ export const MembersPage: React.FC = () => {
                     : 'badge-dropped';
 
                 return (
-                  <tr key={m._id}>
+                  <tr key={m._id} className="hover:bg-white/[0.02] transition-colors">
                     <td>
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontWeight: 700,
-                          fontSize: '0.85rem',
-                          color: '#60A5FA',
-                          background: 'rgba(59, 130, 246, 0.1)',
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          border: '1px solid rgba(59, 130, 246, 0.25)',
-                        }}
-                      >
+                      <span className="font-mono font-bold text-xs text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/25">
                         {m.memberId}
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div
-                          style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #4F46E5, #3B82F6)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#ffffff',
-                            fontWeight: 700,
-                            fontSize: '0.8rem',
-                            flexShrink: 0,
-                          }}
-                        >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
                           {m.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <p style={{ fontWeight: 600, color: '#ffffff' }}>{m.name}</p>
+                          <p className="font-semibold text-white text-sm">{m.name}</p>
                           {m.address && (
-                            <p style={{ fontSize: '0.725rem', color: 'var(--text-subtle)' }}>
+                            <p className="text-xs text-gray-400 truncate max-w-[200px]">
                               {m.address}
                             </p>
                           )}
@@ -481,14 +403,14 @@ export const MembersPage: React.FC = () => {
                       </div>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem' }}>
-                          <Phone size={13} color="var(--text-subtle)" />
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-300">
+                          <Phone size={13} className="text-gray-500" />
                           <span>{m.phone}</span>
                         </div>
                         {m.email && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--text-subtle)' }}>
-                            <Mail size={12} />
+                          <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                            <Mail size={12} className="text-gray-500" />
                             <span>{m.email}</span>
                           </div>
                         )}
@@ -498,16 +420,16 @@ export const MembersPage: React.FC = () => {
                       <span className={`badge ${badgeClass}`}>{m.status}</span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.825rem', color: 'var(--text-muted)' }}>
-                        <Calendar size={14} color="var(--text-subtle)" />
+                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <Calendar size={13} className="text-gray-500" />
                         <span>{new Date(m.joinDate).toLocaleDateString()}</span>
                       </div>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '6px' }}>
+                    <td className="text-right">
+                      <div className="inline-flex gap-1.5">
                         <button
                           onClick={() => handleOpenDetails(m)}
-                          className="btn btn-secondary btn-sm"
+                          className="btn btn-secondary btn-sm p-1.5"
                           title="View Member Details"
                         >
                           <Eye size={14} />
@@ -515,7 +437,7 @@ export const MembersPage: React.FC = () => {
                         {canEdit && (
                           <button
                             onClick={() => handleOpenEditModal(m)}
-                            className="btn btn-secondary btn-sm"
+                            className="btn btn-secondary btn-sm p-1.5"
                             title="Edit Member"
                           >
                             <Edit2 size={14} />
@@ -524,7 +446,7 @@ export const MembersPage: React.FC = () => {
                         {canDelete && m.status !== 'DROPPED' && (
                           <button
                             onClick={() => handleOpenDelete(m)}
-                            className="btn btn-danger btn-sm"
+                            className="btn btn-danger btn-sm p-1.5"
                             title="Drop Member"
                           >
                             <Trash2 size={14} />
@@ -541,22 +463,13 @@ export const MembersPage: React.FC = () => {
       </div>
 
       {/* Pagination Controls */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginTop: '20px',
-          color: 'var(--text-muted)',
-          fontSize: '0.85rem',
-        }}
-      >
+      <div className="flex items-center justify-between text-xs text-gray-400 pt-2">
         <span>
-          Showing page <strong style={{ color: '#fff' }}>{pagination.page}</strong> of{' '}
-          <strong style={{ color: '#fff' }}>{pagination.totalPages}</strong> ({pagination.total} total members)
+          Showing page <strong className="text-white">{pagination.page}</strong> of{' '}
+          <strong className="text-white">{pagination.totalPages}</strong> ({pagination.total} total members)
         </span>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="flex gap-2">
           <button
             className="btn btn-secondary btn-sm"
             disabled={pagination.page <= 1}
@@ -579,40 +492,30 @@ export const MembersPage: React.FC = () => {
       {/* MODAL 1: ADD MEMBER */}
       {showAddModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ padding: '28px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div className="modal-content p-7">
+            <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>Register New Member</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-subtle)', marginTop: '2px' }}>
-                  Sequential ID generated: <strong style={{ color: '#60A5FA' }}>{nextIdPreview}</strong>
+                <h3 className="text-lg font-bold text-white">Register New Member</h3>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  Sequential ID assigned: <strong className="text-blue-400 font-mono">{nextIdPreview}</strong>
                 </p>
               </div>
               <button
                 onClick={() => setShowAddModal(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer' }}
+                className="text-gray-400 hover:text-white p-1 rounded-md"
               >
                 <X size={20} />
               </button>
             </div>
 
             {formError && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: 'var(--radius-md)',
-                  color: '#F87171',
-                  fontSize: '0.85rem',
-                  marginBottom: '16px',
-                }}
-              >
+              <div className="p-3 bg-red-500/15 border border-red-500/30 rounded-lg text-red-400 text-xs mb-4">
                 {formError}
               </div>
             )}
 
-            <form onSubmit={handleCreateSubmit}>
-              <div className="form-group">
+            <form onSubmit={handleCreateSubmit} className="space-y-4">
+              <div className="form-group mb-0">
                 <label className="form-label">Full Name *</label>
                 <input
                   type="text"
@@ -624,8 +527,8 @@ export const MembersPage: React.FC = () => {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div className="form-group">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="form-group mb-0">
                   <label className="form-label">Phone Number *</label>
                   <input
                     type="text"
@@ -637,7 +540,7 @@ export const MembersPage: React.FC = () => {
                   />
                 </div>
 
-                <div className="form-group">
+                <div className="form-group mb-0">
                   <label className="form-label">Email Address</label>
                   <input
                     type="email"
@@ -649,8 +552,8 @@ export const MembersPage: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div className="form-group">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="form-group mb-0">
                   <label className="form-label">Status</label>
                   <select
                     className="form-select"
@@ -662,7 +565,7 @@ export const MembersPage: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="form-group">
+                <div className="form-group mb-0">
                   <label className="form-label">Join Date</label>
                   <input
                     type="date"
@@ -673,7 +576,7 @@ export const MembersPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="form-group mb-0">
                 <label className="form-label">Address</label>
                 <input
                   type="text"
@@ -684,7 +587,7 @@ export const MembersPage: React.FC = () => {
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group mb-0">
                 <label className="form-label">Notes</label>
                 <textarea
                   className="form-textarea"
@@ -695,7 +598,7 @@ export const MembersPage: React.FC = () => {
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
+              <div className="flex justify-end gap-2.5 pt-3">
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -715,42 +618,32 @@ export const MembersPage: React.FC = () => {
       {/* MODAL 2: EDIT MEMBER */}
       {showEditModal && selectedMember && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ padding: '28px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <div className="modal-content p-7">
+            <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff' }}>
+                <h3 className="text-lg font-bold text-white">
                   Edit Member {selectedMember.memberId}
                 </h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-subtle)' }}>
+                <p className="text-xs text-gray-400 mt-0.5">
                   Update contact or status information.
                 </p>
               </div>
               <button
                 onClick={() => setShowEditModal(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer' }}
+                className="text-gray-400 hover:text-white p-1 rounded-md"
               >
                 <X size={20} />
               </button>
             </div>
 
             {formError && (
-              <div
-                style={{
-                  padding: '10px 14px',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  borderRadius: 'var(--radius-md)',
-                  color: '#F87171',
-                  fontSize: '0.85rem',
-                  marginBottom: '16px',
-                }}
-              >
+              <div className="p-3 bg-red-500/15 border border-red-500/30 rounded-lg text-red-400 text-xs mb-4">
                 {formError}
               </div>
             )}
 
-            <form onSubmit={handleEditSubmit}>
-              <div className="form-group">
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <div className="form-group mb-0">
                 <label className="form-label">Full Name</label>
                 <input
                   type="text"
@@ -761,8 +654,8 @@ export const MembersPage: React.FC = () => {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div className="form-group">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="form-group mb-0">
                   <label className="form-label">Phone Number</label>
                   <input
                     type="text"
@@ -773,7 +666,7 @@ export const MembersPage: React.FC = () => {
                   />
                 </div>
 
-                <div className="form-group">
+                <div className="form-group mb-0">
                   <label className="form-label">Email</label>
                   <input
                     type="email"
@@ -784,8 +677,8 @@ export const MembersPage: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div className="form-group">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="form-group mb-0">
                   <label className="form-label">Status</label>
                   <select
                     className="form-select"
@@ -798,7 +691,7 @@ export const MembersPage: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="form-group">
+                <div className="form-group mb-0">
                   <label className="form-label">Join Date</label>
                   <input
                     type="date"
@@ -809,7 +702,7 @@ export const MembersPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="form-group">
+              <div className="form-group mb-0">
                 <label className="form-label">Address</label>
                 <input
                   type="text"
@@ -819,7 +712,7 @@ export const MembersPage: React.FC = () => {
                 />
               </div>
 
-              <div className="form-group">
+              <div className="form-group mb-0">
                 <label className="form-label">Notes</label>
                 <textarea
                   className="form-textarea"
@@ -829,7 +722,7 @@ export const MembersPage: React.FC = () => {
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
+              <div className="flex justify-end gap-2.5 pt-3">
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -849,92 +742,73 @@ export const MembersPage: React.FC = () => {
       {/* MODAL 3: VIEW MEMBER DETAILS */}
       {showDetailsModal && selectedMember && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ padding: '28px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#fff',
-                    fontWeight: 700,
-                  }}
-                >
+          <div className="modal-content p-7">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-sm">
                   {selectedMember.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#fff' }}>
+                  <h3 className="text-base font-bold text-white">
                     {selectedMember.name}
                   </h3>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: '0.8rem',
-                      color: '#60A5FA',
-                      fontWeight: 700,
-                    }}
-                  >
+                  <span className="font-mono text-xs text-blue-400 font-bold">
                     {selectedMember.memberId}
                   </span>
                 </div>
               </div>
               <button
                 onClick={() => setShowDetailsModal(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-subtle)', cursor: 'pointer' }}
+                className="text-gray-400 hover:text-white p-1 rounded-md"
               >
                 <X size={20} />
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px' }}>
-                <span style={{ color: 'var(--text-subtle)', fontSize: '0.85rem' }}>Membership Status:</span>
+            <div className="space-y-3 mt-4 text-xs">
+              <div className="flex justify-between items-center p-3 bg-white/[0.03] rounded-lg">
+                <span className="text-gray-400">Membership Status:</span>
                 <span className={`badge ${selectedMember.status === 'ACTIVE' ? 'badge-active' : selectedMember.status === 'INACTIVE' ? 'badge-inactive' : 'badge-dropped'}`}>
                   {selectedMember.status}
                 </span>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px' }}>
-                <span style={{ color: 'var(--text-subtle)', fontSize: '0.85rem' }}>Phone:</span>
-                <span style={{ color: '#fff', fontSize: '0.875rem', fontWeight: 600 }}>{selectedMember.phone}</span>
+              <div className="flex justify-between items-center p-3 bg-white/[0.03] rounded-lg">
+                <span className="text-gray-400">Phone:</span>
+                <span className="text-white font-semibold">{selectedMember.phone}</span>
               </div>
 
               {selectedMember.email && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px' }}>
-                  <span style={{ color: 'var(--text-subtle)', fontSize: '0.85rem' }}>Email:</span>
-                  <span style={{ color: '#fff', fontSize: '0.875rem' }}>{selectedMember.email}</span>
+                <div className="flex justify-between items-center p-3 bg-white/[0.03] rounded-lg">
+                  <span className="text-gray-400">Email:</span>
+                  <span className="text-white">{selectedMember.email}</span>
                 </div>
               )}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px' }}>
-                <span style={{ color: 'var(--text-subtle)', fontSize: '0.85rem' }}>Join Date:</span>
-                <span style={{ color: '#fff', fontSize: '0.875rem' }}>{new Date(selectedMember.joinDate).toLocaleDateString()}</span>
+              <div className="flex justify-between items-center p-3 bg-white/[0.03] rounded-lg">
+                <span className="text-gray-400">Join Date:</span>
+                <span className="text-white">{new Date(selectedMember.joinDate).toLocaleDateString()}</span>
               </div>
 
               {selectedMember.address && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px' }}>
-                  <span style={{ color: 'var(--text-subtle)', fontSize: '0.85rem' }}>Address:</span>
-                  <span style={{ color: '#fff', fontSize: '0.875rem' }}>{selectedMember.address}</span>
+                <div className="flex justify-between items-center p-3 bg-white/[0.03] rounded-lg">
+                  <span className="text-gray-400">Address:</span>
+                  <span className="text-white">{selectedMember.address}</span>
                 </div>
               )}
 
               {selectedMember.notes && (
-                <div style={{ padding: '12px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px' }}>
-                  <span style={{ color: 'var(--text-subtle)', fontSize: '0.8rem', display: 'block', marginBottom: '4px' }}>Notes:</span>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{selectedMember.notes}</p>
+                <div className="p-3 bg-white/[0.03] rounded-lg">
+                  <span className="text-gray-400 block mb-1 font-medium">Notes:</span>
+                  <p className="text-gray-300">{selectedMember.notes}</p>
                 </div>
               )}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+            <div className="flex justify-end pt-5">
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-secondary text-xs"
                 onClick={() => setShowDetailsModal(false)}
               >
                 Close
@@ -947,19 +821,19 @@ export const MembersPage: React.FC = () => {
       {/* MODAL 4: CONFIRM DELETE / DROP */}
       {showDeleteModal && selectedMember && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ padding: '28px', maxWidth: '460px' }}>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#F87171', marginBottom: '10px' }}>
+          <div className="modal-content p-7 max-w-md">
+            <h3 className="text-lg font-bold text-red-400 mb-2">
               Confirm Drop Member
             </h3>
-            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
-              Are you sure you want to mark member <strong style={{ color: '#fff' }}>{selectedMember.name}</strong> ({selectedMember.memberId}) as <strong>DROPPED</strong>?
+            <p className="text-xs text-gray-300 leading-relaxed mb-6">
+              Are you sure you want to mark member <strong className="text-white">{selectedMember.name}</strong> ({selectedMember.memberId}) as <strong>DROPPED</strong>?
               This will update their status and create an immutable audit trail entry.
             </p>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '24px' }}>
+            <div className="flex justify-end gap-2.5">
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-secondary text-xs"
                 onClick={() => setShowDeleteModal(false)}
               >
                 Cancel
@@ -967,7 +841,7 @@ export const MembersPage: React.FC = () => {
               <button
                 type="button"
                 disabled={submitting}
-                className="btn btn-danger"
+                className="btn btn-danger text-xs"
                 onClick={handleDeleteConfirm}
               >
                 {submitting ? 'Processing...' : 'Confirm Drop'}

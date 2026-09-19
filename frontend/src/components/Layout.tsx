@@ -39,67 +39,27 @@ export const Layout: React.FC = () => {
   ];
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-main)' }}>
+    <div className="flex min-h-screen bg-[#0B0F19] text-gray-100">
       {/* Sidebar */}
-      <aside
-        style={{
-          width: '270px',
-          background: 'var(--bg-surface)',
-          borderRight: '1px solid var(--border)',
-          display: 'flex',
-          flexDirection: 'column',
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
-          zIndex: 50,
-        }}
-      >
+      <aside className="w-[270px] bg-[#111827] border-r border-white/10 flex flex-col sticky top-0 h-screen z-50 shrink-0">
         {/* Brand Header */}
-        <div
-          style={{
-            padding: '24px 20px',
-            borderBottom: '1px solid var(--border)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-          }}
-        >
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 4px 12px var(--primary-glow)',
-            }}
-          >
-            <Building2 size={22} color="#ffffff" />
+        <div className="p-5 border-b border-white/10 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
+            <Building2 size={22} className="text-white" />
           </div>
           <div>
-            <h1 style={{ fontSize: '1rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#fff' }}>
+            <h1 className="text-sm font-extrabold tracking-tight text-white">
               NS Foundation
             </h1>
-            <p style={{ fontSize: '0.725rem', color: 'var(--text-subtle)', fontWeight: 500 }}>
+            <p className="text-[11px] text-gray-400 font-medium">
               এন এস ফাউন্ডেশন সমবায়
             </p>
           </div>
         </div>
 
         {/* Navigation Items */}
-        <nav style={{ padding: '18px 12px', flex: 1, overflowY: 'auto' }}>
-          <p
-            style={{
-              fontSize: '0.675rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.08em',
-              color: 'var(--text-subtle)',
-              padding: '0 12px 10px',
-            }}
-          >
+        <nav className="p-3 flex-1 overflow-y-auto space-y-1">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 px-3 pt-2 pb-1.5">
             Core Modules
           </p>
           {navItems.map((item) => {
@@ -108,18 +68,7 @@ export const Layout: React.FC = () => {
               return (
                 <div
                   key={item.path}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    color: 'var(--text-subtle)',
-                    fontSize: '0.85rem',
-                    fontWeight: 500,
-                    cursor: 'not-allowed',
-                    opacity: 0.5,
-                  }}
+                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-gray-500 text-xs font-medium cursor-not-allowed opacity-50"
                   title="Coming in subsequent GitHub issue"
                 >
                   <Icon size={18} />
@@ -132,37 +81,20 @@ export const Layout: React.FC = () => {
               <NavLink
                 key={item.path}
                 to={item.path}
-                style={({ isActive }) => ({
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 14px',
-                  borderRadius: 'var(--radius-md)',
-                  color: isActive ? '#ffffff' : 'var(--text-muted)',
-                  background: isActive ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                  border: isActive ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid transparent',
-                  fontSize: '0.85rem',
-                  fontWeight: isActive ? 600 : 500,
-                  textDecoration: 'none',
-                  marginBottom: '4px',
-                  transition: 'all 0.2s ease',
-                })}
+                className={({ isActive }) =>
+                  `flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs transition-all duration-200 ${
+                    isActive
+                      ? 'bg-blue-500/15 border border-blue-500/30 text-white font-semibold shadow-sm'
+                      : 'text-gray-400 hover:text-white hover:bg-white/5 border border-transparent font-medium'
+                  }`
+                }
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div className="flex items-center gap-3">
                   <Icon size={18} />
                   <span>{item.label}</span>
                 </div>
                 {item.badge && (
-                  <span
-                    style={{
-                      fontSize: '0.675rem',
-                      fontWeight: 700,
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      background: 'rgba(59, 130, 246, 0.25)',
-                      color: '#60A5FA',
-                    }}
-                  >
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/25 text-blue-400 border border-blue-500/30">
                     {item.badge}
                   </span>
                 )}
@@ -171,49 +103,20 @@ export const Layout: React.FC = () => {
           })}
         </nav>
 
-        {/* User Card & Logout in Sidebar Footer */}
-        <div
-          style={{
-            padding: '16px',
-            borderTop: '1px solid var(--border)',
-            background: 'rgba(0, 0, 0, 0.2)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-              <div
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #10B981, #059669)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: '0.875rem',
-                  flexShrink: 0,
-                }}
-              >
+        {/* User Card & Logout Footer */}
+        <div className="p-4 border-t border-white/10 bg-black/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center text-white font-bold text-sm shrink-0 shadow-inner">
                 {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
               </div>
-              <div style={{ overflow: 'hidden' }}>
-                <p
-                  style={{
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    color: 'var(--text-main)',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
+              <div className="overflow-hidden">
+                <p className="text-xs font-semibold text-white truncate max-w-[130px]">
                   {user?.name}
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Shield size={12} color="#60A5FA" />
-                  <span style={{ fontSize: '0.7rem', color: '#60A5FA', fontWeight: 600 }}>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <Shield size={12} className="text-blue-400 shrink-0" />
+                  <span className="text-[10px] text-blue-400 font-semibold tracking-wide">
                     {user?.accountantType ? `${user.accountantType} ACC` : user?.role}
                   </span>
                 </div>
@@ -223,20 +126,7 @@ export const Layout: React.FC = () => {
             <button
               onClick={handleLogout}
               title="Sign Out"
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: 'var(--text-subtle)',
-                cursor: 'pointer',
-                padding: '6px',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'color 0.2s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#F87171')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-subtle)')}
+              className="text-gray-400 hover:text-red-400 p-1.5 rounded-md hover:bg-white/5 transition-colors"
             >
               <LogOut size={18} />
             </button>
@@ -245,39 +135,23 @@ export const Layout: React.FC = () => {
       </aside>
 
       {/* Main Content Body */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header Bar */}
-        <header
-          style={{
-            height: '64px',
-            borderBottom: '1px solid var(--border)',
-            background: 'var(--bg-glass)',
-            backdropFilter: 'blur(12px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0 32px',
-            position: 'sticky',
-            top: 0,
-            zIndex: 40,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-subtle)' }}>Modules /</span>
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)' }}>
-              {currentModuleTitle}
-            </span>
+        <header className="h-16 border-b border-white/10 bg-[#111827]/75 backdrop-blur-md flex items-center justify-between px-8 sticky top-0 z-40">
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-gray-500">Modules /</span>
+            <span className="font-semibold text-white">{currentModuleTitle}</span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span className="badge badge-active" style={{ fontSize: '0.7rem' }}>
+          <div className="flex items-center gap-3">
+            <span className="badge badge-active text-[11px] py-1">
               System Operational
             </span>
           </div>
         </header>
 
         {/* Page Outlet */}
-        <main style={{ flex: 1, padding: '32px', maxWidth: '1400px', width: '100%', margin: '0 auto' }}>
+        <main className="flex-1 p-8 max-w-7xl w-full mx-auto">
           <Outlet />
         </main>
       </div>
