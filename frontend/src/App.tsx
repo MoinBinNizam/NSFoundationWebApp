@@ -1,10 +1,37 @@
-function App() {
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { Layout } from './components/Layout';
+import { LoginPage } from './pages/LoginPage';
+import { MembersPage } from './pages/MembersPage';
+
+export const App: React.FC = () => {
   return (
-    <div style={{ fontFamily: 'sans-serif', textAlign: 'center', padding: '2rem' }}>
-      <h1>NS Foundation Management System</h1>
-      <p>Application foundation is ready. Domain features are coming soon.</p>
-    </div>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          {/* Public Authentication Route */}
+          <Route path="/login" element={<LoginPage />} />
+
+          {/* Protected Application Routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/members" replace />} />
+            <Route path="members" element={<MembersPage />} />
+            {/* Catch-all redirect to members */}
+            <Route path="*" element={<Navigate to="/members" replace />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   );
-}
+};
 
 export default App;
