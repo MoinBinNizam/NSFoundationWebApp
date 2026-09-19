@@ -8,7 +8,8 @@
     "build": "tsc --project tsconfig.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "seed:users": "tsx src/scripts/seed-users.ts"
+    "seed:users": "tsx src/scripts/seed-users.ts",
+    "seed:custody": "tsx src/scripts/seed-custody-gateways.ts"
   },
   "keywords": [],
   "author": "",

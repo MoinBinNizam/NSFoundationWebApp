@@ -84,8 +84,21 @@ Implemented the full-stack Share and Annual Account management system fulfilling
 * **Issue #3**: Authentication & RBAC *(Completed)*
 * **Issue #4**: Member Management *(Completed)*
 * **Issue #5**: Share & Annual Account *(Completed)*
-* **Issue #6**: **Contribution & Payment** *(Next)*
-  - Dual accountant collection (Moin vs Samrat).
-  - Allocation engine: deconstructing receipts into Previous Due, Principal, Penalty, and Advance.
-  - Integration with payment gateway/cashout fee rules (`GatewayRate`).
-  - Contribution receipt generation and Payment history ledger.
+* **Tailwind CSS v3 Migration**: *(Completed)*
+  - Upgraded styling pipeline to Tailwind CSS v3.4 + PostCSS + Autoprefixer.
+  - Added custom brand color scheme (`brand`, `navy`), dark glassmorphism card surfaces, and input focus rings in `tailwind.config.js`.
+  - Refactored `index.css`, `Layout.tsx`, `LoginPage.tsx`, `MembersPage.tsx`, `SharesPage.tsx`, and `ProtectedRoute.tsx` to utility-first classes.
+  - Validated zero TypeScript compilation errors and production build passes cleanly.
+* **Issue #6**: **Contribution & Payment** *(Completed)*
+  - Dual accountant collection workflows (Moin & Samrat) across physical cash, bKash, Nagad, and Islami Bank custody accounts.
+  - PaymentAllocation engine: strictly deconstructing receipts into previous dues, current monthly obligations, dynamic penalties, and future advance months (SRS Section 10 & 13).
+  - Cash Out gateway fee handling: tracking unpaid gateway charges in `Member.cashoutDue` and clearing them on subsequent payments.
+  - Immutable financial ledger: every cash receipt logs a verified `CustodyMovement` of type `IN` and `MEMBER_PAYMENT` (docs/fianl-docs_analysis_report.md Section B).
+  - Dynamic penalty rules & waivers configurable by Admin without code deployments.
+  - Daily, Monthly, and Yearly analytics with multi-accountant breakdown and comparison.
+  - Branded payment receipt generation & searchable payments ledger.
+  - Validated with automated test suite and zero TypeScript build errors.
+* **Issue #7**: **Accountant Custody & Movement** *(Next)*
+  - Physical vs mobile wallet vs bank account tracking.
+  - Internal custody transfers between Moin and Samrat with audit trails.
+  - Custody reconciliations and cash verification workflows.

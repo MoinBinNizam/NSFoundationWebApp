@@ -27,14 +27,16 @@ export const Layout: React.FC = () => {
     navigate('/login');
   };
 
-  const currentModuleTitle = location.pathname.startsWith('/shares')
+  const currentModuleTitle = location.pathname.startsWith('/payments')
+    ? 'Contributions & Payments (Issue #6)'
+    : location.pathname.startsWith('/shares')
     ? 'Shares & Annual Account (Issue #5)'
     : 'Member Management (Issue #4)';
 
   const navItems = [
     { label: 'Member Management', path: '/members', icon: Users, badge: 'Issue #4' },
     { label: 'Shares & Annual Account', path: '/shares', icon: PieChart, badge: 'Issue #5' },
-    { label: 'Contributions & Payments', path: '/payments', icon: CreditCard, disabled: true },
+    { label: 'Contributions & Payments', path: '/payments', icon: CreditCard, badge: 'Issue #6' },
     { label: 'Accountant Custody', path: '/custody', icon: Wallet, disabled: true },
     { label: 'Investments', path: '/investments', icon: TrendingUp, disabled: true },
     { label: 'Expenses', path: '/expenses', icon: Receipt, disabled: true },

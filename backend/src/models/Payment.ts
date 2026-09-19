@@ -55,6 +55,11 @@ const paymentSchema = new Schema<IPayment>(
       default: 0,
       min: [0, 'Cashout charge cannot be negative'],
     },
+    unpaidCashoutCharge: {
+      type: Number,
+      default: 0,
+      min: [0, 'Unpaid cashout charge cannot be negative'],
+    },
     advanceAmount: {
       type: Number,
       default: 0,

@@ -146,6 +146,7 @@ export interface IMember {
   joinDate: Date;
   address?: string;
   notes?: string;
+  cashoutDue?: number; // Outstanding cash out charges from unpaid gateway fees
   createdAt: Date;
   updatedAt: Date;
 }
@@ -240,7 +241,8 @@ export interface IPayment {
   totalAmount: number;
   principalAmount: number;
   penaltyAmount: number;
-  cashoutCharge: number;
+  cashoutCharge: number; // Cash out charge paid by member
+  unpaidCashoutCharge?: number; // Gateway fee not paid by member, added to member's cashoutDue
   advanceAmount: number;
   paymentMethod: PaymentMethod;
   transactionReference?: string;

@@ -48,6 +48,11 @@ const memberSchema = new Schema<IMember>(
       type: String,
       trim: true,
     },
+    cashoutDue: {
+      type: Number,
+      default: 0,
+      min: [0, 'Cash out due cannot be negative'],
+    },
   },
   {
     timestamps: true,
