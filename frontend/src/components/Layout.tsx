@@ -11,10 +11,11 @@ import {
   BarChart3,
   LogOut,
   Shield,
-  Building2,
   Menu,
   X,
 } from 'lucide-react';
+
+import { BrandLogo } from './BrandLogo';
 
 export const Layout: React.FC = () => {
   const { user, logout } = useAuth();
@@ -27,7 +28,9 @@ export const Layout: React.FC = () => {
     navigate('/login');
   };
 
-  const currentModuleTitle = location.pathname.startsWith('/custody')
+  const currentModuleTitle = location.pathname.startsWith('/investments')
+    ? 'Investment Management (Issue #8)'
+    : location.pathname.startsWith('/custody')
     ? 'Accountant Custody Ledger (Issue #7)'
     : location.pathname.startsWith('/payments')
     ? 'Contributions & Payments (Issue #6)'
@@ -40,7 +43,7 @@ export const Layout: React.FC = () => {
     { label: 'Shares & Annual Account', path: '/shares', icon: PieChart, badge: 'Issue #5' },
     { label: 'Contributions & Payments', path: '/payments', icon: CreditCard, badge: 'Issue #6' },
     { label: 'Accountant Custody', path: '/custody', icon: Wallet, badge: 'Issue #7' },
-    { label: 'Investments', path: '/investments', icon: TrendingUp, disabled: true },
+    { label: 'Investments', path: '/investments', icon: TrendingUp, badge: 'Issue #8' },
     { label: 'Expenses', path: '/expenses', icon: Receipt, disabled: true },
     { label: 'Reports & Dashboard', path: '/reports', icon: BarChart3, disabled: true },
   ];
@@ -64,11 +67,9 @@ export const Layout: React.FC = () => {
         {/* Brand Header */}
         <div className="p-5 border-b border-white/10 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center shadow-md shadow-blue-500/25 shrink-0">
-              <Building2 size={22} className="text-white" />
-            </div>
+            <BrandLogo size="md" editable />
             <div>
-              <h1 className="text-sm font-extrabold tracking-tight text-white">
+              <h1 className="text-sm font-extrabold tracking-tight text-white flex items-center gap-1.5">
                 NS Foundation
               </h1>
               <p className="text-[11px] text-gray-400 font-medium">

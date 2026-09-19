@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Building2, Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { BrandLogo } from '../components/BrandLogo';
 
 export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('admin@nsfoundation.org');
@@ -56,8 +57,8 @@ export const LoginPage: React.FC = () => {
       <div className="max-w-md w-full relative z-10">
         {/* Brand Heading */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 inline-flex items-center justify-center shadow-xl shadow-blue-500/20 mb-4 ring-1 ring-white/20">
-            <Building2 size={32} className="text-white" />
+          <div className="inline-block mb-3">
+            <BrandLogo size="xl" editable />
           </div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">
             NS Foundation

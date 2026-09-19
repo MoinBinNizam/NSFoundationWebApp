@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { LogoProvider } from './context/LogoContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
 import { LoginPage } from './pages/LoginPage';
@@ -8,12 +9,14 @@ import { MembersPage } from './pages/MembersPage';
 import { SharesPage } from './pages/SharesPage';
 import { PaymentsPage } from './pages/PaymentsPage';
 import { CustodyPage } from './pages/CustodyPage';
+import { InvestmentsPage } from './pages/InvestmentsPage';
 
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
+        <LogoProvider>
+          <Routes>
           {/* Public Authentication Route */}
           <Route path="/login" element={<LoginPage />} />
 
@@ -31,10 +34,12 @@ export const App: React.FC = () => {
             <Route path="shares" element={<SharesPage />} />
             <Route path="payments" element={<PaymentsPage />} />
             <Route path="custody" element={<CustodyPage />} />
+            <Route path="investments" element={<InvestmentsPage />} />
             {/* Catch-all redirect to members */}
             <Route path="*" element={<Navigate to="/members" replace />} />
           </Route>
         </Routes>
+        </LogoProvider>
       </AuthProvider>
     </BrowserRouter>
   );
