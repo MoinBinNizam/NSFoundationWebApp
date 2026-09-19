@@ -4,6 +4,7 @@ import { getDatabaseStatus } from './config/db.js';
 import { errorHandler, createError } from './middlewares/error.js';
 import authRoutes from './routes/auth.routes.js';
 import memberRoutes from './routes/member.routes.js';
+import shareRoutes from './routes/share.routes.js';
 
 const app = express();
 
@@ -41,6 +42,7 @@ app.get('/api/health', (_req: Request, res: Response) => {
 // ─── DOMAIN API ROUTES ───────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/members', memberRoutes);
+app.use('/api/shares', shareRoutes);
 
 // ─── 404 HANDLER ─────────────────────────────────────────────────────────────
 app.use((_req: Request, _res: Response, next: NextFunction) => {

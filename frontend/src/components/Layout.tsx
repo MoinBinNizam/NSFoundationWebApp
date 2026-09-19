@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   Users,
@@ -17,15 +17,20 @@ import {
 export const Layout: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
+  const currentModuleTitle = location.pathname.startsWith('/shares')
+    ? 'Shares & Annual Account (Issue #5)'
+    : 'Member Management (Issue #4)';
+
   const navItems = [
     { label: 'Member Management', path: '/members', icon: Users, badge: 'Issue #4' },
-    { label: 'Shares & Annual Account', path: '/shares', icon: PieChart, disabled: true },
+    { label: 'Shares & Annual Account', path: '/shares', icon: PieChart, badge: 'Issue #5' },
     { label: 'Contributions & Payments', path: '/payments', icon: CreditCard, disabled: true },
     { label: 'Accountant Custody', path: '/custody', icon: Wallet, disabled: true },
     { label: 'Investments', path: '/investments', icon: TrendingUp, disabled: true },
@@ -260,7 +265,7 @@ export const Layout: React.FC = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-subtle)' }}>Modules /</span>
             <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-main)' }}>
-              Member Management (Issue #4)
+              {currentModuleTitle}
             </span>
           </div>
 

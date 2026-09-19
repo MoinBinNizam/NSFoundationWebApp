@@ -5,7 +5,7 @@ Github Issues serially-----------------
 | 2 | Database & Domain Models | Complete
 | 3 | Authentication & RBAC |  Complete
 | 4 | Member Management | Complete
-| 5 | Share & Annual Account |
+| 5 | Share & Annual Account | Complete
 | 6 | Contribution & Payment |
 | 7 | Accountant Custody Ledger |
 | 8 | Investment Management |

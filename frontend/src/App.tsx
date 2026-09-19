@@ -5,6 +5,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { Layout } from './components/Layout';
 import { LoginPage } from './pages/LoginPage';
 import { MembersPage } from './pages/MembersPage';
+import { SharesPage } from './pages/SharesPage';
 
 export const App: React.FC = () => {
   return (
@@ -25,6 +26,7 @@ export const App: React.FC = () => {
           >
             <Route index element={<Navigate to="/members" replace />} />
             <Route path="members" element={<MembersPage />} />
+            <Route path="shares" element={<SharesPage />} />
             {/* Catch-all redirect to members */}
             <Route path="*" element={<Navigate to="/members" replace />} />
           </Route>
