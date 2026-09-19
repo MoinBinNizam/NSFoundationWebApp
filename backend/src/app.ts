@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { getDatabaseStatus } from './config/db.js';
 import { errorHandler, createError } from './middlewares/error.js';
+import authRoutes from './routes/auth.routes.js';
 
 const app = express();
 
@@ -36,9 +37,8 @@ app.get('/api/health', (_req: Request, res: Response) => {
   });
 });
 
-// ─── FUTURE ROUTES ───────────────────────────────────────────────────────────
-// Domain-specific API routes will be mounted here in future phases.
-// Example: app.use('/api/members', memberRouter);
+// ─── DOMAIN API ROUTES ───────────────────────────────────────────────────────
+app.use('/api/auth', authRoutes);
 
 // ─── 404 HANDLER ─────────────────────────────────────────────────────────────
 app.use((_req: Request, _res: Response, next: NextFunction) => {
