@@ -6,6 +6,7 @@ import authRoutes from './routes/auth.routes.js';
 import memberRoutes from './routes/member.routes.js';
 import shareRoutes from './routes/share.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
+import custodyRoutes from './routes/custody.routes.js';
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/shares', shareRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/custody', custodyRoutes);
 
 // ─── 404 HANDLER ─────────────────────────────────────────────────────────────
 app.use((_req: Request, _res: Response, next: NextFunction) => {
