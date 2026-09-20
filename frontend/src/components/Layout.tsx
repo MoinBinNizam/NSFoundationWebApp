@@ -69,11 +69,11 @@ export const Layout: React.FC = () => {
           <div className="flex items-center gap-3">
             <BrandLogo size="md" editable />
             <div>
-              <h1 className="text-sm font-extrabold tracking-tight text-white flex items-center gap-1.5">
+              <h1 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
                 NS Foundation
               </h1>
               <p className="text-[11px] text-gray-400 font-medium">
-                এন এস ফাউন্ডেশন সমবায়
+                এন এস ফাউন্ডেশন সমবায় সমিতি
               </p>
             </div>
           </div>
@@ -196,6 +196,13 @@ export const Layout: React.FC = () => {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
           <Outlet />
         </main>
+
+        {/* Footer */}
+        <footer className="py-4 px-6 border-t border-white/5 bg-[#0B0F19]/60 text-center text-xl text-gray-500">
+          <p>
+            Designed & Developed by <span className="text-gray-300 font-medium">Moin Uddin</span> © All Rights Reserved.
+          </p>
+        </footer>
       </div>
     </div>
   );

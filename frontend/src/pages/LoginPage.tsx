@@ -170,6 +170,11 @@ export const LoginPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-slate-500 mt-6 font-medium">
+          Designed & Developed by <span className="text-slate-300">Moin Uddin</span> © All Rights Reserved.
+        </p>
       </div>
     </div>
   );
