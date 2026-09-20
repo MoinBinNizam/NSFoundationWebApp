@@ -6,6 +6,7 @@ import {
   PieChart,
   CreditCard,
   Wallet,
+  Repeat2,
   TrendingUp,
   Receipt,
   BarChart3,
@@ -28,7 +29,9 @@ export const Layout: React.FC = () => {
     navigate('/login');
   };
 
-  const currentModuleTitle = location.pathname.startsWith('/investments')
+  const currentModuleTitle = location.pathname.startsWith('/reinvestments')
+    ? 'Project Wallets & Reinvestment (Issue #9)'
+    : location.pathname.startsWith('/investments')
     ? 'Investment Management (Issue #8)'
     : location.pathname.startsWith('/custody')
     ? 'Accountant Custody Ledger (Issue #7)'
@@ -44,6 +47,7 @@ export const Layout: React.FC = () => {
     { label: 'Contributions & Payments', path: '/payments', icon: CreditCard, badge: 'Issue #6' },
     { label: 'Accountant Custody', path: '/custody', icon: Wallet, badge: 'Issue #7' },
     { label: 'Investments', path: '/investments', icon: TrendingUp, badge: 'Issue #8' },
+    { label: 'Project Wallets', path: '/reinvestments', icon: Repeat2, badge: 'Issue #9' },
     { label: 'Expenses', path: '/expenses', icon: Receipt, disabled: true },
     { label: 'Reports & Dashboard', path: '/reports', icon: BarChart3, disabled: true },
   ];

@@ -9,7 +9,8 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "seed:users": "tsx src/scripts/seed-users.ts",
-    "seed:custody": "tsx src/scripts/seed-custody-gateways.ts"
+    "seed:custody": "tsx src/scripts/seed-custody-gateways.ts",
+    "test:reinvestments": "tsx src/scripts/test-reinvestments.ts"
   },
   "keywords": [],
   "author": "",

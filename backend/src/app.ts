@@ -8,6 +8,7 @@ import shareRoutes from './routes/share.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import custodyRoutes from './routes/custody.routes.js';
 import investmentRoutes from './routes/investment.routes.js';
+import reinvestmentRoutes from './routes/reinvestment.routes.js';
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use('/api/shares', shareRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/custody', custodyRoutes);
 app.use('/api/investments', investmentRoutes);
+app.use('/api/reinvestments', reinvestmentRoutes);
 
 // ─── 404 HANDLER ─────────────────────────────────────────────────────────────
 app.use((_req: Request, _res: Response, next: NextFunction) => {
