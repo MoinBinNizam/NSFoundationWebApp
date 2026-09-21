@@ -10,6 +10,7 @@ import custodyRoutes from './routes/custody.routes.js';
 import investmentRoutes from './routes/investment.routes.js';
 import reinvestmentRoutes from './routes/reinvestment.routes.js';
 import expenseRoutes from './routes/expense.routes.js';
+import reportingRoutes from './routes/reporting.routes.js';
 
 const app = express();
 
@@ -53,6 +54,7 @@ app.use('/api/custody', custodyRoutes);
 app.use('/api/investments', investmentRoutes);
 app.use('/api/reinvestments', reinvestmentRoutes);
 app.use('/api/expenses', expenseRoutes);
+app.use('/api/reports', reportingRoutes);
 
 // ─── 404 HANDLER ─────────────────────────────────────────────────────────────
 app.use((_req: Request, _res: Response, next: NextFunction) => {

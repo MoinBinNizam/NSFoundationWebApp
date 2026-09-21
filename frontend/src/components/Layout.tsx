@@ -29,7 +29,9 @@ export const Layout: React.FC = () => {
     navigate('/login');
   };
 
-  const currentModuleTitle = location.pathname.startsWith('/expenses')
+  const currentModuleTitle = location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/reports')
+    ? 'Dashboard & Reports (Issue #11)'
+    : location.pathname.startsWith('/expenses')
     ? 'Expense Management (Issue #10)'
     : location.pathname.startsWith('/reinvestments')
     ? 'Project Wallets & Reinvestment (Issue #9)'
@@ -44,14 +46,13 @@ export const Layout: React.FC = () => {
     : 'Member Management (Issue #4)';
 
   const navItems = [
+    { label: 'Dashboard & Reports', path: '/dashboard', icon: BarChart3, badge: 'Issue #11' },
     { label: 'Member Management', path: '/members', icon: Users, badge: 'Issue #4' },
     { label: 'Shares & Annual Account', path: '/shares', icon: PieChart, badge: 'Issue #5' },
     { label: 'Contributions & Payments', path: '/payments', icon: CreditCard, badge: 'Issue #6' },
     { label: 'Accountant Custody', path: '/custody', icon: Wallet, badge: 'Issue #7' },
-    { label: 'Investments', path: '/investments', icon: TrendingUp, badge: 'Issue #8' },
-    { label: 'Project Wallets', path: '/reinvestments', icon: Repeat2, badge: 'Issue #9' },
+    ...(user?.accountantType === 'PRIMARY' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ label: 'Investments', path: '/investments', icon: TrendingUp, badge: 'Issue #8' }, { label: 'Project Wallets', path: '/reinvestments', icon: Repeat2, badge: 'Issue #9' }] : []),
     { label: 'Expenses', path: '/expenses', icon: Receipt, badge: 'Issue #10' },
-    { label: 'Reports & Dashboard', path: '/reports', icon: BarChart3, disabled: true },
   ];
 
   return (
@@ -100,19 +101,6 @@ export const Layout: React.FC = () => {
           </p>
           {navItems.map((item) => {
             const Icon = item.icon;
-            if (item.disabled) {
-              return (
-                <div
-                  key={item.path}
-                  className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-gray-500 text-xs font-medium cursor-not-allowed opacity-50"
-                  title="Coming in subsequent GitHub issue"
-                >
-                  <Icon size={18} />
-                  <span>{item.label}</span>
-                </div>
-              );
-            }
-
             return (
               <NavLink
                 key={item.path}

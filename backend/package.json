@@ -12,7 +12,8 @@
     "seed:custody": "tsx src/scripts/seed-custody-gateways.ts",
     "test:reinvestments": "tsx src/scripts/test-reinvestments.ts",
     "test:expenses": "tsx src/scripts/test-expenses.ts",
-    "seed:expenses-demo": "tsx src/scripts/seed-expenses-demo.ts"
+    "seed:expenses-demo": "tsx src/scripts/seed-expenses-demo.ts",
+    "test:reporting": "tsx src/scripts/test-reporting.ts"
   },
   "keywords": [],
   "author": "",

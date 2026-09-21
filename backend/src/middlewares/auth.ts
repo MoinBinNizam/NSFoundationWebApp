@@ -97,3 +97,20 @@ export function requireAccountant(...types: AccountantType[]) {
     next();
   };
 }
+
+/**
+ * Investment data and operations are reserved for organization administrators
+ * and the designated primary accountant (Moin). This is deliberately separate
+ * from general accountant permissions so the assistant accountant cannot gain
+ * access through a direct API request.
+ */
+export function requireInvestmentAccess(req: AuthRequest, _res: Response, next: NextFunction): void {
+  if (!req.user) {
+    return next(createError('Authentication required.', 401));
+  }
+  const isAdministrator = req.user.role === UserRole.ADMIN || req.user.role === UserRole.SUPER_ADMIN;
+  if (!isAdministrator && req.user.accountantType !== AccountantType.PRIMARY) {
+    return next(createError('Investment access is restricted to administrators and the primary accountant.', 403));
+  }
+  next();
+}

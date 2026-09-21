@@ -12,6 +12,7 @@ import { CustodyPage } from './pages/CustodyPage';
 import { InvestmentsPage } from './pages/InvestmentsPage';
 import { ReinvestmentsPage } from './pages/ReinvestmentsPage';
 import { ExpensesPage } from './pages/ExpensesPage';
+import { DashboardPage } from './pages/DashboardPage';
 
 export const App: React.FC = () => {
   return (
@@ -31,7 +32,9 @@ export const App: React.FC = () => {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Navigate to="/members" replace />} />
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="reports" element={<Navigate to="/dashboard" replace />} />
             <Route path="members" element={<MembersPage />} />
             <Route path="shares" element={<SharesPage />} />
             <Route path="payments" element={<PaymentsPage />} />

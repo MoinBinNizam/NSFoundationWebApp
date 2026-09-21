@@ -4,6 +4,43 @@ Implement the **Dashboard & Reports Module** for GitHub Issue #11 in accordance 
 
 ---
 
+## Owner Directives — Organized
+
+### Navigation and first impression
+
+- Move **Dashboard** to the first position in the primary sidebar, before Member Management, and use `/dashboard` as the protected landing route after login.
+- Keep the detailed reporting workspace in a distinct **Reports** tab/route within the Dashboard module so a quick overview is never buried beneath analytical tables.
+- Use the established dark visual system with purposeful color, concise status indicators, responsive metric cards, and lightweight charts. Visual emphasis must support financial understanding—not obscure figures or imply that estimates are actuals.
+
+### Role-aware dashboard views
+
+| User role | Dashboard scope |
+|---|---|
+| Admin / Super Admin | Organization-wide collection, custody, wallet, investment, expense, due, and recent activity data. |
+| Primary / Assistant Accountant | Organization context plus the accountant's own custody accounts, collections received, transfers, funding activity, and expenses paid/recorded. |
+| Member | No society-wide dashboard. Redirect to the existing member-safe experience until the dedicated statement scope is implemented. |
+
+### Dashboard content
+
+- Show an executive financial overview appropriate to the signed-in role.
+- Include recent activity across transactions, new/updated members, investments, investment returns/reinvestments, transfers, and expenses.
+- Provide charts for trends and composition only where the underlying query has data; show an explicit empty state otherwise.
+- Make every metric's reporting period and source clear, with drill-through links to the source module where available.
+
+### Reports workspace
+
+- Provide separate report tabs: **Collection**, **Custody**, **Investments**, **Expenses**, and **Dues**.
+- Give each report its own relevant filters in addition to the shared reporting date range.
+- Use server-side search, sorting, and pagination for every report table.
+- Set the default page size to **10 records** and allow only the approved page-size choices if a selector is added.
+- Preserve the current report's filters, search term, sort order, and access scope when exporting CSV.
+
+### Responsive requirements
+
+- Keep dashboard metrics and filters usable on phone, tablet, and desktop layouts.
+- Stack cards and filter controls on small screens; tables must retain critical columns through safe horizontal scrolling rather than hidden data.
+- Use accessible labels, focus states, visible loading/error/empty states, and touch-friendly controls.
+
 ## 1. Scope and Rules
 
 1. Dashboards and reports are read-only projections. They must never write balances, recreate financial events, or treat cached balances as the authoritative source.
