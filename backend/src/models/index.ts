@@ -21,3 +21,5 @@ export * from './Reinvestment.js';
 export * from './Expense.js';
 export * from './Policy.js';
 export * from './PolicyVersion.js';
+export * from './DistributionBatch.js';
+export * from './MemberDistribution.js';

@@ -12,7 +12,7 @@ Github Issues serially-----------------
 | 9 | Reinvestment & Project Wallet |
 | 10 | Expense Management |
 | 11 | Dashboard & Reports |
-| 12 | Final Distribution |
+| 12 | Final Distribution | Complete
 | 13 | Audit, Security & Testing |
 | 14 | Deployment & Backup |
 

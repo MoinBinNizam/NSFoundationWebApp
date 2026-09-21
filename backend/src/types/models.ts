@@ -90,6 +90,7 @@ export enum MovementSourceType {
   INVESTMENT_RETURN = 'INVESTMENT_RETURN',
   EXPENSE = 'EXPENSE',
   ADJUSTMENT = 'ADJUSTMENT',
+  FINAL_DISTRIBUTION = 'FINAL_DISTRIBUTION',
 }
 
 export enum ProjectStatus {
@@ -103,6 +104,19 @@ export enum ProjectStatus {
 export enum ReturnDestinationType {
   EXTERNAL_WALLET = 'EXTERNAL_WALLET',
   ACCOUNTANT_CUSTODY = 'ACCOUNTANT_CUSTODY',
+}
+
+export enum DistributionBatchStatus {
+  DRAFT = 'DRAFT',
+  REVIEWED = 'REVIEWED',
+  APPROVED = 'APPROVED',
+  PAID = 'PAID',
+  REVERSED = 'REVERSED',
+}
+
+export enum DistributionBasis {
+  FINALIZED_SHARES = 'FINALIZED_SHARES',
+  ACTIVE_SHARES = 'ACTIVE_SHARES',
 }
 
 // ==========================================
@@ -419,4 +433,56 @@ export interface IPolicyVersion {
   changeReason?: string;
   modifiedBy: Types.ObjectId;
   createdAt: Date;
+}
+
+// 23. DistributionBatch
+export interface IDistributionBatch {
+  batchNumber: string;
+  year: number;
+  title: string;
+  status: DistributionBatchStatus;
+  basis: DistributionBasis;
+  totalPool: number;
+  totalPrincipalReturned: number;
+  netRealizedProfit: number;
+  totalExpenses: number;
+  retainedAmount: number;
+  distributableAmount: number;
+  totalShares: number;
+  amountPerShare: number;
+  memberCount: number;
+  custodyAccountId?: Types.ObjectId;
+  preparedBy: Types.ObjectId;
+  reviewedBy?: Types.ObjectId;
+  reviewedAt?: Date;
+  approvedBy?: Types.ObjectId;
+  approvedAt?: Date;
+  paidBy?: Types.ObjectId;
+  paidAt?: Date;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// 24. MemberDistribution
+export interface IMemberDistribution {
+  batchId: Types.ObjectId;
+  memberId: Types.ObjectId;
+  memberCode: string;
+  memberName: string;
+  year: number;
+  finalShares: number;
+  shareRatio: number;
+  grossEntitlement: number;
+  shortfallDeduction: number;
+  advanceCredit: number;
+  penaltyAdjustment: number;
+  netDistributionAmount: number;
+  status: 'PENDING' | 'PAID' | 'REVERSED';
+  custodyMovementId?: Types.ObjectId;
+  paidAt?: Date;
+  paymentReference?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
