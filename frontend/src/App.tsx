@@ -11,6 +11,7 @@ import { PaymentsPage } from './pages/PaymentsPage';
 import { CustodyPage } from './pages/CustodyPage';
 import { InvestmentsPage } from './pages/InvestmentsPage';
 import { ReinvestmentsPage } from './pages/ReinvestmentsPage';
+import { ExpensesPage } from './pages/ExpensesPage';
 
 export const App: React.FC = () => {
   return (
@@ -37,6 +38,7 @@ export const App: React.FC = () => {
             <Route path="custody" element={<CustodyPage />} />
             <Route path="investments" element={<InvestmentsPage />} />
             <Route path="reinvestments" element={<ReinvestmentsPage />} />
+            <Route path="expenses" element={<ExpensesPage />} />
             {/* Catch-all redirect to members */}
             <Route path="*" element={<Navigate to="/members" replace />} />
           </Route>

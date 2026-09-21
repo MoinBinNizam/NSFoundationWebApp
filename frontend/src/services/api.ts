@@ -34,7 +34,26 @@ export async function apiRequest<T = unknown>(
       headers,
     });
 
-    const data = await response.json();
+    // A development-proxy failure (for example, when the backend is not
+    // running) may return an empty response body. Read text first so an empty
+    // or non-JSON response cannot mask the actual request failure with a
+    // JSON parsing exception.
+    const responseText = await response.text();
+    let data: ApiResponse<T> | { message?: string } | null = null;
+
+    if (responseText.trim()) {
+      try {
+        data = JSON.parse(responseText) as ApiResponse<T>;
+      } catch {
+        if (!response.ok) {
+          throw new Error(
+            `The API returned an invalid response (HTTP ${response.status}). ` +
+              'Ensure the backend server is running and try again.'
+          );
+        }
+        throw new Error('The API returned invalid JSON. Please contact an administrator.');
+      }
+    }
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -43,10 +62,21 @@ export async function apiRequest<T = unknown>(
         localStorage.removeItem('user');
         window.dispatchEvent(new Event('auth:unauthorized'));
       }
-      throw new Error(data.message || `Request failed with status ${response.status}`);
+      const message = data?.message;
+      if (!message && !responseText.trim()) {
+        throw new Error(
+          `The API server did not return a response (HTTP ${response.status}). ` +
+            'Ensure the backend server is running on port 5000 and MongoDB is available.'
+        );
+      }
+      throw new Error(message || `Request failed with status ${response.status}`);
     }
 
-    return data;
+    if (!data) {
+      throw new Error('The API returned an empty response. Please try again.');
+    }
+
+    return data as ApiResponse<T>;
   } catch (error) {
     throw error;
   }

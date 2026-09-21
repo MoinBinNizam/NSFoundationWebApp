@@ -14,6 +14,21 @@ async function startServer(): Promise<void> {
 
     // Step 2: Start HTTP server
     const server = http.createServer(app);
+    let isShuttingDown = false;
+
+    // `listen()` reports port-binding failures asynchronously through the server
+    // instance, so a surrounding try/catch cannot handle EADDRINUSE on its own.
+    server.once('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(
+          `[server] Port ${PORT} is already in use. The API may already be running in another terminal. ` +
+            `Stop that process or set a different PORT in backend/.env before starting another instance.`
+        );
+      } else {
+        console.error('[server] HTTP server failed to start:', error.message);
+      }
+      process.exit(1);
+    });
 
     server.listen(PORT, () => {
       console.log(`[server] NS Foundation API is running.`);
@@ -24,6 +39,8 @@ async function startServer(): Promise<void> {
 
     // Graceful shutdown handlers
     const shutdown = (signal: string) => {
+      if (isShuttingDown) return;
+      isShuttingDown = true;
       console.log(`\n[server] Received ${signal}. Shutting down gracefully...`);
       server.close(() => {
         console.log('[server] HTTP server closed.');
@@ -35,7 +52,12 @@ async function startServer(): Promise<void> {
     process.on('SIGTERM', () => shutdown('SIGTERM'));
 
   } catch (error) {
-    console.error('[server] Failed to start:', error instanceof Error ? error.message : error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[server] Failed to start:', message);
+    if (message.includes('ECONNREFUSED')) {
+      console.error('\n[server] TIP: MongoDB is unreachable. Please ensure MongoDB is running on port 27017.');
+      console.error('[server] You can start the Windows MongoDB service ("net start MongoDB" in Administrator terminal) or run mongod.\n');
+    }
     process.exit(1);
   }
 }

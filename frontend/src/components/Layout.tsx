@@ -29,7 +29,9 @@ export const Layout: React.FC = () => {
     navigate('/login');
   };
 
-  const currentModuleTitle = location.pathname.startsWith('/reinvestments')
+  const currentModuleTitle = location.pathname.startsWith('/expenses')
+    ? 'Expense Management (Issue #10)'
+    : location.pathname.startsWith('/reinvestments')
     ? 'Project Wallets & Reinvestment (Issue #9)'
     : location.pathname.startsWith('/investments')
     ? 'Investment Management (Issue #8)'
@@ -48,7 +50,7 @@ export const Layout: React.FC = () => {
     { label: 'Accountant Custody', path: '/custody', icon: Wallet, badge: 'Issue #7' },
     { label: 'Investments', path: '/investments', icon: TrendingUp, badge: 'Issue #8' },
     { label: 'Project Wallets', path: '/reinvestments', icon: Repeat2, badge: 'Issue #9' },
-    { label: 'Expenses', path: '/expenses', icon: Receipt, disabled: true },
+    { label: 'Expenses', path: '/expenses', icon: Receipt, badge: 'Issue #10' },
     { label: 'Reports & Dashboard', path: '/reports', icon: BarChart3, disabled: true },
   ];
 

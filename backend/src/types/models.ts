@@ -392,6 +392,7 @@ export interface IExpense {
   custodyMovementId?: Types.ObjectId;
   createdBy: Types.ObjectId;
   receiptUrl?: string;
+  notes?: string;
   createdAt: Date;
   updatedAt: Date;
 }
