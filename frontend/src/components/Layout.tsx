@@ -63,20 +63,20 @@ export const Layout: React.FC = () => {
       {/* Mobile Drawer Backdrop */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 md:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 lg:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Sidebar - Desktop (fixed) & Mobile (drawer) */}
       <aside
-        className={`fixed md:sticky top-0 h-screen z-50 shrink-0 w-[270px] bg-[#111827] border-r border-white/10 flex flex-col transition-transform duration-300 ease-in-out md:translate-x-0 ${
-          mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        className={`fixed lg:sticky top-0 h-screen z-50 shrink-0 w-[270px] bg-[#111827] border-r border-white/10 flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         {/* Brand Header */}
         <div className="p-5 border-b border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <BrandLogo size="md" editable />
             <div>
               <h1 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
@@ -91,7 +91,8 @@ export const Layout: React.FC = () => {
           {/* Close button for mobile drawer */}
           <button
             onClick={() => setMobileOpen(false)}
-            className="md:hidden text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
+            className="lg:hidden text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/10"
+            aria-label="Close navigation menu"
           >
             <X size={20} />
           </button>
@@ -154,7 +155,7 @@ export const Layout: React.FC = () => {
             <button
               onClick={handleLogout}
               title="Sign Out"
-              className="text-gray-400 hover:text-red-400 p-1.5 rounded-md hover:bg-white/5 transition-colors"
+              className="text-gray-400 hover:text-red-400 p-2 rounded-md hover:bg-white/5 transition-colors"
             >
               <LogOut size={18} />
             </button>
@@ -170,32 +171,32 @@ export const Layout: React.FC = () => {
             {/* Mobile Hamburger Toggle */}
             <button
               onClick={() => setMobileOpen(true)}
-              className="md:hidden text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5"
+              className="lg:hidden text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5"
               aria-label="Toggle navigation menu"
             >
               <Menu size={20} />
             </button>
 
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex min-w-0 items-center gap-2 text-xs">
               <span className="text-gray-500 hidden sm:inline">Modules /</span>
-              <span className="font-semibold text-white">{currentModuleTitle}</span>
+              <span className="truncate font-semibold text-white" title={currentModuleTitle}>{currentModuleTitle}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="badge badge-active text-[11px] py-1">
+            <span className="badge badge-active hidden sm:inline-flex text-[11px] py-1">
               System Operational
             </span>
           </div>
         </header>
 
         {/* Page Outlet */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
           <Outlet />
         </main>
 
         {/* Footer */}
-        <footer className="py-4 px-6 border-t border-white/5 bg-[#0B0F19]/60 text-center text-xl text-gray-500">
+        <footer className="py-4 px-4 sm:px-6 border-t border-white/5 bg-[#0B0F19]/60 text-center text-xs sm:text-sm text-gray-500">
           <p>
             Designed & Developed by <span className="text-gray-300 font-medium">Moin Uddin</span> © All Rights Reserved.
           </p>

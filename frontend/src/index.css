@@ -51,6 +51,45 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  text-rendering: optimizeLegibility;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg-main);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  color-scheme: dark;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #60A5FA;
+  outline-offset: 2px;
 }
 
 @layer components {
@@ -78,7 +117,8 @@ body {
     font-family: inherit;
     font-size: 0.875rem;
     font-weight: 600;
-    padding: 9px 18px;
+    min-height: 40px;
+    padding: 9px 16px;
     border-radius: var(--radius-md);
     border: none;
     cursor: pointer;
@@ -121,6 +161,7 @@ body {
   }
 
   .btn-sm {
+    min-height: 34px;
     padding: 6px 12px;
     font-size: 0.8rem;
   }
@@ -134,7 +175,8 @@ body {
   /* Used by Issue #9 and Issue #10 native controls. Without an explicit
      component style, browsers render these inputs with a white default. */
   .input-field {
-    min-height: 40px;
+    width: 100%;
+    min-height: 42px;
     padding: 9px 12px;
     background: #0F172A;
     color: #E5E7EB;
@@ -216,6 +258,7 @@ body {
   .form-select,
   .form-textarea {
     width: 100%;
+    min-height: 42px;
     padding: 10px 14px;
     background: rgba(17, 24, 39, 0.8);
     border: 1px solid var(--border);
@@ -233,6 +276,16 @@ body {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
     background: rgba(31, 41, 55, 0.9);
+  }
+
+  .form-textarea {
+    min-height: 104px;
+    resize: vertical;
+  }
+
+  .form-select option {
+    background: #0F172A;
+    color: #E5E7EB;
   }
 
   /* Status Badges */
@@ -278,6 +331,8 @@ body {
     overflow-x: auto;
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
+    -webkit-overflow-scrolling: touch;
+    scrollbar-gutter: stable both-edges;
   }
 
   .data-table {
@@ -330,10 +385,106 @@ body {
     border-radius: var(--radius-xl);
     max-width: 550px;
     width: 100%;
-    max-height: 90vh;
+    max-height: min(90vh, 900px);
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
     animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+/* Dashboard/report pages set the responsive interaction language used by every
+   module: full-width fields when space is constrained, compact but legible copy,
+   and contained horizontal table scrolling rather than clipped content. */
+@media (max-width: 639px) {
+  body {
+    font-size: 0.9375rem;
+  }
+
+  .btn {
+    min-height: 44px;
+    padding-inline: 14px;
+  }
+
+  .btn-sm {
+    min-height: 38px;
+  }
+
+  button {
+    min-height: 38px;
+  }
+
+  .glass-card {
+    border-radius: 14px;
+  }
+
+  .form-group {
+    gap: 7px;
+    margin-bottom: 14px;
+  }
+
+  .form-input,
+  .form-select,
+  .input-field {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .form-textarea {
+    min-height: 112px;
+    font-size: 16px;
+  }
+
+  .table-container {
+    border-radius: 14px;
+    margin-inline: -1px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 12px 14px;
+  }
+
+  .data-table th {
+    font-size: 0.7rem;
+  }
+
+  .data-table td {
+    font-size: 0.8125rem;
+  }
+
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .modal-content {
+    max-height: 92dvh;
+    border-radius: 18px 18px 0 0;
+  }
+
+  /* Legacy module modals use Tailwind utility classes instead of
+     .modal-overlay. Keep them inside the viewport and make their action rows
+     easy to reach on a phone without changing their submit behavior. */
+  div[class~="fixed"][class~="inset-0"][class~="z-50"][class~="p-4"] {
+    align-items: flex-end;
+    padding: 0.5rem;
+  }
+
+  div[class~="fixed"][class~="inset-0"][class~="z-50"][class~="p-4"] > div[class~="w-full"] {
+    max-height: calc(100dvh - 1rem);
+    overflow-y: auto;
+    border-radius: 18px;
+  }
+
+  .modal-content form > [class~="flex"][class~="justify-end"],
+  div[class~="fixed"][class~="inset-0"][class~="z-50"] form > [class~="flex"][class~="justify-end"] {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .modal-content form > [class~="flex"][class~="justify-end"] > button,
+  div[class~="fixed"][class~="inset-0"][class~="z-50"] form > [class~="flex"][class~="justify-end"] > button {
+    width: 100%;
   }
 }
 
