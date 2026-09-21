@@ -131,6 +131,73 @@ body {
     transform: none !important;
   }
 
+  /* Used by Issue #9 and Issue #10 native controls. Without an explicit
+     component style, browsers render these inputs with a white default. */
+  .input-field {
+    min-height: 40px;
+    padding: 9px 12px;
+    background: #0F172A;
+    color: #E5E7EB;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 0.875rem;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+
+  .input-field::placeholder {
+    color: #94A3B8;
+    opacity: 1;
+  }
+
+  .input-field:hover {
+    border-color: rgba(148, 163, 184, 0.55);
+  }
+
+  .input-field:focus {
+    background: #111C33;
+    border-color: #60A5FA;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+  }
+
+  .input-field option {
+    background: #0F172A;
+    color: #E5E7EB;
+  }
+
+  /* Expense forms use blue for explanatory information and amber for a
+     normal cash-out action. Red remains reserved for actual validation errors. */
+  form > p[class~="border-rose-400/20"] {
+    border-color: rgba(96, 165, 250, 0.3);
+    background: rgba(59, 130, 246, 0.12);
+    color: #DBEAFE;
+  }
+
+  form > button[class~="border-rose-400/30"] {
+    border-color: rgba(251, 191, 36, 0.3);
+    background: rgba(245, 158, 11, 0.15);
+    color: #FEF3C7;
+  }
+
+  form > button[class~="border-rose-400/30"]:hover {
+    background: rgba(245, 158, 11, 0.25);
+  }
+
+  .space-y-6 > section.rounded-2xl > div.flex > button {
+    min-height: 40px;
+    padding: 0 14px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    background: #1E293B;
+    color: #CBD5E1;
+  }
+
+  .space-y-6 > section.rounded-2xl > div.flex > button:hover {
+    background: #334155;
+    border-color: rgba(148, 163, 184, 0.6);
+    color: #F8FAFC;
+  }
+
   /* Form inputs */
   .form-group {
     display: flex;
