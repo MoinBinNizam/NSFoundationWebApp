@@ -4,6 +4,8 @@ import { Expense } from '../models/Expense.js';
 import { MonthlyLedger } from '../models/MonthlyLedger.js';
 import { Payment } from '../models/Payment.js';
 import { Member } from '../models/Member.js';
+import { CustodyMovement } from '../models/CustodyMovement.js';
+import { InvestmentProject } from '../models/InvestmentProject.js';
 import { CustodyService } from './custody.service.js';
 import { InvestmentService } from './investment.service.js';
 import { IUser, UserRole, AccountantType } from '../types/models.js';
@@ -41,6 +43,10 @@ const monthBounds = (month: string) => {
     end: new Date(year, monthNumber, 0, 23, 59, 59, 999),
   };
 };
+const monthlyOutstanding = (ledger: any) => Math.max(0, Number(ledger.principalDue || 0) + Number(ledger.penaltyDue || 0) - Number(ledger.principalPaid || 0) - Number(ledger.penaltyPaid || 0));
+const percentageChange = (current: number, previous: number) => previous === 0 ? null : ((current - previous) / Math.abs(previous)) * 100;
+const activityPageSize = 10;
+const mapActivity = (item: any) => ({ id: item._id, action: item.action, entityName: item.entityName, reason: item.reason, createdAt: item.createdAt, performedBy: item.performedBy?.name || 'System' });
 const paginate = <T>(rows: T[], query: Record<string, unknown>) => {
   const page = Math.max(1, Number(query.page) || 1); const limit = Math.max(1, Math.min(100, Number(query.limit) || 10));
   const search = String(query.search || '').trim().toLowerCase();
@@ -60,19 +66,15 @@ export class ReportingService {
     const trendEnd = monthBounds(trendMonths[trendMonths.length - 1] || currentMonth()).end;
     const trendPaymentFilter = { ...(scoped ? { receiverId: userId } : {}), paymentDate: { $gte: query.startDate ? new Date(String(query.startDate)) : trendBounds.start, $lte: query.endDate ? (() => { const end = new Date(String(query.endDate)); end.setHours(23, 59, 59, 999); return end; })() : trendEnd } };
     const trendExpenseFilter = { ...(scoped ? { createdBy: userId } : {}), date: { $gte: query.startDate ? new Date(String(query.startDate)) : trendBounds.start, $lte: query.endDate ? (() => { const end = new Date(String(query.endDate)); end.setHours(23, 59, 59, 999); return end; })() : trendEnd } };
-    const [payment, expense, accounts, activity, activityTotal, members, investment, dues, paymentTrend, expenseTrend, duesTrend] = await Promise.all([
+    const [payment, expense, accounts, activity, activityTotal, members, investment, dueLedgers, paymentTrend, expenseTrend, duesTrend, maturingProjects] = await Promise.all([
       Payment.aggregate([{ $match: paymentFilter }, { $group: { _id: null, total: { $sum: '$totalAmount' }, count: { $sum: 1 }, principal: { $sum: '$principalAmount' }, penalty: { $sum: '$penaltyAmount' } } }]),
       Expense.aggregate([{ $match: expenseFilter }, { $group: { _id: null, total: { $sum: '$amount' }, count: { $sum: 1 } } }]),
       CustodyService.getCustodyAccounts({ isActive: true }),
-      AuditLog.find(activityFilter).populate('performedBy', 'name email accountantType').sort({ createdAt: -1, _id: -1 }).limit(12),
+      AuditLog.find(activityFilter).populate('performedBy', 'name email accountantType').sort({ createdAt: -1, _id: -1 }).limit(activityPageSize),
       AuditLog.countDocuments(activityFilter),
       Member.countDocuments({ status: 'ACTIVE' }),
       canAccessInvestments(user) ? InvestmentService.getInvestmentStats() : Promise.resolve(null),
-      MonthlyLedger.aggregate([
-        { $match: { month: { $gte: '2024-01', $lte: currentMonth() } } },
-        { $project: { outstanding: { $max: [0, { $subtract: [{ $add: ['$principalDue', '$penaltyDue'] }, { $add: ['$principalPaid', '$penaltyPaid'] }] }] } } },
-        { $group: { _id: null, total: { $sum: '$outstanding' }, count: { $sum: { $cond: [{ $gt: ['$outstanding', 0] }, 1, 0] } } } },
-      ]),
+      MonthlyLedger.find({ month: { $gte: '2024-01', $lte: currentMonth() } }).select('memberId month principalDue penaltyDue principalPaid penaltyPaid').lean(),
       Payment.aggregate([{ $match: trendPaymentFilter }, { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$paymentDate' } }, total: { $sum: '$totalAmount' } } }]),
       Expense.aggregate([{ $match: trendExpenseFilter }, { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$date' } }, total: { $sum: '$amount' } } }]),
       MonthlyLedger.aggregate([
@@ -80,20 +82,80 @@ export class ReportingService {
         { $project: { month: 1, outstanding: { $max: [0, { $subtract: [{ $add: ['$principalDue', '$penaltyDue'] }, { $add: ['$principalPaid', '$penaltyPaid'] }] }] } } },
         { $group: { _id: '$month', total: { $sum: '$outstanding' } } },
       ]),
+      canAccessInvestments(user)
+        ? InvestmentProject.find({ status: 'ACTIVE', maturityDate: { $exists: true, $lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) } }).select('projectId name maturityDate').sort({ maturityDate: 1 }).limit(5).lean()
+        : Promise.resolve([]),
     ]);
     const visibleAccounts = scoped ? accounts.filter((account: any) => String(account.holderId?._id || account.holderId) === String(userId)) : accounts;
+    const currentCustody = visibleAccounts.reduce((sum: number, account: any) => sum + account.derivedBalance, 0);
+    const previousMonthEnd = new Date(); previousMonthEnd.setDate(0); previousMonthEnd.setHours(23, 59, 59, 999);
+    const custodySnapshot = visibleAccounts.length
+      ? await CustodyMovement.aggregate([
+          { $match: { custodyAccountId: { $in: visibleAccounts.map((account: any) => account._id) }, date: { $lte: previousMonthEnd } } },
+          { $group: { _id: '$movementType', total: { $sum: '$amount' } } },
+        ])
+      : [];
+    const previousCustody = custodySnapshot.reduce((total: number, item: any) => total + (item._id === 'IN' ? item.total : -item.total), 0);
     const paymentTrendByMonth = new Map(paymentTrend.map((item: any) => [item._id, item.total]));
     const expenseTrendByMonth = new Map(expenseTrend.map((item: any) => [item._id, item.total]));
     const duesTrendByMonth = new Map(duesTrend.map((item: any) => [item._id, item.total]));
+    const trend = trendMonths.map((month) => ({ month, collections: paymentTrendByMonth.get(month) || 0, expenses: expenseTrendByMonth.get(month) || 0, dues: duesTrendByMonth.get(month) || 0 }));
+    const currentTrend = trend[trend.length - 1] || { month: currentMonth(), collections: 0, expenses: 0, dues: 0 };
+    const previousTrend = trend[trend.length - 2] || { collections: 0, expenses: 0, dues: 0 };
+    const dueAging = [
+      { label: '0–30 days', min: 0, max: 30, total: 0, count: 0 },
+      { label: '31–60 days', min: 31, max: 60, total: 0, count: 0 },
+      { label: '61–90 days', min: 61, max: 90, total: 0, count: 0 },
+      { label: '90+ days', min: 91, max: Number.POSITIVE_INFINITY, total: 0, count: 0 },
+    ];
+    const overdueMemberIds = new Set<string>();
+    for (const ledger of dueLedgers) {
+      const outstanding = monthlyOutstanding(ledger);
+      if (!outstanding) continue;
+      const monthEnd = monthBounds(ledger.month).end;
+      const ageDays = Math.max(0, Math.floor((Date.now() - monthEnd.getTime()) / (24 * 60 * 60 * 1000)));
+      const bucket = dueAging.find((item) => ageDays >= item.min && ageDays <= item.max);
+      if (bucket) { bucket.total += outstanding; bucket.count += 1; }
+      if (ageDays > 30) overdueMemberIds.add(String(ledger.memberId));
+    }
+    const dues = { total: dueAging.reduce((sum, item) => sum + item.total, 0), count: dueAging.reduce((sum, item) => sum + item.count, 0) };
+    const lowBalanceThreshold = 1000;
+    const lowCustodyAccounts = visibleAccounts.filter((account: any) => account.derivedBalance <= lowBalanceThreshold).slice(0, 4).map((account: any) => ({ name: account.name, balance: account.derivedBalance }));
     return {
       roleScope: isAdmin(user) ? 'ORGANIZATION' : 'ACCOUNTANT',
       period: { startDate: query.startDate || null, endDate: query.endDate || null },
-      metrics: { collection: payment[0] || { total: 0, count: 0, principal: 0, penalty: 0 }, expenses: expense[0] || { total: 0, count: 0 }, dues: dues[0] || { total: 0, count: 0 }, custody: visibleAccounts.reduce((sum: number, account: any) => sum + account.derivedBalance, 0), activeMembers: members, investments: investment },
+      metrics: { collection: payment[0] || { total: 0, count: 0, principal: 0, penalty: 0 }, expenses: expense[0] || { total: 0, count: 0 }, dues, custody: currentCustody, activeMembers: members, investments: investment },
       custodyByAccount: visibleAccounts.map((account: any) => ({ name: account.name, channel: account.channel, balance: account.derivedBalance })),
-      trend: trendMonths.map((month) => ({ month, collections: paymentTrendByMonth.get(month) || 0, expenses: expenseTrendByMonth.get(month) || 0, dues: duesTrendByMonth.get(month) || 0 })),
+      trend,
+      comparisons: {
+        period: { current: currentTrend.month, previous: trend[trend.length - 2]?.month || null },
+        collections: { previous: previousTrend.collections, change: currentTrend.collections - previousTrend.collections, percentage: percentageChange(currentTrend.collections, previousTrend.collections) },
+        expenses: { previous: previousTrend.expenses, change: currentTrend.expenses - previousTrend.expenses, percentage: percentageChange(currentTrend.expenses, previousTrend.expenses) },
+        dues: { previous: previousTrend.dues, change: currentTrend.dues - previousTrend.dues, percentage: percentageChange(currentTrend.dues, previousTrend.dues) },
+        custody: { previous: previousCustody, change: currentCustody - previousCustody, percentage: percentageChange(currentCustody, previousCustody) },
+      },
+      alerts: {
+        dueAging,
+        overdueMembers: overdueMemberIds.size,
+        lowBalanceThreshold,
+        lowCustodyAccounts,
+        investmentMaturities: maturingProjects.map((project: any) => ({ projectId: project.projectId, name: project.name, maturityDate: project.maturityDate, daysRemaining: Math.ceil((new Date(project.maturityDate).getTime() - Date.now()) / (24 * 60 * 60 * 1000)) })),
+      },
       activityTotal,
-      recentActivity: activity.map((item: any) => ({ id: item._id, action: item.action, entityName: item.entityName, reason: item.reason, createdAt: item.createdAt, performedBy: item.performedBy?.name || 'System' })),
+      recentActivity: activity.map(mapActivity),
+      activityPagination: { page: 1, limit: activityPageSize, totalPages: Math.max(1, Math.ceil(activityTotal / activityPageSize)) },
     };
+  }
+
+  static async activity(query: Record<string, unknown>, user: IUser) {
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.max(1, Math.min(activityPageSize, Number(query.limit) || activityPageSize));
+    const filter = isAdmin(user) ? {} : { performedBy: objectId(user) };
+    const [items, total] = await Promise.all([
+      AuditLog.find(filter).populate('performedBy', 'name email accountantType').sort({ createdAt: -1, _id: -1 }).skip((page - 1) * limit).limit(limit),
+      AuditLog.countDocuments(filter),
+    ]);
+    return { items: items.map(mapActivity), pagination: { page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) } };
   }
 
   static async getReport(type: ReportType, query: Record<string, unknown>, user: IUser) {

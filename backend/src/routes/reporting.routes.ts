@@ -5,6 +5,7 @@ import { UserRole } from '../types/models.js';
 const router = Router();
 router.use(authenticate, requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ACCOUNTANT));
 router.get('/dashboard', ReportingController.dashboard);
+router.get('/activity', ReportingController.activity);
 router.get('/data/:type/export', ReportingController.exportCsv);
 router.get('/data/:type', ReportingController.report);
 export default router;

@@ -24,6 +24,13 @@ async function run() {
     if (dashboard.roleScope !== 'ORGANIZATION') throw new Error('Admin dashboard must have organization scope.');
     if (!dashboard.metrics.dues || typeof dashboard.metrics.dues.total !== 'number') throw new Error('Dashboard must include the total outstanding dues metric.');
     if (!dashboard.trend.length || !dashboard.trend.every((item: any) => typeof item.collections === 'number' && typeof item.expenses === 'number' && typeof item.dues === 'number')) throw new Error('Dashboard must return numeric monthly trend data.');
+    if (!dashboard.comparisons || typeof dashboard.comparisons.collections.change !== 'number') throw new Error('Dashboard must include month-over-month metric comparisons.');
+    if (!dashboard.alerts || !Array.isArray(dashboard.alerts.dueAging) || !Array.isArray(dashboard.alerts.lowCustodyAccounts)) throw new Error('Dashboard must include operational alert data.');
+    const assistantDashboard = await ReportingService.getDashboard({}, samrat as any);
+    if (assistantDashboard.alerts.investmentMaturities.length) throw new Error('Assistant dashboard must not receive investment maturity alerts.');
+    if (dashboard.recentActivity.length > 10 || dashboard.activityPagination.limit !== 10) throw new Error('Dashboard activity must load a maximum of 10 entries at a time.');
+    const activityPage = await ReportingService.activity({ page: 1 }, moin as any);
+    if (activityPage.items.length > 10 || activityPage.pagination.limit !== 10) throw new Error('Activity scrolling endpoint must paginate at 10 entries per request.');
     const collection = await ReportingService.getReport('collection', { page: 1, limit: 10, sortBy: 'date', sortDirection: 'desc' }, samrat as any);
     if (collection.pagination.limit !== 10) throw new Error('Report pagination must default to/retain 10 records.');
     let samratBlocked = false;
@@ -47,6 +54,8 @@ async function run() {
     if (assistantResponse.status !== 403 || !primaryResponse.ok) throw new Error('Investment route authorization middleware did not enforce the required roles.');
     console.log(`✓ Admin organization dashboard returned ${dashboard.recentActivity.length} activity events.`);
     console.log(`✓ Dashboard includes ${dashboard.trend.length} monthly trend points and ${dashboard.metrics.dues.count} outstanding ledger months.`);
+    console.log('✓ Dashboard comparisons and role-safe operational alerts returned successfully.');
+    console.log(`✓ Recent activity begins with ${dashboard.recentActivity.length} entries and paginates in 10-entry batches.`);
     console.log(`✓ Accountant collection report is scoped and paginated at ${collection.pagination.limit} records.`);
     console.log(`✓ Samrat denied investment report; Moin received ${investment.pagination.total} investment rows.`);
     console.log('✓ HTTP route test confirmed Samrat receives 403 and Moin receives 200 for investment API access.');

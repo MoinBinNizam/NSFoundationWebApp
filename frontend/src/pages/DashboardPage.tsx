@@ -44,7 +44,22 @@ interface Dashboard {
     } | null;
   };
   trend: Array<{ month: string; collections: number; expenses: number; dues: number }>;
+  comparisons: {
+    period: { current: string; previous: string | null };
+    collections: MetricComparison;
+    expenses: MetricComparison;
+    dues: MetricComparison;
+    custody: MetricComparison;
+  };
+  alerts: {
+    dueAging: Array<{ label: string; min: number; max: number; total: number; count: number }>;
+    overdueMembers: number;
+    lowBalanceThreshold: number;
+    lowCustodyAccounts: Array<{ name: string; balance: number }>;
+    investmentMaturities: Array<{ projectId: string; name: string; maturityDate: string; daysRemaining: number }>;
+  };
   activityTotal: number;
+  activityPagination: { page: number; limit: number; totalPages: number };
   custodyByAccount: Array<{ name: string; channel: string; balance: number }>;
   recentActivity: Array<{
     id: string;
@@ -56,10 +71,21 @@ interface Dashboard {
   }>;
 }
 
+interface MetricComparison {
+  previous: number;
+  change: number;
+  percentage: number | null;
+}
+
 interface ReportData {
   type: ReportType;
   rows: Array<Record<string, unknown>>;
   pagination: { total: number; page: number; limit: number; totalPages: number };
+}
+
+interface ActivityPage {
+  items: Dashboard['recentActivity'];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
 const money = (amount: unknown) =>
@@ -104,6 +130,9 @@ export const DashboardPage: React.FC = () => {
   const [view, setView] = useState<'dashboard' | 'reports'>('dashboard');
   const [reportType, setReportType] = useState<ReportType>('collection');
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
+  const [activityItems, setActivityItems] = useState<Dashboard['recentActivity']>([]);
+  const [activityPage, setActivityPage] = useState(1);
+  const [loadingMoreActivity, setLoadingMoreActivity] = useState(false);
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,6 +167,8 @@ export const DashboardPage: React.FC = () => {
       setError(null);
       const result = await apiRequest<Dashboard>(`/reports/dashboard?${query()}`);
       setDashboard(result.data);
+      setActivityItems(result.data.recentActivity);
+      setActivityPage(result.data.activityPagination.page);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to load dashboard.');
     } finally {
@@ -170,6 +201,31 @@ export const DashboardPage: React.FC = () => {
     setSortBy('date');
   };
 
+  const openReport = (type: ReportType) => {
+    setView('reports');
+    changeReport(type);
+  };
+
+  const loadMoreActivity = async () => {
+    const pagination = dashboard?.activityPagination;
+    if (!pagination || loadingMoreActivity || activityPage >= pagination.totalPages) return;
+    try {
+      setLoadingMoreActivity(true);
+      const result = await apiRequest<ActivityPage>(`/reports/activity?page=${activityPage + 1}&limit=${pagination.limit}`);
+      setActivityItems((previous) => [...previous, ...result.data.items.filter((item) => !previous.some((existing) => existing.id === item.id))]);
+      setActivityPage(result.data.pagination.page);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to load older activity records.');
+    } finally {
+      setLoadingMoreActivity(false);
+    }
+  };
+
+  const handleActivityScroll = (event: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = event.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 140) void loadMoreActivity();
+  };
+
   const exportCsv = async () => {
     try {
       const response = await fetch(`/api/reports/data/${reportType}/export?${query()}`, {
@@ -192,6 +248,7 @@ export const DashboardPage: React.FC = () => {
   // Calculate total positive custody for distribution percentage
   const totalCustodySum =
     dashboard?.custodyByAccount.reduce((acc, a) => acc + Math.max(0, a.balance), 0) || 0;
+  const displayedActivity = activityItems.length ? activityItems : dashboard?.recentActivity || [];
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto pb-10">
@@ -203,9 +260,7 @@ export const DashboardPage: React.FC = () => {
             <span className="text-xs font-bold uppercase tracking-wider">Issue #11 · Analytics</span>
           </div>
           <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            {view === 'dashboard'
-              ? `${dashboard?.roleScope === 'ACCOUNTANT' ? 'Accountant' : 'Executive'} Financial Dashboard`
-              : 'Society Reports Workspace'}
+            {view === 'dashboard' ? 'NS Foundation Dashboard' : 'Society Reports Workspace'}
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-gray-400">
             {view === 'dashboard'
@@ -323,7 +378,7 @@ export const DashboardPage: React.FC = () => {
             {/* 1. Primary Metric KPI Cards (Contributions & Payments Cards Design) */}
             <div className="order-1 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-5">
               {/* Card 1: Total Collections */}
-              <div className="glass-card p-5 border-l-4 border-l-emerald-500 hover:border-emerald-500/50 transition-all">
+              <button type="button" onClick={() => openReport('collection')} className="glass-card w-full p-5 text-left border-l-4 border-l-emerald-500 hover:border-emerald-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400/70">
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
                   <span>Total Collections</span>
                   <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
@@ -339,10 +394,11 @@ export const DashboardPage: React.FC = () => {
                     Princ: {money(dashboard?.metrics.collection.principal)}
                   </span>
                 </div>
-              </div>
+                <MetricDelta metric={dashboard?.comparisons.collections} label="vs prior month" />
+              </button>
 
               {/* Card 2: Operational Expenses */}
-              <div className="glass-card p-5 border-l-4 border-l-rose-500 hover:border-rose-500/50 transition-all">
+              <button type="button" onClick={() => openReport('expenses')} className="glass-card w-full p-5 text-left border-l-4 border-l-rose-500 hover:border-rose-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-rose-400/70">
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
                   <span>Operational Expenses</span>
                   <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
@@ -356,10 +412,11 @@ export const DashboardPage: React.FC = () => {
                   <span>{dashboard?.metrics.expenses.count || 0} expense records</span>
                   <span className="text-rose-400 font-semibold">Society overheads</span>
                 </div>
-              </div>
+                <MetricDelta metric={dashboard?.comparisons.expenses} label="vs prior month" />
+              </button>
 
               {/* Card 3: Custody Reserves */}
-              <div className="glass-card p-5 border-l-4 border-l-blue-500 hover:border-blue-500/50 transition-all">
+              <button type="button" onClick={() => openReport('custody')} className="glass-card w-full p-5 text-left border-l-4 border-l-blue-500 hover:border-blue-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-blue-400/70">
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
                   <span>
                     {dashboard?.roleScope === 'ORGANIZATION'
@@ -377,7 +434,8 @@ export const DashboardPage: React.FC = () => {
                   <span>{dashboard?.custodyByAccount.length || 0} accounts active</span>
                   <span className="text-blue-400 font-semibold">Verified balance</span>
                 </div>
-              </div>
+                <MetricDelta metric={dashboard?.comparisons.custody} label="vs last month" />
+              </button>
 
               {/* Card 4: Membership / Portfolio */}
               <div className="glass-card p-5 border-l-4 border-l-purple-500 hover:border-purple-500/50 transition-all">
@@ -413,7 +471,7 @@ export const DashboardPage: React.FC = () => {
               </div>
 
               {/* Card 5: Total Dues */}
-              <div className="glass-card p-5 border-l-4 border-l-amber-500 hover:border-amber-500/50 transition-all">
+              <button type="button" onClick={() => openReport('dues')} className="glass-card w-full p-5 text-left border-l-4 border-l-amber-500 hover:border-amber-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-amber-400/70">
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
                   <span>Total Dues</span>
                   <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -427,10 +485,13 @@ export const DashboardPage: React.FC = () => {
                   <span>{dashboard?.metrics.dues.count || 0} outstanding ledger months</span>
                   <span className="text-amber-400 font-semibold">Jan 2024–current</span>
                 </div>
-              </div>
+                <MetricDelta metric={dashboard?.comparisons.dues} label="vs prior month" inverse />
+              </button>
             </div>
 
-            <FinancialTrendChart trend={dashboard?.trend || []} />
+            <FinancialTrendChart trend={dashboard?.trend || []} onOpenReport={openReport} />
+
+            <DashboardAlerts alerts={dashboard?.alerts} onOpenReport={openReport} showInvestments={isPrimary} />
 
             {/* 4. Middle Section: Recent System Activity & Custody Distribution */}
             <div className="order-4 grid grid-cols-1 lg:grid-cols-5 gap-6 sm:gap-8">
@@ -451,14 +512,18 @@ export const DashboardPage: React.FC = () => {
                     </div>
                   </div>
                   <span className="text-[11px] font-semibold text-gray-400 bg-slate-900/60 border border-white/5 px-2.5 py-1 rounded-full self-start sm:self-auto">
-                    {dashboard?.recentActivity.length || 0} Recent Logs
+                    {displayedActivity.length} of {dashboard?.activityTotal || 0} Logs
                   </span>
                 </div>
 
-                <div className="space-y-3 pt-1">
-                  {dashboard?.recentActivity.length ? (
-                    dashboard.recentActivity.map((item, index) => {
-                      const serialNo = Math.max(1, (dashboard.activityTotal || dashboard.recentActivity.length) - index);
+                <div
+                  onScroll={handleActivityScroll}
+                  className="max-h-[760px] space-y-3 overflow-y-auto overscroll-contain pr-1 pt-1 sm:max-h-[900px]"
+                  aria-label="Recent system activity. Scroll to load older records."
+                >
+                  {displayedActivity.length ? (
+                    displayedActivity.map((item, index) => {
+                      const serialNo = Math.max(1, (dashboard?.activityTotal || displayedActivity.length) - index);
                       return (
                       <div
                         key={item.id}
@@ -503,6 +568,14 @@ export const DashboardPage: React.FC = () => {
                     })
                   ) : (
                     <Empty text="No recent activity logged for this scope." />
+                  )}
+                  {activityPage < (dashboard?.activityPagination.totalPages || 1) && (
+                    <div className="flex min-h-12 items-center justify-center border-t border-white/5 pt-3 text-xs text-gray-400">
+                      {loadingMoreActivity ? <><Loader2 size={15} className="mr-2 animate-spin text-blue-400" />Loading older activity…</> : 'Scroll to load 10 older records'}
+                    </div>
+                  )}
+                  {activityPage >= (dashboard?.activityPagination.totalPages || 1) && displayedActivity.length > 0 && (
+                    <p className="py-2 text-center text-[11px] font-medium text-gray-500">All {dashboard?.activityTotal || displayedActivity.length} activity records loaded.</p>
                   )}
                 </div>
               </div>
@@ -848,9 +921,77 @@ const Empty: React.FC<{ text: string }> = ({ text }) => (
   </div>
 );
 
+const MetricDelta: React.FC<{
+  metric?: MetricComparison;
+  label: string;
+  inverse?: boolean;
+}> = ({ metric, label, inverse = false }) => {
+  if (!metric || metric.percentage === null) return <p className="mt-2 text-[10px] font-medium text-gray-500">No prior-month comparison</p>;
+  const isPositive = metric.change > 0;
+  const beneficial = inverse ? !isPositive : isPositive;
+  const color = beneficial ? 'text-emerald-400' : metric.change === 0 ? 'text-gray-400' : 'text-rose-400';
+  return (
+    <p className={`mt-2 text-[10px] font-bold ${color}`}>
+      {metric.change === 0 ? 'No change' : `${isPositive ? '↑' : '↓'} ${Math.abs(metric.percentage).toFixed(1)}%`} <span className="font-medium text-gray-500">{label}</span>
+    </p>
+  );
+};
+
+const DashboardAlerts: React.FC<{
+  alerts?: Dashboard['alerts'];
+  onOpenReport: (type: ReportType) => void;
+  showInvestments: boolean;
+}> = ({ alerts, onOpenReport, showInvestments }) => {
+  if (!alerts) return null;
+  const criticalDue = alerts.dueAging.find((item) => item.label === '90+ days');
+  const hasAlerts = Boolean(criticalDue?.count || alerts.overdueMembers || alerts.lowCustodyAccounts.length || (showInvestments && alerts.investmentMaturities.length));
+
+  return (
+    <section className="order-2 glass-card p-5 sm:p-6" aria-labelledby="operational-alerts-title">
+      <div className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 id="operational-alerts-title" className="text-sm font-bold uppercase tracking-wider text-white">Operational alerts</h2>
+          <p className="mt-1 text-xs text-gray-400">Items that need management attention, calculated from live ledgers and project records.</p>
+        </div>
+        <span className={`self-start rounded-full border px-2.5 py-1 text-[11px] font-bold ${hasAlerts ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'}`}>
+          {hasAlerts ? 'Attention needed' : 'All clear'}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        <button type="button" onClick={() => onOpenReport('dues')} className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-4 text-left transition-colors hover:bg-amber-500/[0.1] focus:outline-none focus:ring-2 focus:ring-amber-400/70">
+          <p className="text-xs font-bold uppercase tracking-wider text-amber-300">Due aging</p>
+          <p className="mt-2 text-2xl font-extrabold text-white">{money(criticalDue?.total || 0)}</p>
+          <p className="mt-1 text-xs text-gray-400">{criticalDue?.count || 0} ledger months over 90 days · {alerts.overdueMembers} affected members</p>
+          <div className="mt-3 flex gap-1" aria-hidden="true">
+            {alerts.dueAging.map((item) => <span key={item.label} className="h-1.5 flex-1 rounded-full bg-amber-400/30" style={{ opacity: item.total > 0 ? 1 : 0.25 }} />)}
+          </div>
+        </button>
+
+        <button type="button" onClick={() => onOpenReport('custody')} className="rounded-xl border border-blue-500/20 bg-blue-500/[0.06] p-4 text-left transition-colors hover:bg-blue-500/[0.1] focus:outline-none focus:ring-2 focus:ring-blue-400/70">
+          <p className="text-xs font-bold uppercase tracking-wider text-blue-300">Low custody balances</p>
+          <p className="mt-2 text-2xl font-extrabold text-white">{alerts.lowCustodyAccounts.length}</p>
+          <p className="mt-1 text-xs text-gray-400">Accounts at or below {money(alerts.lowBalanceThreshold)}</p>
+          <p className="mt-3 truncate text-xs font-semibold text-blue-200">{alerts.lowCustodyAccounts.length ? alerts.lowCustodyAccounts.map((account) => account.name).join(' · ') : 'No low-balance accounts'}</p>
+        </button>
+
+        {showInvestments && (
+          <button type="button" onClick={() => onOpenReport('investments')} className="rounded-xl border border-indigo-500/20 bg-indigo-500/[0.06] p-4 text-left transition-colors hover:bg-indigo-500/[0.1] focus:outline-none focus:ring-2 focus:ring-indigo-400/70">
+            <p className="text-xs font-bold uppercase tracking-wider text-indigo-300">Maturity reminders</p>
+            <p className="mt-2 text-2xl font-extrabold text-white">{alerts.investmentMaturities.length}</p>
+            <p className="mt-1 text-xs text-gray-400">Active projects maturing within 30 days</p>
+            <p className="mt-3 truncate text-xs font-semibold text-indigo-200">{alerts.investmentMaturities.length ? alerts.investmentMaturities.map((project) => `${project.name} (${project.daysRemaining}d)`).join(' · ') : 'No upcoming maturities'}</p>
+          </button>
+        )}
+      </div>
+    </section>
+  );
+};
+
 const FinancialTrendChart: React.FC<{
   trend: Array<{ month: string; collections: number; expenses: number; dues: number }>;
-}> = ({ trend }) => {
+  onOpenReport: (type: ReportType) => void;
+}> = ({ trend, onOpenReport }) => {
   const width = 720;
   const height = 250;
   const padding = { top: 18, right: 16, bottom: 36, left: 14 };
@@ -920,10 +1061,10 @@ const FinancialTrendChart: React.FC<{
         </svg>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-gray-400">
-        <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-emerald-400" />Collections</span>
-        <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-rose-400" />Expenses</span>
-        <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-amber-400" />Outstanding dues</span>
+      <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2 text-[11px] font-semibold text-gray-400">
+        <button type="button" onClick={() => onOpenReport('collection')} className="inline-flex min-h-0 items-center gap-1.5 rounded-md border border-transparent px-2 py-1 transition-colors hover:border-emerald-400/30 hover:bg-emerald-500/15 hover:text-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/70"><i className="h-2 w-2 rounded-full bg-emerald-400" />Collections</button>
+        <button type="button" onClick={() => onOpenReport('expenses')} className="inline-flex min-h-0 items-center gap-1.5 rounded-md border border-transparent px-2 py-1 transition-colors hover:border-rose-400/30 hover:bg-rose-500/15 hover:text-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-400/70"><i className="h-2 w-2 rounded-full bg-rose-400" />Expenses</button>
+        <button type="button" onClick={() => onOpenReport('dues')} className="inline-flex min-h-0 items-center gap-1.5 rounded-md border border-transparent px-2 py-1 transition-colors hover:border-amber-400/30 hover:bg-amber-500/15 hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-400/70"><i className="h-2 w-2 rounded-full bg-amber-400" />Outstanding dues</button>
         {!hasData && <span className="text-gray-500">No financial activity in this reporting window.</span>}
       </div>
     </section>
