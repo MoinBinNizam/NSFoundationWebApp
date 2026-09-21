@@ -22,6 +22,8 @@ async function run() {
 
     const dashboard = await ReportingService.getDashboard({}, moin as any);
     if (dashboard.roleScope !== 'ORGANIZATION') throw new Error('Admin dashboard must have organization scope.');
+    if (!dashboard.metrics.dues || typeof dashboard.metrics.dues.total !== 'number') throw new Error('Dashboard must include the total outstanding dues metric.');
+    if (!dashboard.trend.length || !dashboard.trend.every((item: any) => typeof item.collections === 'number' && typeof item.expenses === 'number' && typeof item.dues === 'number')) throw new Error('Dashboard must return numeric monthly trend data.');
     const collection = await ReportingService.getReport('collection', { page: 1, limit: 10, sortBy: 'date', sortDirection: 'desc' }, samrat as any);
     if (collection.pagination.limit !== 10) throw new Error('Report pagination must default to/retain 10 records.');
     let samratBlocked = false;
@@ -44,6 +46,7 @@ async function run() {
     ]);
     if (assistantResponse.status !== 403 || !primaryResponse.ok) throw new Error('Investment route authorization middleware did not enforce the required roles.');
     console.log(`✓ Admin organization dashboard returned ${dashboard.recentActivity.length} activity events.`);
+    console.log(`✓ Dashboard includes ${dashboard.trend.length} monthly trend points and ${dashboard.metrics.dues.count} outstanding ledger months.`);
     console.log(`✓ Accountant collection report is scoped and paginated at ${collection.pagination.limit} records.`);
     console.log(`✓ Samrat denied investment report; Moin received ${investment.pagination.total} investment rows.`);
     console.log('✓ HTTP route test confirmed Samrat receives 403 and Moin receives 200 for investment API access.');

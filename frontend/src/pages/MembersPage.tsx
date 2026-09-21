@@ -17,6 +17,7 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  RefreshCw,
 } from 'lucide-react';
 
 interface MemberData {
@@ -229,78 +230,116 @@ export const MembersPage: React.FC = () => {
   const canDelete = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto pb-10">
       {/* Header & Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          <div className="flex items-center gap-2 text-blue-400">
+            <Users size={18} />
+            <span className="text-xs font-bold uppercase tracking-wider">Membership · Registry</span>
+          </div>
+          <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
             Member Management
           </h1>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="mt-1 text-xs sm:text-sm text-gray-400">
             Registry and profiles of cooperative members eligible for distributions and share accounts.
           </p>
         </div>
 
-        {canEdit && (
-          <button onClick={handleOpenAddModal} className="btn btn-primary shrink-0 self-start sm:self-auto">
-            <Plus size={18} />
-            <span>Add Member</span>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={fetchData}
+            className="btn btn-secondary btn-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin text-blue-400' : 'text-gray-400'} />
+            <span>Refresh</span>
           </button>
-        )}
+          {canEdit && (
+            <button
+              onClick={handleOpenAddModal}
+              className="btn btn-primary btn-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider shrink-0"
+            >
+              <Plus size={16} />
+              <span>Add Member</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="glass-card p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Total Registered
-            </span>
-            <div className="p-2 rounded-lg bg-blue-500/15 text-blue-400">
-              <Users size={20} />
+      {/* KPI Stats Cards - Standardized Dashboard Glass-Card Design */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+        {/* Card 1: Total Registered */}
+        <div className="glass-card p-5 border-l-4 border-l-blue-500 hover:border-blue-500/50 transition-all">
+          <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
+            <span>Total Registered</span>
+            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              <Users size={18} />
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-white mt-3">{stats.total}</p>
-          <span className="text-xs text-gray-500 mt-1 block">Total society members</span>
+          <p className="text-2xl sm:text-3xl font-extrabold text-white mt-3 tracking-tight">
+            {stats.total}
+          </p>
+          <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
+            <span>Society registry</span>
+            <span className="text-blue-400 font-semibold">100% recorded</span>
+          </div>
         </div>
 
-        <div className="glass-card p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Active Members
-            </span>
-            <div className="p-2 rounded-lg bg-emerald-500/15 text-emerald-400">
-              <UserCheck size={20} />
+        {/* Card 2: Active Members */}
+        <div className="glass-card p-5 border-l-4 border-l-emerald-500 hover:border-emerald-500/50 transition-all">
+          <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
+            <span>Active Members</span>
+            <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <UserCheck size={18} />
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-emerald-400 mt-3">{stats.active}</p>
-          <span className="text-xs text-gray-500 mt-1 block">Eligible for shares & dividends</span>
+          <p className="text-2xl sm:text-3xl font-extrabold text-white mt-3 tracking-tight">
+            {stats.active}
+          </p>
+          <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
+            <span>Eligible for dividends</span>
+            <span className="text-emerald-400 font-semibold">
+              {stats.total > 0 ? `${Math.round((stats.active / stats.total) * 100)}% active` : '0%'}
+            </span>
+          </div>
         </div>
 
-        <div className="glass-card p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Inactive Members
-            </span>
-            <div className="p-2 rounded-lg bg-amber-500/15 text-amber-400">
-              <UserMinus size={20} />
+        {/* Card 3: Inactive Members */}
+        <div className="glass-card p-5 border-l-4 border-l-amber-500 hover:border-amber-500/50 transition-all">
+          <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
+            <span>Inactive Members</span>
+            <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+              <UserMinus size={18} />
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-amber-400 mt-3">{stats.inactive}</p>
-          <span className="text-xs text-gray-500 mt-1 block">Temporarily dormant</span>
+          <p className="text-2xl sm:text-3xl font-extrabold text-white mt-3 tracking-tight">
+            {stats.inactive}
+          </p>
+          <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
+            <span>Temporarily dormant</span>
+            <span className="text-amber-400 font-semibold">
+              {stats.total > 0 ? `${Math.round((stats.inactive / stats.total) * 100)}% dormant` : '0%'}
+            </span>
+          </div>
         </div>
 
-        <div className="glass-card p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Dropped / Archived
-            </span>
-            <div className="p-2 rounded-lg bg-rose-500/15 text-rose-400">
-              <UserX size={20} />
+        {/* Card 4: Dropped / Archived */}
+        <div className="glass-card p-5 border-l-4 border-l-rose-500 hover:border-rose-500/50 transition-all">
+          <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
+            <span>Dropped / Archived</span>
+            <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
+              <UserX size={18} />
             </div>
           </div>
-          <p className="text-3xl font-extrabold text-rose-400 mt-3">{stats.dropped}</p>
-          <span className="text-xs text-gray-500 mt-1 block">Released / settled shares</span>
+          <p className="text-2xl sm:text-3xl font-extrabold text-white mt-3 tracking-tight">
+            {stats.dropped}
+          </p>
+          <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
+            <span>Released / settled shares</span>
+            <span className="text-rose-400 font-semibold">
+              {stats.total > 0 ? `${Math.round((stats.dropped / stats.total) * 100)}% settled` : '0%'}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -309,37 +348,44 @@ export const MembersPage: React.FC = () => {
         {/* Search input with Debounce */}
         <div className="relative flex-1 min-w-[280px]">
           <Search
-            size={18}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+            size={16}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
           />
           <input
             type="text"
-            className="form-input pl-10 text-sm"
+            className="form-input pl-9 text-xs sm:text-sm"
             placeholder="Search by name, phone number, or Member ID (e.g. NSF001)..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
 
-        {/* Status Filter Pills */}
-        <div className="flex gap-1.5 items-center flex-wrap">
-          {['ALL', 'ACTIVE', 'INACTIVE', 'DROPPED'].map((st) => (
-            <button
-              key={st}
-              type="button"
-              onClick={() => {
-                setStatusFilter(st);
-                setPage(1);
-              }}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold tracking-wider transition-all duration-200 ${
-                statusFilter === st
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
-                  : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              {st}
-            </button>
-          ))}
+        {/* Status Filter Pills & Count Indicator */}
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex gap-1.5 items-center flex-wrap">
+            {['ALL', 'ACTIVE', 'INACTIVE', 'DROPPED'].map((st) => (
+              <button
+                key={st}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(st);
+                  setPage(1);
+                }}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
+                  statusFilter === st
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
+                    : 'text-gray-400 hover:text-white bg-slate-900/60 border border-white/5'
+                }`}
+              >
+                {st}
+              </button>
+            ))}
+          </div>
+
+          <div className="text-xs text-gray-400 flex items-center">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2" />
+            <span>{pagination.total} registered member{pagination.total === 1 ? '' : 's'}</span>
+          </div>
         </div>
       </div>
 
@@ -348,31 +394,33 @@ export const MembersPage: React.FC = () => {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Member ID</th>
-              <th>Full Name</th>
-              <th>Contact Info</th>
-              <th>Status</th>
-              <th>Join Date</th>
-              <th className="text-right">Actions</th>
+              <th className="w-16 text-center whitespace-nowrap font-bold">SL NO</th>
+              <th className="whitespace-nowrap font-bold">Member ID</th>
+              <th className="whitespace-nowrap font-bold">Full Name</th>
+              <th className="whitespace-nowrap font-bold">Contact Info</th>
+              <th className="whitespace-nowrap font-bold">Status</th>
+              <th className="whitespace-nowrap font-bold">Join Date</th>
+              <th className="text-right whitespace-nowrap font-bold">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-gray-400">
+                <td colSpan={7} className="text-center py-12 text-gray-400">
                   <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
                   <span>Loading members registry...</span>
                 </td>
               </tr>
             ) : members.length === 0 ? (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-gray-400">
+                <td colSpan={7} className="text-center py-12 text-gray-400">
                   <Users size={32} className="opacity-30 mx-auto mb-3" />
                   <p>No members found matching your search criteria.</p>
                 </td>
               </tr>
             ) : (
-              members.map((m) => {
+              members.map((m, idx) => {
+                const serialNo = (pagination.page - 1) * pagination.limit + idx + 1;
                 const badgeClass =
                   m.status === 'ACTIVE'
                     ? 'badge-active'
@@ -382,6 +430,11 @@ export const MembersPage: React.FC = () => {
 
                 return (
                   <tr key={m._id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="text-center font-mono text-xs font-bold text-gray-400">
+                      <span className="inline-block px-2 py-0.5 rounded bg-white/5 border border-white/5 text-gray-300">
+                        {String(serialNo).padStart(2, '0')}
+                      </span>
+                    </td>
                     <td>
                       <span className="font-mono font-bold text-xs text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/25">
                         {m.memberId}
@@ -765,40 +818,40 @@ export const MembersPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="space-y-3 mt-4 text-xs">
-              <div className="flex justify-between items-center p-3 bg-white/[0.03] rounded-lg">
-                <span className="text-gray-400">Membership Status:</span>
+            <div className="space-y-2.5 mt-4 text-xs">
+              <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
+                <span className="text-gray-400 font-medium">Membership Status:</span>
                 <span className={`badge ${selectedMember.status === 'ACTIVE' ? 'badge-active' : selectedMember.status === 'INACTIVE' ? 'badge-inactive' : 'badge-dropped'}`}>
                   {selectedMember.status}
                 </span>
               </div>
 
-              <div className="flex justify-between items-center p-3 bg-white/[0.03] rounded-lg">
-                <span className="text-gray-400">Phone:</span>
+              <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
+                <span className="text-gray-400 font-medium">Phone:</span>
                 <span className="text-white font-semibold">{selectedMember.phone}</span>
               </div>
 
               {selectedMember.email && (
-                <div className="flex justify-between items-center p-3 bg-white/[0.03] rounded-lg">
-                  <span className="text-gray-400">Email:</span>
-                  <span className="text-white">{selectedMember.email}</span>
+                <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
+                  <span className="text-gray-400 font-medium">Email:</span>
+                  <span className="text-white font-semibold">{selectedMember.email}</span>
                 </div>
               )}
 
-              <div className="flex justify-between items-center p-3 bg-white/[0.03] rounded-lg">
-                <span className="text-gray-400">Join Date:</span>
-                <span className="text-white">{new Date(selectedMember.joinDate).toLocaleDateString()}</span>
+              <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
+                <span className="text-gray-400 font-medium">Join Date:</span>
+                <span className="text-white font-semibold">{new Date(selectedMember.joinDate).toLocaleDateString()}</span>
               </div>
 
               {selectedMember.address && (
-                <div className="flex justify-between items-center p-3 bg-white/[0.03] rounded-lg">
-                  <span className="text-gray-400">Address:</span>
-                  <span className="text-white">{selectedMember.address}</span>
+                <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
+                  <span className="text-gray-400 font-medium">Address:</span>
+                  <span className="text-white font-semibold">{selectedMember.address}</span>
                 </div>
               )}
 
               {selectedMember.notes && (
-                <div className="p-3 bg-white/[0.03] rounded-lg">
+                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
                   <span className="text-gray-400 block mb-1 font-medium">Notes:</span>
                   <p className="text-gray-300">{selectedMember.notes}</p>
                 </div>

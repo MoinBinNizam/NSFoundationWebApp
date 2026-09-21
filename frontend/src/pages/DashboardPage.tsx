@@ -34,6 +34,7 @@ interface Dashboard {
   metrics: {
     collection: { total: number; count: number; principal: number; penalty: number };
     expenses: { total: number; count: number };
+    dues: { total: number; count: number };
     custody: number;
     activeMembers: number;
     investments?: {
@@ -42,6 +43,8 @@ interface Dashboard {
       netRealizedProfit: number;
     } | null;
   };
+  trend: Array<{ month: string; collections: number; expenses: number; dues: number }>;
+  activityTotal: number;
   custodyByAccount: Array<{ name: string; channel: string; balance: number }>;
   recentActivity: Array<{
     id: string;
@@ -226,11 +229,10 @@ export const DashboardPage: React.FC = () => {
       <div className="flex border-b border-white/10 gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setView('dashboard')}
-          className={`pb-3 px-4 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 whitespace-nowrap ${
-            view === 'dashboard'
+          className={`pb-3 px-4 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 whitespace-nowrap ${view === 'dashboard'
               ? 'border-blue-500 text-blue-400'
               : 'border-transparent text-gray-400 hover:text-white'
-          }`}
+            }`}
         >
           <BarChart3 size={16} />
           <span>Dashboard Overview</span>
@@ -238,11 +240,10 @@ export const DashboardPage: React.FC = () => {
 
         <button
           onClick={() => setView('reports')}
-          className={`pb-3 px-4 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 whitespace-nowrap ${
-            view === 'reports'
+          className={`pb-3 px-4 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 whitespace-nowrap ${view === 'reports'
               ? 'border-blue-500 text-blue-400'
               : 'border-transparent text-gray-400 hover:text-white'
-          }`}
+            }`}
         >
           <FileText size={16} />
           <span>Reports & Exports</span>
@@ -260,29 +261,28 @@ export const DashboardPage: React.FC = () => {
       )}
 
       {/* Shared Filter Bar (Identical to Contributions & Payments filter pattern) */}
-      <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
+      <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3 flex-wrap">
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
               <Calendar size={14} className="text-blue-400" />
               <span>Reporting Period:</span>
             </span>
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="grid w-full grid-cols-2 gap-1.5 sm:w-auto">
               <input
                 type="date"
                 aria-label="Start date"
-                className="form-input text-xs py-1.5 px-3 max-w-[150px]"
+                className="form-input min-w-0 px-2 py-1.5 text-xs sm:w-[142px]"
                 value={startDate}
                 onChange={(e) => {
                   setStartDate(e.target.value);
                   setPage(1);
                 }}
               />
-              <span className="text-gray-500 text-xs font-semibold">to</span>
               <input
                 type="date"
                 aria-label="End date"
-                className="form-input text-xs py-1.5 px-3 max-w-[150px]"
+                className="form-input min-w-0 px-2 py-1.5 text-xs sm:w-[142px]"
                 value={endDate}
                 onChange={(e) => {
                   setEndDate(e.target.value);
@@ -319,9 +319,9 @@ export const DashboardPage: React.FC = () => {
         loading ? (
           <Loading />
         ) : (
-          <div className="space-y-8 sm:space-y-10">
+          <div className="flex flex-col gap-8 sm:gap-10">
             {/* 1. Primary Metric KPI Cards (Contributions & Payments Cards Design) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            <div className="order-1 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-5">
               {/* Card 1: Total Collections */}
               <div className="glass-card p-5 border-l-4 border-l-emerald-500 hover:border-emerald-500/50 transition-all">
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
@@ -395,26 +395,45 @@ export const DashboardPage: React.FC = () => {
                   {dashboard?.roleScope === 'ORGANIZATION'
                     ? `${dashboard?.metrics.activeMembers || 0}`
                     : isPrimary
-                    ? `${dashboard?.metrics.investments?.activeProjectsCount || 0} Projects`
-                    : 'Restricted'}
+                      ? `${dashboard?.metrics.investments?.activeProjectsCount || 0} Projects`
+                      : 'Restricted'}
                 </p>
                 <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
                   <span>
                     {dashboard?.roleScope === 'ORGANIZATION'
                       ? 'In good standing'
                       : isPrimary
-                      ? `Cap: ${money(dashboard?.metrics.investments?.totalCapitalInvested)}`
-                      : 'Primary accountant only'}
+                        ? `Cap: ${money(dashboard?.metrics.investments?.totalCapitalInvested)}`
+                        : 'Primary accountant only'}
                   </span>
                   <span className="text-purple-400 font-semibold">
                     {dashboard?.roleScope === 'ORGANIZATION' ? 'Enrolled' : 'Authorized'}
                   </span>
                 </div>
               </div>
+
+              {/* Card 5: Total Dues */}
+              <div className="glass-card p-5 border-l-4 border-l-amber-500 hover:border-amber-500/50 transition-all">
+                <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
+                  <span>Total Dues</span>
+                  <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    <DollarSign size={18} />
+                  </div>
+                </div>
+                <p className="text-2xl sm:text-3xl font-extrabold text-white mt-3 tracking-tight">
+                  {money(dashboard?.metrics.dues.total)}
+                </p>
+                <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
+                  <span>{dashboard?.metrics.dues.count || 0} outstanding ledger months</span>
+                  <span className="text-amber-400 font-semibold">Jan 2024–current</span>
+                </div>
+              </div>
             </div>
 
-            {/* 2. Middle Section: Recent System Activity & Custody Distribution (with generous space) */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 sm:gap-8">
+            <FinancialTrendChart trend={dashboard?.trend || []} />
+
+            {/* 4. Middle Section: Recent System Activity & Custody Distribution */}
+            <div className="order-4 grid grid-cols-1 lg:grid-cols-5 gap-6 sm:gap-8">
               {/* Recent System Activity Card */}
               <div className="glass-card p-5 sm:p-6 space-y-4 lg:col-span-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-4">
@@ -438,14 +457,24 @@ export const DashboardPage: React.FC = () => {
 
                 <div className="space-y-3 pt-1">
                   {dashboard?.recentActivity.length ? (
-                    dashboard.recentActivity.map((item) => (
+                    dashboard.recentActivity.map((item, index) => {
+                      const serialNo = Math.max(1, (dashboard.activityTotal || dashboard.recentActivity.length) - index);
+                      return (
                       <div
                         key={item.id}
                         className="p-3.5 sm:p-4 rounded-xl bg-slate-900/60 border border-white/5 hover:border-white/10 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                       >
                         <div className="flex items-start sm:items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 shrink-0 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mt-0.5 sm:mt-0">
-                            <Activity size={16} />
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            <span
+                              className="inline-flex items-center justify-center font-mono text-[11px] font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-lg px-2 py-1 min-w-[54px]"
+                              title={`Serial Number ${serialNo}`}
+                            >
+                              SL #{String(serialNo).padStart(2, '0')}
+                            </span>
+                            <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 mt-0.5 sm:mt-0">
+                              <Activity size={16} />
+                            </div>
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
@@ -470,7 +499,8 @@ export const DashboardPage: React.FC = () => {
                           </span>
                         </div>
                       </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <Empty text="No recent activity logged for this scope." />
                   )}
@@ -550,9 +580,9 @@ export const DashboardPage: React.FC = () => {
               </div>
             </div>
 
-            {/* 3. Bottom Section: Investment Snapshot (Admin & Primary Accountant) */}
+            {/* 3. Investment Snapshot is shown before operational activity for authorized users. */}
             {isPrimary && dashboard?.metrics.investments && (
-              <div className="glass-card p-5 sm:p-6 space-y-5 border-l-4 border-l-indigo-500 hover:border-indigo-500/50 transition-all">
+              <div className="order-3 glass-card p-5 sm:p-6 space-y-5 border-l-4 border-l-indigo-500 hover:border-indigo-500/50 transition-all">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
@@ -644,11 +674,10 @@ export const DashboardPage: React.FC = () => {
               <button
                 key={type}
                 onClick={() => changeReport(type)}
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-1.5 ${
-                  reportType === type
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap flex items-center gap-1.5 ${reportType === type
                     ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
                     : 'text-gray-400 hover:text-white bg-slate-900/60 border border-white/5'
-                }`}
+                  }`}
               >
                 <span>{reportLabels[type]}</span>
               </button>
@@ -690,6 +719,7 @@ export const DashboardPage: React.FC = () => {
                 <table className="data-table">
                   <thead>
                     <tr>
+                      <th className="w-16 text-center whitespace-nowrap font-bold">SL NO</th>
                       {columns.map((column) => (
                         <th key={column} className="whitespace-nowrap">
                           <button
@@ -715,35 +745,50 @@ export const DashboardPage: React.FC = () => {
                   </thead>
                   <tbody>
                     {report?.rows.length ? (
-                      report.rows.map((row, index) => (
-                        <tr key={index} className="hover:bg-white/[0.02] transition-colors">
-                          {columns.map((column) => {
-                            const val = row[column];
-                            const isMoneyField =
-                              typeof val === 'number' &&
-                              /(total|amount|principal|penalty|profit|outstanding|balance|paid|advance|due|funded)/i.test(
-                                column
-                              );
+                      report.rows.map((row, index) => {
+                        const offset = report?.pagination
+                          ? (report.pagination.page - 1) * report.pagination.limit + index
+                          : index;
+                        const serialNo =
+                          sortDirection === 'desc' && report?.pagination
+                            ? report.pagination.total - offset
+                            : offset + 1;
 
-                            return (
-                              <td
-                                key={column}
-                                className="max-w-[240px] truncate text-xs sm:text-sm text-gray-300"
-                                title={String(val ?? '')}
-                              >
-                                {isMoneyField ? (
-                                  <span className="font-semibold text-white">{money(val)}</span>
-                                ) : (
-                                  String(val ?? '—')
-                                )}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))
+                        return (
+                          <tr key={index} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="text-center font-mono text-xs font-bold text-gray-400">
+                              <span className="inline-block px-2 py-0.5 rounded bg-white/5 border border-white/5 text-gray-300">
+                                {String(serialNo).padStart(2, '0')}
+                              </span>
+                            </td>
+                            {columns.map((column) => {
+                              const val = row[column];
+                              const isMoneyField =
+                                typeof val === 'number' &&
+                                /(total|amount|principal|penalty|profit|outstanding|balance|paid|advance|due|funded)/i.test(
+                                  column
+                                );
+
+                              return (
+                                <td
+                                  key={column}
+                                  className="max-w-[240px] truncate text-xs sm:text-sm text-gray-300"
+                                  title={String(val ?? '')}
+                                >
+                                  {isMoneyField ? (
+                                    <span className="font-semibold text-white">{money(val)}</span>
+                                  ) : (
+                                    String(val ?? '—')
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })
                     ) : (
                       <tr>
-                        <td colSpan={Math.max(columns.length, 1)}>
+                        <td colSpan={Math.max(columns.length + 1, 1)}>
                           <Empty text="No records match the current filters." />
                         </td>
                       </tr>
@@ -802,3 +847,85 @@ const Empty: React.FC<{ text: string }> = ({ text }) => (
     <span>{text}</span>
   </div>
 );
+
+const FinancialTrendChart: React.FC<{
+  trend: Array<{ month: string; collections: number; expenses: number; dues: number }>;
+}> = ({ trend }) => {
+  const width = 720;
+  const height = 250;
+  const padding = { top: 18, right: 16, bottom: 36, left: 14 };
+  const values = trend.flatMap((item) => [item.collections, item.expenses, item.dues]);
+  const maxValue = Math.max(1, ...values);
+  const graphWidth = width - padding.left - padding.right;
+  const graphHeight = height - padding.top - padding.bottom;
+  const point = (value: number, index: number) => {
+    const x = trend.length > 1 ? padding.left + (graphWidth * index) / (trend.length - 1) : width / 2;
+    const y = padding.top + graphHeight - (Math.max(0, value) / maxValue) * graphHeight;
+    return `${x},${y}`;
+  };
+  const line = (key: 'collections' | 'expenses' | 'dues') => trend.map((item, index) => point(item[key], index)).join(' ');
+  const formatMonth = (month: string) => {
+    const [year, monthNumber] = month.split('-').map(Number);
+    return new Intl.DateTimeFormat('en-BD', { month: 'short', year: trend.length > 6 ? '2-digit' : undefined }).format(new Date(year, monthNumber - 1, 1));
+  };
+  const totalCollections = trend.reduce((sum, item) => sum + item.collections, 0);
+  const totalExpenses = trend.reduce((sum, item) => sum + item.expenses, 0);
+  const hasData = values.some((value) => value > 0);
+
+  return (
+    <section className="order-2 glass-card p-5 sm:p-6" aria-labelledby="financial-trend-title">
+      <div className="flex flex-col gap-3 border-b border-white/10 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-2.5">
+          <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/10 text-cyan-400">
+            <TrendingUp size={16} />
+          </div>
+          <div>
+            <h2 id="financial-trend-title" className="text-sm font-bold uppercase tracking-wider text-white">Financial performance trend</h2>
+            <p className="mt-0.5 text-xs text-gray-400">Monthly collections, expenses, and outstanding dues from the reporting window.</p>
+          </div>
+        </div>
+        <span className={`self-start rounded-full border px-2.5 py-1 text-[11px] font-bold ${totalCollections - totalExpenses >= 0 ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' : 'border-rose-500/25 bg-rose-500/10 text-rose-300'}`}>
+          Net cash flow {money(totalCollections - totalExpenses)}
+        </span>
+      </div>
+
+      <div className="mt-5" role="img" aria-label="Line chart of monthly collections, expenses, and outstanding dues">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" preserveAspectRatio="none">
+          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+            const y = padding.top + graphHeight * ratio;
+            return <line key={ratio} x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke="rgba(148,163,184,0.16)" strokeDasharray="4 5" />;
+          })}
+          {trend.length > 0 && (
+            <>
+              <polyline points={line('collections')} fill="none" stroke="#34D399" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+              <polyline points={line('expenses')} fill="none" stroke="#FB7185" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+              <polyline points={line('dues')} fill="none" stroke="#FBBF24" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
+              {trend.map((item, index) => {
+                const [collectionX, collectionY] = point(item.collections, index).split(',');
+                const [expenseX, expenseY] = point(item.expenses, index).split(',');
+                const [duesX, duesY] = point(item.dues, index).split(',');
+                const x = Number(collectionX);
+                const shouldLabel = trend.length <= 6 || index === 0 || index === trend.length - 1 || index % 2 === 0;
+                return (
+                  <g key={item.month}>
+                    <circle cx={collectionX} cy={collectionY} r="4" fill="#34D399"><title>{`${formatMonth(item.month)} collections: ${money(item.collections)}`}</title></circle>
+                    <circle cx={expenseX} cy={expenseY} r="4" fill="#FB7185"><title>{`${formatMonth(item.month)} expenses: ${money(item.expenses)}`}</title></circle>
+                    <circle cx={duesX} cy={duesY} r="4" fill="#FBBF24"><title>{`${formatMonth(item.month)} dues: ${money(item.dues)}`}</title></circle>
+                    {shouldLabel && <text x={x} y={height - 12} textAnchor="middle" fill="#94A3B8" fontSize="11">{formatMonth(item.month)}</text>}
+                  </g>
+                );
+              })}
+            </>
+          )}
+        </svg>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-gray-400">
+        <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-emerald-400" />Collections</span>
+        <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-rose-400" />Expenses</span>
+        <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-amber-400" />Outstanding dues</span>
+        {!hasData && <span className="text-gray-500">No financial activity in this reporting window.</span>}
+      </div>
+    </section>
+  );
+};
