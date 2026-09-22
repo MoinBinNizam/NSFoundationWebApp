@@ -5,6 +5,7 @@ import { IMember, MemberStatus, IUser, ShareEventType } from '../types/models.js
 import { createError } from '../middlewares/error.js';
 import { HydratedDocument, Types } from 'mongoose';
 import { getMonthlyShareValue } from './settings.service.js';
+import { normalizePhone } from '../middlewares/sanitize.js';
 
 export interface CreateMemberInput {
   name: string;
@@ -66,7 +67,7 @@ export async function createMember(
   actingUser: HydratedDocument<IUser>,
   meta?: { ip?: string; userAgent?: string }
 ): Promise<HydratedDocument<IMember>> {
-  const phone = input.phone.trim();
+  const phone = normalizePhone(input.phone)!;
   const initialShareCount = Number(input.initialShareCount ?? 1);
   if (!Number.isInteger(initialShareCount) || initialShareCount < 1 || initialShareCount > 10000) {
     throw createError('Number of shares must be a whole number between 1 and 10,000.', 400);
@@ -224,12 +225,13 @@ export async function updateMember(
   const beforeState = member.toObject();
 
   // If phone changed, check uniqueness
-  if (input.phone && input.phone.trim() !== member.phone) {
-    const existing = await Member.findOne({ phone: input.phone.trim() });
+  const normalizedPhone = input.phone ? normalizePhone(input.phone) : undefined;
+  if (normalizedPhone && normalizedPhone !== member.phone) {
+    const existing = await Member.findOne({ phone: normalizedPhone });
     if (existing && existing._id.toString() !== member._id.toString()) {
       throw createError(`Phone number '${input.phone}' is already in use by another member.`, 409);
     }
-    member.phone = input.phone.trim();
+    member.phone = normalizedPhone;
   }
 
   if (input.name) member.name = input.name.trim();

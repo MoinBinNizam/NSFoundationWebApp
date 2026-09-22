@@ -371,6 +371,14 @@ export class PaymentService {
     if (!custodyAccount || !custodyAccount.isActive) {
       throw createError('Destination custody account not found or inactive', 400);
     }
+    const actingUserId = (actingUser as unknown as { _id?: Types.ObjectId; linkedGatewayChannels?: CustodyChannel[]; accountantType?: string | null })._id;
+    const configuredGateways = (actingUser as unknown as { linkedGatewayChannels?: CustodyChannel[] }).linkedGatewayChannels || [];
+    if (configuredGateways.length > 0 && !configuredGateways.includes(custodyAccount.channel)) {
+      throw createError(`Your staff profile is not permitted to receive payments through ${custodyAccount.channel}.`, 403);
+    }
+    if (actingUser.accountantType && actingUserId && String(custodyAccount.holderId || '') !== String(actingUserId)) {
+      throw createError('Accountants can record collections only in their own assigned custody accounts.', 403);
+    }
 
     const paymentDate = input.paymentDate ? new Date(input.paymentDate) : new Date();
     const currentYearMonth = toYearMonth(paymentDate);

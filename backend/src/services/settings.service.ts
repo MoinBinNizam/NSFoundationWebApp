@@ -8,6 +8,7 @@ import { CustodyChannel } from '../types/models.js';
 
 export const MONTHLY_SHARE_VALUE_KEY = 'MONTHLY_SHARE_VALUE';
 export const DEFAULT_MONTHLY_SHARE_VALUE = 500;
+export const DEFAULT_OPERATIONAL_END_YEAR = 2028;
 const DEFAULT_GATEWAY_RATES = [
   { channel: CustodyChannel.BKASH, cashoutRatePercentage: 1.85, fixedFee: 0, roundingIncrement: 10, description: 'Standard bKash agent cash-out rate; charge rounded up to the nearest BDT 10.' },
   { channel: CustodyChannel.NAGAD, cashoutRatePercentage: 1.49, fixedFee: 0, roundingIncrement: 10, description: 'Nagad app cash-out rate; update this rule to 1.70% when USSD is used.' },
@@ -123,4 +124,18 @@ export async function saveGatewayRate(
     userAgent: meta?.userAgent,
   });
   return rate;
+}
+
+export async function getOperationalEndYear() {
+  const config = await SystemConfig.findOne({ key: 'OPERATIONAL_END_YEAR' }).lean();
+  const value = config && typeof config.value === 'number' ? config.value : DEFAULT_OPERATIONAL_END_YEAR;
+  return { value, updatedAt: config?.updatedAt || null, isDefault: !config };
+}
+
+export async function saveOperationalEndYear(value: number, actingUser: HydratedDocument<IUser>, meta?: { ip?: string; userAgent?: string }) {
+  if (!Number.isInteger(value) || value < DEFAULT_OPERATIONAL_END_YEAR || value > 2100) throw createError('Operational end year must be a whole year from 2028 through 2100.', 400);
+  const before = await SystemConfig.findOne({ key: 'OPERATIONAL_END_YEAR' }).lean();
+  const config = await SystemConfig.findOneAndUpdate({ key: 'OPERATIONAL_END_YEAR' }, { value, description: 'Voter-approved operational end year for final disbursement calculations.', updatedBy: actingUser._id }, { upsert: true, new: true, setDefaultsOnInsert: true });
+  await AuditLog.create({ performedBy: actingUser._id, action: 'UPDATE_OPERATIONAL_END_YEAR', entityName: 'SystemConfig', entityId: config._id, beforeState: before || null, afterState: config.toObject(), reason: `Operational end year set to ${value}.`, ipAddress: meta?.ip, userAgent: meta?.userAgent });
+  return config;
 }

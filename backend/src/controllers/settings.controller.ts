@@ -2,7 +2,7 @@ import { NextFunction, Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.js';
 import { createError } from '../middlewares/error.js';
 import { PaymentService } from '../services/payment.service.js';
-import { getGatewayRateSettings, getMonthlyShareSetting, saveGatewayRate, saveMonthlyShareValue } from '../services/settings.service.js';
+import { getGatewayRateSettings, getMonthlyShareSetting, getOperationalEndYear, saveGatewayRate, saveMonthlyShareValue, saveOperationalEndYear } from '../services/settings.service.js';
 import { CustodyChannel } from '../types/models.js';
 
 export class SettingsController {
@@ -88,6 +88,18 @@ export class SettingsController {
       const { channel, cashoutRatePercentage, fixedFee, roundingIncrement, description } = req.body;
       const rate = await saveGatewayRate({ channel: channel as CustodyChannel, cashoutRatePercentage: Number(cashoutRatePercentage), fixedFee: Number(fixedFee || 0), roundingIncrement: Number(roundingIncrement || 1), description }, req.user, { ip: req.ip, userAgent: req.headers['user-agent'] });
       res.status(200).json({ success: true, message: 'Gateway cash-out rule updated.', data: rate });
+    } catch (error) { next(error); }
+  }
+
+  static async getOperationalEndYear(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try { res.status(200).json({ success: true, data: await getOperationalEndYear() }); } catch (error) { next(error); }
+  }
+
+  static async saveOperationalEndYear(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const config = await saveOperationalEndYear(Number(req.body.value), req.user, { ip: req.ip, userAgent: req.headers['user-agent'] });
+      res.status(200).json({ success: true, message: 'Operational end year updated.', data: config });
     } catch (error) { next(error); }
   }
 }

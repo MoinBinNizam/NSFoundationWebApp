@@ -132,6 +132,12 @@ export interface IUser {
   passwordHash: string;
   role: UserRole;
   accountantType?: AccountantType | null;
+  linkedGatewayChannels?: CustodyChannel[];
+  gatewayAccessKeyHash?: string | null;
+  gatewayAccessKeyPrefix?: string | null;
+  sessionVersion?: number;
+  offboardedAt?: Date | null;
+  offboardedBy?: Types.ObjectId | null;
   status: UserStatus;
   createdAt: Date;
   updatedAt: Date;

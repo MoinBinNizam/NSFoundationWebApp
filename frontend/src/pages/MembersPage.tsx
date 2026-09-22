@@ -406,7 +406,7 @@ export const MembersPage: React.FC = () => {
 
       {/* Member List */}
       <div className="table-container glass-card overflow-hidden">
-        <table className="data-table">
+        <table className="data-table member-list-table">
           <thead>
             <tr>
               <th className="w-16 text-center whitespace-nowrap font-bold">SL NO</th>

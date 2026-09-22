@@ -6,6 +6,7 @@ export interface TokenPayload {
   email: string;
   role: UserRole;
   accountantType?: AccountantType | null;
+  sessionVersion?: number;
 }
 
 /**

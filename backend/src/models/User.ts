@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import { IUser, UserRole, AccountantType, UserStatus } from '../types/models.js';
+import { IUser, UserRole, AccountantType, UserStatus, CustodyChannel } from '../types/models.js';
 
 const userSchema = new Schema<IUser>(
   {
@@ -38,6 +38,12 @@ const userSchema = new Schema<IUser>(
       default: null,
       index: true,
     },
+    linkedGatewayChannels: [{ type: String, enum: Object.values(CustodyChannel) }],
+    gatewayAccessKeyHash: { type: String, select: false, default: null },
+    gatewayAccessKeyPrefix: { type: String, default: null },
+    sessionVersion: { type: Number, default: 0, min: 0 },
+    offboardedAt: { type: Date, default: null },
+    offboardedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     status: {
       type: String,
       enum: Object.values(UserStatus),

@@ -43,6 +43,22 @@
   --font-mono: 'JetBrains Mono', monospace;
 }
 
+/* The dark class is the default application theme. Light mode deliberately
+   overrides legacy utility colors so readable contrast is retained without
+   changing established page behavior. */
+html:not(.dark) {
+  --bg-main: #f1f5f9; --bg-surface: #ffffff; --bg-surface-elevated: #e2e8f0;
+  --bg-glass: rgba(255, 255, 255, .9); --bg-glass-border: rgba(15, 23, 42, .14);
+  --text-main: #0f172a; --text-muted: #334155; --text-subtle: #475569; --border: rgba(15, 23, 42, .16);
+  --shadow-md: 0 4px 14px rgba(15, 23, 42, .12);
+}
+html:not(.dark) input, html:not(.dark) select, html:not(.dark) textarea { color-scheme: light; }
+html:not(.dark) .text-white, html:not(.dark) .text-gray-100 { color: #0f172a !important; }
+html:not(.dark) .text-gray-400, html:not(.dark) .text-gray-300, html:not(.dark) .text-gray-500 { color: #475569 !important; }
+html:not(.dark) [class*="bg-\\[\\#0B0F19\\]"], html:not(.dark) [class*="bg-\\[\\#111827\\]"], html:not(.dark) [class*="bg-slate-900"] { background-color: #fff !important; }
+html:not(.dark) .form-input, html:not(.dark) .form-select, html:not(.dark) .form-textarea, html:not(.dark) .input-field { background: #fff; color: #0f172a; border-color: #94a3b8; }
+html:not(.dark) .form-select option { background: #fff; color: #0f172a; }
+
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-main);
@@ -335,7 +351,7 @@ textarea:focus-visible {
     scrollbar-gutter: stable both-edges;
   }
 
-  .data-table {
+.data-table {
     width: 100%;
     border-collapse: collapse;
     text-align: left;
@@ -390,6 +406,20 @@ textarea:focus-visible {
     box-shadow: var(--shadow-lg);
     animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
+}
+
+.member-list-table { min-width: 1080px; }
+
+@media print {
+  body * { visibility: hidden !important; }
+  .receipt-print, .receipt-print * { visibility: visible !important; }
+  .receipt-print { position: absolute !important; inset: 0 !important; width: 100% !important; max-width: none !important; color: #111827 !important; background: #fff !important; box-shadow: none !important; }
+  .receipt-print .text-white, .receipt-print .text-gray-200, .receipt-print .text-gray-300, .receipt-print .text-gray-400 { color: #111827 !important; }
+  .receipt-print .bg-slate-900, .receipt-print .bg-white\/5 { background: #fff !important; }
+  .receipt-print table { page-break-inside: avoid; }
+  .receipt-signatures { display: grid !important; grid-template-columns: 1fr 1fr; gap: 2rem; margin-top: 1.5rem; }
+  .receipt-signatures > div { border-top: 1px solid #111827; padding-top: .35rem; font-size: 11px; }
+  @page { size: A4 portrait; margin: 10mm; }
 }
 
 /* Dashboard/report pages set the responsive interaction language used by every

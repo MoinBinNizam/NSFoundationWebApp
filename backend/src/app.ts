@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import { getDatabaseStatus } from './config/db.js';
 import { errorHandler, createError } from './middlewares/error.js';
+import { sanitizeRequest } from './middlewares/sanitize.js';
 import authRoutes from './routes/auth.routes.js';
 import memberRoutes from './routes/member.routes.js';
 import shareRoutes from './routes/share.routes.js';
@@ -28,6 +29,7 @@ app.use(
 // ─── BODY PARSING ────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(sanitizeRequest);
 
 // ─── HEALTH ENDPOINT ─────────────────────────────────────────────────────────
 /**

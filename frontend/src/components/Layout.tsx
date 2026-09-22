@@ -13,17 +13,22 @@ import {
   LogOut,
   Shield,
   Settings2,
+  Sun,
+  Moon,
+  Languages,
   Menu,
   X,
 } from 'lucide-react';
 
 import { BrandLogo } from './BrandLogo';
+import { usePreferences } from '../context/PreferencesContext';
 
 export const Layout: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { theme, setTheme, language, setLanguage, t } = usePreferences();
 
   const handleLogout = () => {
     logout();
@@ -105,7 +110,7 @@ export const Layout: React.FC = () => {
         {/* Navigation Items */}
         <nav className="p-3 flex-1 overflow-y-auto space-y-1">
           <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 px-3 pt-2 pb-1.5">
-            Core Modules
+            {t('Core Modules')}
           </p>
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -124,7 +129,7 @@ export const Layout: React.FC = () => {
               >
                 <div className="flex items-center gap-3">
                   <Icon size={18} />
-                  <span>{item.label}</span>
+                  <span>{t(item.label)}</span>
                 </div>
                 {item.badge && (
                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/25 text-blue-400 border border-blue-500/30">
@@ -158,7 +163,7 @@ export const Layout: React.FC = () => {
 
             <button
               onClick={handleLogout}
-              title="Sign Out"
+              title={t('Sign Out')}
               className="text-gray-400 hover:text-red-400 p-2 rounded-md hover:bg-white/5 transition-colors"
             >
               <LogOut size={18} />
@@ -188,8 +193,10 @@ export const Layout: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            <button onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')} className="btn btn-secondary btn-sm px-2.5" title="Switch language" aria-label="Switch language"><Languages size={16} /><span className="hidden sm:inline">{language === 'en' ? 'বাংলা' : 'EN'}</span></button>
+            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="btn btn-secondary btn-sm px-2.5" title="Switch color theme" aria-label="Switch color theme">{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>
             <span className="badge badge-active hidden sm:inline-flex text-[11px] py-1">
-              System Operational
+              {t('System Operational')}
             </span>
           </div>
         </header>

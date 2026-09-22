@@ -44,6 +44,9 @@ export async function authenticate(
     if (user.status !== UserStatus.ACTIVE) {
       return next(createError(`User account is ${user.status.toLowerCase()}. Access denied.`, 403));
     }
+    if (Number(decoded.sessionVersion || 0) !== Number(user.sessionVersion || 0)) {
+      return next(createError('This session has been revoked. Please sign in again.', 401));
+    }
 
     req.user = user;
     next();

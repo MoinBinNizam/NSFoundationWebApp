@@ -1395,7 +1395,7 @@ export const PaymentsPage: React.FC = () => {
             </div>
 
             {/* Receipt Printable Body */}
-            <div className="p-6 space-y-5 text-gray-200">
+            <div className="receipt-print p-6 space-y-5 text-gray-200">
               {/* Society Header */}
               <div className="text-center pb-4 border-b border-white/10">
                 <h4 className="text-lg font-black text-white tracking-wide">
@@ -1512,6 +1512,10 @@ export const PaymentsPage: React.FC = () => {
                 <span className="badge badge-active text-[10px]">
                   VERIFIED DEPOSIT
                 </span>
+              </div>
+              <div className="receipt-signatures hidden">
+                <div>Handling officer / Assistant Accountant signature</div>
+                <div>Member signature</div>
               </div>
             </div>
 

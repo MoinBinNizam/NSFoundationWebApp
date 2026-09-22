@@ -6,7 +6,6 @@ import {
   Calendar,
   Layers,
   Sparkles,
-  TrendingUp,
   CreditCard,
   DollarSign,
   AlertTriangle,
@@ -115,9 +114,10 @@ export const DistributionPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'workspace' | 'ledger'>('workspace');
 
   // Preview form states
-  const [targetYear, setTargetYear] = useState<number>(() => new Date().getFullYear() - 1 || 2024);
+  const [targetYear, setTargetYear] = useState<number>(2028);
+  const [operationalEndYear, setOperationalEndYear] = useState<number>(2028);
   const [retainedAmount, setRetainedAmount] = useState<string>('0');
-  const [customProfit, setCustomProfit] = useState<string>('');
+  const [customProfit] = useState<string>('');
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [loadingPreview, setLoadingPreview] = useState<boolean>(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
@@ -210,6 +210,14 @@ export const DistributionPage: React.FC = () => {
       loadBatches();
     }
   }, [activeTab, loadPreview, loadBatches]);
+
+  useEffect(() => {
+    apiRequest<{ value: number }>('/settings/operational-end-year').then((res) => {
+      const approved = Number(res.data?.value) || 2028;
+      setOperationalEndYear(approved);
+      setTargetYear((current) => Math.min(Math.max(2028, current), approved));
+    }).catch(() => undefined);
+  }, []);
 
   // Create Batch
   const handleCreateBatch = async () => {
@@ -388,7 +396,7 @@ export const DistributionPage: React.FC = () => {
             Final Distribution & Annual Settlement
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-gray-400">
-            Authoritative year-end distribution derived from finalized share baselines, pooled returns, and multi-tier sign-off.
+            2024-to-end-year payout using the January 2025 final share baseline, member principal paid, expenses, and service charges.
           </p>
         </div>
 
@@ -468,20 +476,20 @@ export const DistributionPage: React.FC = () => {
           {/* Controls & Configuration Filter Bar */}
           <div className="glass-card p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-6 flex-wrap">
-              {/* Accounting Year Picker */}
+              {/* Operational end year picker */}
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Calendar size={14} className="text-blue-400" />
-                  <span>Target Year:</span>
+                  <span>Operational End Year:</span>
                 </span>
                 <select
                   value={targetYear}
                   onChange={(e) => setTargetYear(Number(e.target.value))}
                   className="form-select text-xs py-1.5 px-3 min-w-[110px]"
                 >
-                  {[2024, 2025, 2026, 2027].map((yr) => (
+                  {Array.from({ length: Math.max(1, operationalEndYear - 2028 + 1) }, (_, index) => 2028 + index).map((yr) => (
                     <option key={yr} value={yr}>
-                      FY {yr}
+                      Through {yr}
                     </option>
                   ))}
                 </select>
@@ -504,22 +512,6 @@ export const DistributionPage: React.FC = () => {
                 />
               </div>
 
-              {/* Custom Profit Allocation */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <TrendingUp size={14} className="text-emerald-400" />
-                  <span>Custom Profit (Optional ৳):</span>
-                </span>
-                <input
-                  type="number"
-                  min="0"
-                  step="5000"
-                  placeholder="Auto-calculated"
-                  value={customProfit}
-                  onChange={(e) => setCustomProfit(e.target.value)}
-                  className="form-input text-xs py-1.5 px-3 max-w-[150px]"
-                />
-              </div>
             </div>
 
             <button
@@ -557,7 +549,7 @@ export const DistributionPage: React.FC = () => {
                     {money(preview.distributableAmount)}
                   </p>
                   <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
-                    <span>Year {preview.year} allocation</span>
+                    <span>2024–{preview.year} allocation</span>
                     <span className="text-blue-400 font-semibold">100% Reconciled</span>
                   </div>
                 </div>
@@ -565,17 +557,17 @@ export const DistributionPage: React.FC = () => {
                 {/* Card 2: Net Realized Profit */}
                 <div className="glass-card p-5 border-l-4 border-l-emerald-500 hover:border-emerald-500/50 transition-all">
                   <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
-                    <span>Realized Profit Pool</span>
+                    <span>Total Principal Paid</span>
                     <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                       <Sparkles size={18} />
                     </div>
                   </div>
                   <p className="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-3 tracking-tight">
-                    {money(preview.netRealizedProfit)}
+                    {money(preview.totalPrincipalReturned)}
                   </p>
                   <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
-                    <span>From matured projects</span>
-                    <span className="text-gray-500">Expenses: {money(preview.totalExpenses)}</span>
+                    <span>2024–{preview.year} member contributions</span>
+                    <span className="text-gray-500">Costs: {money(preview.totalExpenses)}</span>
                   </div>
                 </div>
 

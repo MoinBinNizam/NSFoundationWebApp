@@ -3,12 +3,12 @@ import {
   DistributionBatch,
   MemberDistribution,
   Member,
-  MemberYearAccount,
   ShareHistory,
   CustodyAccount,
   CustodyMovement,
-  InvestmentReturn,
   Expense,
+  Payment,
+  PaymentAllocation,
   AuditLog,
 } from '../models/index.js';
 import {
@@ -21,6 +21,7 @@ import {
 } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 import { CustodyService } from './custody.service.js';
+import { getOperationalEndYear } from './settings.service.js';
 
 interface PreviewOptions {
   year: number;
@@ -37,8 +38,8 @@ export class DistributionService {
    */
   static async calculatePreview(options: PreviewOptions) {
     const year = Number(options.year);
-    if (!year || isNaN(year) || year < 2020) {
-      throw createError('A valid accounting year (>= 2020) is required.', 400);
+    if (!year || isNaN(year) || year < 2028 || year > 2100) {
+      throw createError('A valid operational end year (2028–2100) is required.', 400);
     }
 
     const basis = options.basis || DistributionBasis.FINALIZED_SHARES;
@@ -54,47 +55,11 @@ export class DistributionService {
       excessAdvance: number;
     }> = [];
 
-    const yearAccounts = await MemberYearAccount.find({ year })
-      .populate('memberId', 'memberId name status totalShares')
-      .lean();
-
-    if (yearAccounts && yearAccounts.length > 0) {
-      memberAccounts = yearAccounts
-        .filter((ya: any) => ya.memberId && ya.memberId.status !== 'DROPPED')
-        .map((ya: any) => ({
-          memberId: ya.memberId._id,
-          memberCode: ya.memberId.memberId || 'N/A',
-          memberName: ya.memberId.name || 'Unknown Member',
-          finalShares: Math.max(1, ya.finalShares || 1),
-          shortfall: ya.shortfall || 0,
-          excessAdvance: ya.excessAdvance || 0,
-        }));
-    } else {
-      // Fallback to active registered members with ShareHistory lookup
-      const activeMembers = await Member.find({ status: 'ACTIVE' }).lean();
-      for (const m of activeMembers) {
-        const latestShare = await ShareHistory.findOne({
-          memberId: m._id,
-          effectiveMonth: { $lte: `${year}-12` },
-        })
-          .sort({ effectiveMonth: -1, createdAt: -1 })
-          .lean();
-
-        const shareCount =
-          latestShare?.shareCount ??
-          (await ShareHistory.findOne({ memberId: m._id }).sort({ createdAt: -1 }).lean())
-            ?.shareCount ??
-          1;
-
-        memberAccounts.push({
-          memberId: m._id as any,
-          memberCode: m.memberId,
-          memberName: m.name,
-          finalShares: Math.max(1, shareCount),
-          shortfall: 0,
-          excessAdvance: 0,
-        });
-      }
+    // The January 2025 final share position is the fixed payout basis.
+    const activeMembers = await Member.find({ status: 'ACTIVE' }).lean();
+    for (const m of activeMembers) {
+      const january2025Share = await ShareHistory.findOne({ memberId: m._id, effectiveMonth: { $lte: '2025-01' } }).sort({ effectiveMonth: -1, createdAt: -1 }).lean();
+      memberAccounts.push({ memberId: m._id as any, memberCode: m.memberId, memberName: m.name, finalShares: Math.max(1, january2025Share?.shareCount ?? 1), shortfall: 0, excessAdvance: 0 });
     }
 
     const totalShares = memberAccounts.reduce((sum, m) => sum + m.finalShares, 0);
@@ -102,37 +67,26 @@ export class DistributionService {
       throw createError(`No eligible member shares found for year ${year}.`, 400);
     }
 
-    // 2. Aggregate Source of Funds for the year
-    const startOfYear = new Date(year, 0, 1);
-    const endOfYear = new Date(year, 11, 31, 23, 59, 59, 999);
-
-    // Net Realized Profits from Investments
-    let netRealizedProfit = 0;
-    if (options.customProfitAmount !== undefined && !isNaN(options.customProfitAmount)) {
-      netRealizedProfit = Number(options.customProfitAmount);
-    } else {
-      const returns = await InvestmentReturn.find({
-        returnDate: { $gte: startOfYear, $lte: endOfYear },
-      }).lean();
-      netRealizedProfit = returns.reduce(
-        (sum, r) => sum + (r.actualProfit || 0) - (r.actualLoss || 0),
-        0
-      );
-    }
-
-    // Operating expenses for the year
+    // 2. Aggregate 2024-to-end-year principal, operating expenses, and service charges.
+    const startOfPeriod = new Date(2024, 0, 1);
+    const endOfPeriod = new Date(year, 11, 31, 23, 59, 59, 999);
+    const principalAllocations = await PaymentAllocation.find({ targetMonth: { $gte: '2024-01', $lte: `${year}-12` }, allocationType: { $in: ['PRINCIPAL', 'PREVIOUS_DUE', 'ADVANCE'] } }).lean();
+    const principalByMember = new Map<string, number>();
+    for (const allocation of principalAllocations) principalByMember.set(String(allocation.memberId), (principalByMember.get(String(allocation.memberId)) || 0) + allocation.amount);
+    const totalPrincipalReturned = [...principalByMember.values()].reduce((sum, amount) => sum + amount, 0);
     const expenses = await Expense.find({
-      date: { $gte: startOfYear, $lte: endOfYear },
+      date: { $gte: startOfPeriod, $lte: endOfPeriod },
     }).lean();
-    const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-
-    // Calculate Distributable Pool
-    const totalPool = Math.max(0, netRealizedProfit);
-    const distributableAmount = Math.max(0, Math.round((totalPool - retainedAmount) * 100) / 100);
+    const operatingExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const payments = await Payment.find({ paymentDate: { $gte: startOfPeriod, $lte: endOfPeriod }, status: { $ne: 'CANCELLED' } }).lean();
+    const serviceCharges = payments.reduce((sum, payment) => sum + (payment.cashoutCharge || 0), 0);
+    const totalExpenses = operatingExpenses + serviceCharges;
+    const totalPool = totalPrincipalReturned;
+    const distributableAmount = Math.max(0, Math.round((totalPool - totalExpenses - retainedAmount) * 100) / 100);
 
     if (distributableAmount <= 0) {
       throw createError(
-        `Calculated distributable amount is zero or negative (Total Pool: ৳${totalPool}, Retained: ৳${retainedAmount}).`,
+        `Net payout is zero or negative after expenses, service charges, and retained amount (Principal: ৳${totalPool}).`,
         400
       );
     }
@@ -142,8 +96,9 @@ export class DistributionService {
     // 3. Calculate member line items
     let allocations = memberAccounts.map((m) => {
       const shareRatio = m.finalShares / totalShares;
-      const gross = Math.round(distributableAmount * shareRatio * 100) / 100;
-      const net = Math.max(0, Math.round((gross - m.shortfall + m.excessAdvance) * 100) / 100);
+      const gross = Math.round((principalByMember.get(String(m.memberId)) || 0) * 100) / 100;
+      const costShare = Math.round((totalExpenses + retainedAmount) * shareRatio * 100) / 100;
+      const net = Math.max(0, Math.round((gross - costShare) * 100) / 100);
 
       return {
         memberId: m.memberId,
@@ -153,7 +108,7 @@ export class DistributionService {
         finalShares: m.finalShares,
         shareRatio: Math.round(shareRatio * 10000) / 10000,
         grossEntitlement: gross,
-        shortfallDeduction: m.shortfall,
+        shortfallDeduction: costShare,
         advanceCredit: m.excessAdvance,
         penaltyAdjustment: 0,
         netDistributionAmount: net,
@@ -189,7 +144,7 @@ export class DistributionService {
       basis,
       totalPool,
       totalPrincipalReturned: 0,
-      netRealizedProfit,
+      netRealizedProfit: 0,
       totalExpenses,
       retainedAmount,
       distributableAmount,
@@ -214,6 +169,9 @@ export class DistributionService {
     },
     user: IUser
   ) {
+    if (Number(data.year) > (await getOperationalEndYear()).value) {
+      throw createError('This disbursement end year has not been approved in Organization Settings.', 400);
+    }
     const preview = await this.calculatePreview({
       year: data.year,
       basis: data.basis,

@@ -2,11 +2,14 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/auth.js';
 import { DistributionService } from '../services/distribution.service.js';
 import { createError } from '../middlewares/error.js';
+import { getOperationalEndYear } from '../services/settings.service.js';
 
 export class DistributionController {
   static async preview(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const { year, customProfitAmount, retainedAmount, basis } = req.query;
+      const operationalEndYear = (await getOperationalEndYear()).value;
+      if (Number(year) > operationalEndYear) return next(createError(`The operational end year is currently approved through ${operationalEndYear}.`, 400));
       const preview = await DistributionService.calculatePreview({
         year: Number(year),
         customProfitAmount: customProfitAmount ? Number(customProfitAmount) : undefined,
