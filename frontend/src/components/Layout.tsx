@@ -28,7 +28,7 @@ export const Layout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { theme, setTheme, language, setLanguage, t } = usePreferences();
+  const { theme, setTheme, t } = usePreferences();
 
   const handleLogout = () => {
     logout();
@@ -36,35 +36,38 @@ export const Layout: React.FC = () => {
   };
 
   const currentModuleTitle = location.pathname.startsWith('/distribution')
-    ? 'Final Distribution (Issue #12)'
+    ? 'Final Distribution'
+    : location.pathname.startsWith('/preferences')
+    ? 'Language & Appearance'
     : location.pathname.startsWith('/settings')
-    ? 'Settings'
+    ? 'Organization Settings'
     : location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/reports')
-    ? 'Dashboard & Reports (Issue #11)'
+    ? 'Dashboard & Reports'
     : location.pathname.startsWith('/expenses')
-    ? 'Expense Management (Issue #10)'
+    ? 'Expense Management'
     : location.pathname.startsWith('/reinvestments')
-    ? 'Project Wallets & Reinvestment (Issue #9)'
+    ? 'Project Wallets & Reinvestment'
     : location.pathname.startsWith('/investments')
-    ? 'Investment Management (Issue #8)'
+    ? 'Investment Management'
     : location.pathname.startsWith('/custody')
-    ? 'Accountant Custody Ledger (Issue #7)'
+    ? 'Accountant Custody Ledger'
     : location.pathname.startsWith('/payments')
-    ? 'Contributions & Payments (Issue #6)'
+    ? 'Contributions & Payments'
     : location.pathname.startsWith('/shares')
-    ? 'Shares & Annual Account (Issue #5)'
-    : 'Member Management (Issue #4)';
+    ? 'Shares & Annual Account'
+    : 'Member Management';
 
   const navItems = [
-    { label: 'Dashboard & Reports', path: '/dashboard', icon: BarChart3, badge: 'Issue #11' },
-    { label: 'Member Management', path: '/members', icon: Users, badge: 'Issue #4' },
-    { label: 'Shares & Annual Account', path: '/shares', icon: PieChart, badge: 'Issue #5' },
-    { label: 'Contributions & Payments', path: '/payments', icon: CreditCard, badge: 'Issue #6' },
-    { label: 'Accountant Custody', path: '/custody', icon: Wallet, badge: 'Issue #7' },
-    ...(user?.accountantType === 'PRIMARY' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ label: 'Investments', path: '/investments', icon: TrendingUp, badge: 'Issue #8' }, { label: 'Project Wallets', path: '/reinvestments', icon: Repeat2, badge: 'Issue #9' }] : []),
-    { label: 'Expenses', path: '/expenses', icon: Receipt, badge: 'Issue #10' },
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Settings', path: '/settings', icon: Settings2, badge: 'Admin' }] : []),
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT' ? [{ label: 'Final Distribution', path: '/distribution', icon: PieChart, badge: 'Issue #12' }] : []),
+    { label: 'Dashboard & Reports', path: '/dashboard', icon: BarChart3 },
+    { label: 'Member Management', path: '/members', icon: Users },
+    { label: 'Shares & Annual Account', path: '/shares', icon: PieChart },
+    { label: 'Contributions & Payments', path: '/payments', icon: CreditCard },
+    { label: 'Accountant Custody', path: '/custody', icon: Wallet },
+    ...(user?.accountantType === 'PRIMARY' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ label: 'Investments', path: '/investments', icon: TrendingUp }, { label: 'Project Wallets', path: '/reinvestments', icon: Repeat2 }] : []),
+    { label: 'Expenses', path: '/expenses', icon: Receipt },
+    { label: 'Language & Appearance', path: '/preferences', icon: Languages, badge: 'Settings' },
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Organization Settings', path: '/settings', icon: Settings2, badge: 'Admin' }] : []),
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT' ? [{ label: 'Final Distribution', path: '/distribution', icon: PieChart }] : []),
   ];
 
   return (
@@ -187,14 +190,13 @@ export const Layout: React.FC = () => {
             </button>
 
             <div className="flex min-w-0 items-center gap-2 text-xs">
-              <span className="text-gray-500 hidden sm:inline">Modules /</span>
-              <span className="truncate font-semibold text-white" title={currentModuleTitle}>{currentModuleTitle}</span>
+              <span className="text-gray-500 hidden sm:inline">{t('Modules')} /</span>
+              <span className="truncate font-semibold text-white" title={t(currentModuleTitle)}>{t(currentModuleTitle)}</span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
-            <button onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')} className="btn btn-secondary btn-sm px-2.5" title="Switch language" aria-label="Switch language"><Languages size={16} /><span className="hidden sm:inline">{language === 'en' ? 'বাংলা' : 'EN'}</span></button>
-            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="btn btn-secondary btn-sm px-2.5" title="Switch color theme" aria-label="Switch color theme">{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>
+            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="btn btn-secondary btn-sm px-2.5" title={t('Switch color theme')} aria-label={t('Switch color theme')}>{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>
             <span className="badge badge-active hidden sm:inline-flex text-[11px] py-1">
               {t('System Operational')}
             </span>
@@ -208,7 +210,7 @@ export const Layout: React.FC = () => {
 
         {/* Footer */}
         <footer className="py-4 px-4 sm:px-6 border-t border-white/5 bg-[#0B0F19]/60 text-center text-xs sm:text-sm text-gray-500">
-          <p>
+          <p data-localization-skip>
             Designed & Developed by <span className="text-gray-300 font-medium">Moin Uddin</span> © All Rights Reserved.
           </p>
         </footer>

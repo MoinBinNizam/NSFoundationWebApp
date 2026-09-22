@@ -64,7 +64,7 @@ interface Stats {
   totalReinvestmentEvents: number;
 }
 
-const money = (amount: number) => `৳${Number(amount || 0).toLocaleString('en-BD', { maximumFractionDigits: 2 })}`;
+const money = (amount: number) => `BDT ${Number(amount || 0).toLocaleString('en-BD', { maximumFractionDigits: 2 })}`;
 const today = () => new Date().toISOString().slice(0, 10);
 
 export const ReinvestmentsPage: React.FC = () => {
@@ -207,7 +207,7 @@ export const ReinvestmentsPage: React.FC = () => {
   return <div className="space-y-6">
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <div className="flex items-center gap-2 text-emerald-400"><Repeat2 size={20} /><span className="text-xs font-bold uppercase tracking-wider">Issue #9</span></div>
+        <div className="flex items-center gap-2 text-emerald-400"><Repeat2 size={20} /><span className="text-xs font-bold uppercase tracking-wider">Reinvestment Operations</span></div>
         <h2 className="mt-1 text-2xl font-bold text-white">Project Wallets & Reinvestment</h2>
         <p className="mt-1 text-sm text-gray-400">Keep external partner proceeds separate, trace their lineage, and reinvest or liquidate them with a complete ledger trail.</p>
       </div>

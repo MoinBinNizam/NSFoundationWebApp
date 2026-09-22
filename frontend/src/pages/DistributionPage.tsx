@@ -102,7 +102,7 @@ interface DistributionBatchItem {
 }
 
 const money = (amount: unknown) =>
-  `৳ ${Number(amount || 0).toLocaleString('en-BD', { maximumFractionDigits: 2 })}`;
+  `BDT  ${Number(amount || 0).toLocaleString('en-BD', { maximumFractionDigits: 2 })}`;
 
 export const DistributionPage: React.FC = () => {
   const { user } = useAuth();
@@ -389,7 +389,7 @@ export const DistributionPage: React.FC = () => {
           <div className="flex items-center gap-2 text-blue-400">
             <PieChart size={18} />
             <span className="text-xs font-bold uppercase tracking-wider">
-              Issue #12 · Governance & Settlement
+              Governance & Settlement
             </span>
           </div>
           <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
@@ -499,7 +499,7 @@ export const DistributionPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                   <ShieldCheck size={14} className="text-amber-400" />
-                  <span>Retained Reserve (৳):</span>
+                  <span>Retained Reserve (BDT ):</span>
                 </span>
                 <input
                   type="number"

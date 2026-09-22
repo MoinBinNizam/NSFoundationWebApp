@@ -1,29 +1,35 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Language, translateText } from '../i18n/translations';
 
 type Theme = 'dark' | 'light';
-type Language = 'en' | 'bn';
-
-const bn: Record<string, string> = {
-  'Dashboard & Reports': 'ড্যাশবোর্ড ও রিপোর্ট', 'Member Management': 'সদস্য ব্যবস্থাপনা',
-  'Shares & Annual Account': 'শেয়ার ও বার্ষিক হিসাব', 'Contributions & Payments': 'জমা ও পেমেন্ট',
-  'Accountant Custody': 'হিসাবরক্ষকের তহবিল', Investments: 'বিনিয়োগ', 'Project Wallets': 'প্রকল্প ওয়ালেট',
-  Expenses: 'খরচ', 'Final Distribution': 'চূড়ান্ত বণ্টন', 'Organization Settings': 'সংগঠনের সেটিংস',
-  'System Operational': 'সিস্টেম চালু', 'Core Modules': 'মূল মডিউল', 'Sign Out': 'সাইন আউট',
-};
 
 interface PreferencesContextValue {
   theme: Theme; setTheme: (theme: Theme) => void; language: Language; setLanguage: (language: Language) => void;
   t: (english: string) => string;
+  formatAmount: (value: number, options?: Intl.NumberFormatOptions) => string;
+  formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string;
+  formatDate: (value: string | number | Date, options?: Intl.DateTimeFormatOptions) => string;
 }
 
 const PreferencesContext = createContext<PreferencesContextValue | undefined>(undefined);
 
 export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme) || 'dark');
-  const [language, setLanguage] = useState<Language>(() => (localStorage.getItem('language') as Language) || 'en');
+  const [language, setLanguage] = useState<Language>(() => {
+    const saved = localStorage.getItem('language') as Language | null;
+    if (saved === 'en' || saved === 'bn') return saved;
+    return typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('bn') ? 'bn' : 'en';
+  });
   useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark'); document.documentElement.lang = language === 'bn' ? 'bn' : 'en'; localStorage.setItem('theme', theme); }, [theme, language]);
   useEffect(() => { localStorage.setItem('language', language); }, [language]);
-  const value = useMemo(() => ({ theme, setTheme, language, setLanguage, t: (english: string) => language === 'bn' ? (bn[english] || english) : english }), [theme, language]);
+  const locale = language === 'bn' ? 'bn-BD' : 'en-BD';
+  const value = useMemo(() => ({
+    theme, setTheme, language, setLanguage,
+    t: (english: string) => translateText(english, language),
+    formatAmount: (amount: number, options: Intl.NumberFormatOptions = {}) => new Intl.NumberFormat(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2, ...options }).format(Number(amount || 0)),
+    formatNumber: (number: number, options: Intl.NumberFormatOptions = {}) => new Intl.NumberFormat(locale, options).format(Number(number || 0)),
+    formatDate: (date: string | number | Date, options: Intl.DateTimeFormatOptions = {}) => new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'short', day: 'numeric', ...options }).format(new Date(date)),
+  }), [theme, language, locale]);
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
 };
 

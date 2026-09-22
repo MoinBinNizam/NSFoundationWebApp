@@ -408,7 +408,20 @@ textarea:focus-visible {
   }
 }
 
-.member-list-table { min-width: 1080px; }
+html[lang='bn'] body {
+  font-family: "Noto Sans Bengali", "Hind Siliguri", system-ui, sans-serif;
+}
+
+/* The member registry intentionally keeps every financial column in one
+   readable table.  On constrained widths, the card itself scrolls sideways;
+   no column is pinned so the full row remains available to review. */
+.member-list-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+}
+
+.member-list-table { min-width: 1160px; }
 
 @media print {
   body * { visibility: hidden !important; }
@@ -468,6 +481,7 @@ textarea:focus-visible {
     border-radius: 14px;
     margin-inline: -1px;
   }
+
 
   .data-table th,
   .data-table td {

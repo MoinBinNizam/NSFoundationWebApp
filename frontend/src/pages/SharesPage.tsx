@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   PieChart,
   Coins,
@@ -90,8 +91,11 @@ interface ShareStats {
   totalTransfers: number;
 }
 
+const taka = (value: number) => `৳${Number(value || 0).toFixed(2)}`;
+
 export const SharesPage: React.FC = () => {
   const { user } = useAuth();
+  const { t } = usePreferences();
   const [activeTab, setActiveTab] = useState<'positions' | 'history' | 'annual'>('positions');
 
   // Stats
@@ -315,10 +319,10 @@ export const SharesPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Shares & Annual Account Management
+            {t('Shares & Annual Account Management')}
           </h1>
           <p className="text-gray-400 text-sm mt-1">
-            Authoritative share positions, post-2024 share locks, peer transfers, and annual reconciliations.
+            {t('Authoritative share positions, post-2024 share locks, peer transfers, and annual reconciliations.')}
           </p>
         </div>
 
@@ -326,11 +330,11 @@ export const SharesPage: React.FC = () => {
           <div className="flex gap-2.5 shrink-0 self-start sm:self-auto">
             <button onClick={() => handleOpenAdjust()} className="btn btn-secondary text-xs">
               <Plus size={16} />
-              <span>Adjust Shares</span>
+              <span>{t('Adjust Shares')}</span>
             </button>
             <button onClick={() => handleOpenTransfer()} className="btn btn-primary text-xs">
               <ArrowRightLeft size={16} />
-              <span>Transfer Shares</span>
+              <span>{t('Transfer Shares')}</span>
             </button>
           </div>
         )}
@@ -341,7 +345,7 @@ export const SharesPage: React.FC = () => {
         <div className="glass-card p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Total Society Shares
+              {t('Total Society Shares')}
             </span>
             <div className="p-2 rounded-lg bg-blue-500/15 text-blue-400">
               <PieChart size={20} />
@@ -349,31 +353,31 @@ export const SharesPage: React.FC = () => {
           </div>
           <p className="text-3xl font-extrabold text-white mt-3">{stats.totalActiveShares}</p>
           <span className="text-xs text-gray-500 mt-1 block">
-            Active share distribution pool
+            {t('Active share distribution pool')}
           </span>
         </div>
 
         <div className="glass-card p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Monthly Obligation Pool
+              {t('Monthly Obligation Pool')}
             </span>
             <div className="p-2 rounded-lg bg-emerald-500/15 text-emerald-400">
               <Coins size={20} />
             </div>
           </div>
           <p className="text-3xl font-extrabold text-emerald-400 mt-3">
-            ৳ {stats.monthlyObligationPool.toLocaleString()}
+            {taka(stats.monthlyObligationPool)}
           </p>
           <span className="text-xs text-gray-500 mt-1 block">
-            @ ৳{stats.shareValue}/share monthly
+            {t('Monthly share amount:')} {taka(stats.shareValue)} {t('per share')}
           </span>
         </div>
 
         <div className="glass-card p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              2024 Reconciled Settled
+              {t('2024 Reconciled Settled')}
             </span>
             <div className="p-2 rounded-lg bg-indigo-500/15 text-indigo-400">
               <CalendarCheck size={20} />
@@ -383,7 +387,7 @@ export const SharesPage: React.FC = () => {
             {stats.total2024Reconciled}
           </p>
           <span className="text-xs text-gray-500 mt-1 block">
-            Finalized against Dec 2024 shares
+            {t('Finalized against Dec 2024 shares')}
           </span>
         </div>
 
@@ -500,7 +504,7 @@ export const SharesPage: React.FC = () => {
                       </td>
                       <td>
                         <span className="font-bold text-white text-sm">
-                          ৳ {m.monthlyObligation.toLocaleString()}
+                          BDT  {m.monthlyObligation.toLocaleString()}
                         </span>
                         <span className="text-xs text-gray-500"> /month</span>
                       </td>
@@ -517,7 +521,7 @@ export const SharesPage: React.FC = () => {
                             </span>
                           ) : (
                             <span className="badge badge-inactive text-[10px]">
-                              <AlertTriangle size={12} /> Shortfall ৳{ya.shortfall.toLocaleString()}
+                              <AlertTriangle size={12} /> Shortfall BDT {ya.shortfall.toLocaleString()}
                             </span>
                           )
                         ) : (
@@ -793,20 +797,20 @@ export const SharesPage: React.FC = () => {
                       </td>
                       <td>
                         <span className="font-bold text-white text-sm">
-                          ৳ {ya.annualObligation.toLocaleString()}
+                          BDT  {ya.annualObligation.toLocaleString()}
                         </span>
                       </td>
                       <td>
-                        <span className="text-blue-400 text-sm">৳ {ya.totalPrincipalPaid.toLocaleString()}</span>
+                        <span className="text-blue-400 text-sm">BDT  {ya.totalPrincipalPaid.toLocaleString()}</span>
                       </td>
                       <td>
                         <span className={`text-sm font-bold ${ya.shortfall > 0 ? 'text-rose-400' : 'text-gray-500'}`}>
-                          ৳ {ya.shortfall.toLocaleString()}
+                          BDT  {ya.shortfall.toLocaleString()}
                         </span>
                       </td>
                       <td>
                         <span className={`text-sm font-bold ${ya.excessAdvance > 0 ? 'text-emerald-400' : 'text-gray-500'}`}>
-                          ৳ {ya.excessAdvance.toLocaleString()}
+                          BDT  {ya.excessAdvance.toLocaleString()}
                         </span>
                       </td>
                       <td>
@@ -1092,7 +1096,7 @@ export const SharesPage: React.FC = () => {
             )}
 
             <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-lg text-emerald-400 text-xs mb-4">
-              <strong>Formula (SRS Section 1.1A):</strong> Annual Obligation = Closing December Shares × ৳500 × 12.
+              <strong>Formula (SRS Section 1.1A):</strong> Annual Obligation = Closing December Shares × BDT 500 × 12.
               Shortfalls must be settled within the year; excesses carry over as advance credits for the following year.
             </div>
 

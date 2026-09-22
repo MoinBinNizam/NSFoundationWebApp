@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   Users,
   UserCheck,
@@ -53,6 +54,7 @@ interface PaginationMeta {
 
 export const MembersPage: React.FC = () => {
   const { user } = useAuth();
+  const { t, formatNumber, formatDate } = usePreferences();
   const [members, setMembers] = useState<MemberData[]>([]);
   const [stats, setStats] = useState<MemberStats>({ total: 0, active: 0, inactive: 0, dropped: 0 });
   const [pagination, setPagination] = useState<PaginationMeta>({ total: 0, page: 1, limit: 10, totalPages: 1 });
@@ -183,6 +185,10 @@ export const MembersPage: React.FC = () => {
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+    if (!/^\+?[1-9]\d{9,14}$/.test(formData.phone.replace(/[\s().-]/g, ''))) {
+      setFormError(t('Enter a valid phone number using 10 to 15 digits.'));
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -203,6 +209,10 @@ export const MembersPage: React.FC = () => {
     e.preventDefault();
     if (!selectedMember) return;
     setFormError(null);
+    if (!/^\+?[1-9]\d{9,14}$/.test(formData.phone.replace(/[\s().-]/g, ''))) {
+      setFormError(t('Enter a valid phone number using 10 to 15 digits.'));
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -246,13 +256,13 @@ export const MembersPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 text-blue-400">
             <Users size={18} />
-            <span className="text-xs font-bold uppercase tracking-wider">Membership · Registry</span>
+            <span className="text-xs font-bold uppercase tracking-wider">{t('Membership · Registry')}</span>
           </div>
           <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Member Management
+            {t('Member Management')}
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-gray-400">
-            Registry and profiles of cooperative members eligible for distributions and share accounts.
+            {t('Registry and profiles of cooperative society members eligible for distributions and share accounts.')}
           </p>
         </div>
 
@@ -262,7 +272,7 @@ export const MembersPage: React.FC = () => {
             className="btn btn-secondary btn-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin text-blue-400' : 'text-gray-400'} />
-            <span>Refresh</span>
+            <span>{t('Refresh')}</span>
           </button>
           {canEdit && (
             <button
@@ -270,7 +280,7 @@ export const MembersPage: React.FC = () => {
               className="btn btn-primary btn-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider shrink-0"
             >
               <Plus size={16} />
-              <span>Add Member</span>
+              <span>{t('Add Member')}</span>
             </button>
           )}
         </div>
@@ -281,7 +291,7 @@ export const MembersPage: React.FC = () => {
         {/* Card 1: Total Registered */}
         <div className="glass-card p-5 border-l-4 border-l-blue-500 hover:border-blue-500/50 transition-all">
           <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
-            <span>Total Registered</span>
+            <span>{t('Total Registered')}</span>
             <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
               <Users size={18} />
             </div>
@@ -290,15 +300,15 @@ export const MembersPage: React.FC = () => {
             {stats.total}
           </p>
           <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
-            <span>Society registry</span>
-            <span className="text-blue-400 font-semibold">100% recorded</span>
+            <span>{t('Society registry')}</span>
+            <span className="text-blue-400 font-semibold">{t('100% recorded')}</span>
           </div>
         </div>
 
         {/* Card 2: Active Members */}
         <div className="glass-card p-5 border-l-4 border-l-emerald-500 hover:border-emerald-500/50 transition-all">
           <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
-            <span>Active Members</span>
+            <span>{t('Active Members')}</span>
             <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
               <UserCheck size={18} />
             </div>
@@ -307,9 +317,9 @@ export const MembersPage: React.FC = () => {
             {stats.active}
           </p>
           <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
-            <span>Eligible for dividends</span>
+            <span>{t('Eligible for dividends')}</span>
             <span className="text-emerald-400 font-semibold">
-              {stats.total > 0 ? `${Math.round((stats.active / stats.total) * 100)}% active` : '0%'}
+              {stats.total > 0 ? `${Math.round((stats.active / stats.total) * 100)}% ${t('active')}` : '0%'}
             </span>
           </div>
         </div>
@@ -317,7 +327,7 @@ export const MembersPage: React.FC = () => {
         {/* Card 3: Inactive Members */}
         <div className="glass-card p-5 border-l-4 border-l-amber-500 hover:border-amber-500/50 transition-all">
           <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
-            <span>Inactive Members</span>
+            <span>{t('Inactive Members')}</span>
             <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
               <UserMinus size={18} />
             </div>
@@ -326,9 +336,9 @@ export const MembersPage: React.FC = () => {
             {stats.inactive}
           </p>
           <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
-            <span>Temporarily dormant</span>
+            <span>{t('Temporarily dormant')}</span>
             <span className="text-amber-400 font-semibold">
-              {stats.total > 0 ? `${Math.round((stats.inactive / stats.total) * 100)}% dormant` : '0%'}
+              {stats.total > 0 ? `${Math.round((stats.inactive / stats.total) * 100)}% ${t('dormant')}` : '0%'}
             </span>
           </div>
         </div>
@@ -336,7 +346,7 @@ export const MembersPage: React.FC = () => {
         {/* Card 4: Dropped / Archived */}
         <div className="glass-card p-5 border-l-4 border-l-rose-500 hover:border-rose-500/50 transition-all">
           <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
-            <span>Dropped / Archived</span>
+            <span>{t('Dropped / Archived')}</span>
             <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
               <UserX size={18} />
             </div>
@@ -345,9 +355,9 @@ export const MembersPage: React.FC = () => {
             {stats.dropped}
           </p>
           <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
-            <span>Released / settled shares</span>
+            <span>{t('Released / settled shares')}</span>
             <span className="text-rose-400 font-semibold">
-              {stats.total > 0 ? `${Math.round((stats.dropped / stats.total) * 100)}% settled` : '0%'}
+              {stats.total > 0 ? `${Math.round((stats.dropped / stats.total) * 100)}% ${t('settled')}` : '0%'}
             </span>
           </div>
         </div>
@@ -364,7 +374,7 @@ export const MembersPage: React.FC = () => {
           <input
             type="text"
             className="form-input pl-9 text-xs sm:text-sm"
-            placeholder="Search by name, phone number, or Member ID (e.g. NSF001)..."
+            placeholder={t('Search by name, phone number, or Member ID (e.g. NSF001)...')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -387,37 +397,37 @@ export const MembersPage: React.FC = () => {
                     : 'text-gray-400 hover:text-white bg-slate-900/60 border border-white/5'
                 }`}
               >
-                {st}
+                {t(st)}
               </button>
             ))}
           </div>
 
           <div className="text-xs text-gray-400 flex items-center">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2" />
-            <span>{pagination.total} registered member{pagination.total === 1 ? '' : 's'}</span>
+            <span>{pagination.total} {t(pagination.total === 1 ? 'registered member' : 'registered members')}</span>
           </div>
         </div>
       </div>
 
       <div>
-        <h2 className="text-lg font-bold text-white">Member List</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Share ownership and current monthly payable for every registered member.</p>
+        <h2 className="text-lg font-bold text-white">{t('Member List')}</h2>
+        <p className="text-xs text-gray-400 mt-0.5">{t('Share ownership and current monthly payable for every registered member.')}</p>
       </div>
 
       {/* Member List */}
-      <div className="table-container glass-card overflow-hidden">
+      <div className="table-container member-list-container glass-card">
         <table className="data-table member-list-table">
           <thead>
             <tr>
-              <th className="w-16 text-center whitespace-nowrap font-bold">SL NO</th>
-              <th className="whitespace-nowrap font-bold">Member ID</th>
-              <th className="whitespace-nowrap font-bold">Full Name</th>
-              <th className="whitespace-nowrap font-bold">Contact Info</th>
-              <th className="whitespace-nowrap font-bold">Shares</th>
-              <th className="whitespace-nowrap font-bold">Monthly Payable</th>
-              <th className="whitespace-nowrap font-bold">Status</th>
-              <th className="whitespace-nowrap font-bold">Join Date</th>
-              <th className="text-right whitespace-nowrap font-bold">Actions</th>
+              <th className="w-16 text-center whitespace-nowrap font-bold">{t('SL NO')}</th>
+              <th className="whitespace-nowrap font-bold">{t('Member ID')}</th>
+              <th className="whitespace-nowrap font-bold">{t('Full Name')}</th>
+              <th className="whitespace-nowrap font-bold">{t('Contact Info')}</th>
+              <th className="whitespace-nowrap font-bold">{t('Shares')}</th>
+              <th className="whitespace-nowrap font-bold">{t('Monthly Payable')}</th>
+              <th className="whitespace-nowrap font-bold">{t('Status')}</th>
+              <th className="whitespace-nowrap font-bold">{t('Join Date')}</th>
+              <th className="text-right whitespace-nowrap font-bold">{t('Actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -453,23 +463,16 @@ export const MembersPage: React.FC = () => {
                       </span>
                     </td>
                     <td>
-                      <span className="font-mono font-bold text-xs text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/25">
-                        {m.memberId}
-                      </span>
+                      <span className="font-mono font-bold text-xs text-blue-400 bg-blue-500/10 px-2 py-1 rounded border border-blue-500/25">{m.memberId}</span>
                     </td>
                     <td>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-blue-600 flex items-center justify-center text-white font-bold text-xs shrink-0">
-                          {m.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-white text-sm">{m.name}</p>
-                          {m.address && (
-                            <p className="text-xs text-gray-400 truncate max-w-[200px]">
-                              {m.address}
-                            </p>
-                          )}
-                        </div>
+                      <div>
+                        <p className="font-semibold text-white text-sm whitespace-nowrap">{m.name}</p>
+                        {m.address && (
+                          <p className="text-xs text-gray-400 truncate max-w-[180px] mt-1">
+                            {m.address}
+                          </p>
+                        )}
                       </div>
                     </td>
                     <td>
@@ -489,19 +492,17 @@ export const MembersPage: React.FC = () => {
                     <td>
                       <div className="flex flex-col gap-0.5 whitespace-nowrap">
                         <span className="font-bold text-white">{m.shareCount} {m.shareCount === 1 ? 'share' : 'shares'}</span>
-                        <span className="text-[11px] text-gray-500">BDT {new Intl.NumberFormat('en-BD').format(m.shareAmount || shareAmount)} each</span>
+                        <span className="text-[11px] text-gray-500">BDT {formatNumber(m.shareAmount || shareAmount)} {t('each')}</span>
                       </div>
                     </td>
+                    <td><span className="font-semibold text-emerald-300 whitespace-nowrap">BDT {formatNumber(m.monthlyPayable ?? ((m.shareCount || 0) * shareAmount))}</span></td>
                     <td>
-                      <span className="font-semibold text-emerald-300 whitespace-nowrap">BDT {new Intl.NumberFormat('en-BD').format(m.monthlyPayable ?? ((m.shareCount || 0) * shareAmount))}</span>
-                    </td>
-                    <td>
-                      <span className={`badge ${badgeClass}`}>{m.status}</span>
+                      <span className={`badge ${badgeClass}`}>{t(m.status)}</span>
                     </td>
                     <td>
                       <div className="flex items-center gap-1.5 text-xs text-gray-400">
                         <Calendar size={13} className="text-gray-500" />
-                        <span>{new Date(m.joinDate).toLocaleDateString()}</span>
+                        <span>{formatDate(m.joinDate)}</span>
                       </div>
                     </td>
                     <td className="text-right">
@@ -512,7 +513,7 @@ export const MembersPage: React.FC = () => {
                           title="View Member Details"
                         >
                           <Eye size={14} />
-                          <span className="hidden xl:inline">View</span>
+                          <span className="hidden xl:inline">{t('View')}</span>
                         </button>
                         {canEdit && (
                           <button
@@ -521,7 +522,7 @@ export const MembersPage: React.FC = () => {
                             title="Edit Member"
                           >
                             <Edit2 size={14} />
-                            <span className="hidden xl:inline">Edit</span>
+                            <span className="hidden xl:inline">{t('Edit')}</span>
                           </button>
                         )}
                         {canDelete && m.status !== 'DROPPED' && (
@@ -531,7 +532,7 @@ export const MembersPage: React.FC = () => {
                             title="Drop Member"
                           >
                             <Trash2 size={14} />
-                            <span className="hidden xl:inline">Drop</span>
+                            <span className="hidden xl:inline">{t('Drop')}</span>
                           </button>
                         )}
                       </div>
@@ -577,9 +578,9 @@ export const MembersPage: React.FC = () => {
           <div className="modal-content p-7">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-lg font-bold text-white">Register New Member</h3>
+                <h3 className="text-lg font-bold text-white">{t('Register New Member')}</h3>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Sequential ID assigned: <strong className="text-blue-400 font-mono">{nextIdPreview}</strong>
+                  {t('Sequential ID assigned:')} <strong className="text-blue-400 font-mono">{nextIdPreview}</strong>
                 </p>
               </div>
               <button
@@ -603,7 +604,7 @@ export const MembersPage: React.FC = () => {
                   type="text"
                   required
                   className="form-input"
-                  placeholder="e.g. Moin Bin Nizam"
+                  placeholder={t('e.g. Moin Bin Nizam')}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
@@ -613,10 +614,13 @@ export const MembersPage: React.FC = () => {
                 <div className="form-group mb-0">
                   <label className="form-label">Phone Number *</label>
                   <input
-                    type="text"
+                    type="tel"
+                    inputMode="tel"
+                    pattern="\\+?[0-9]{10,15}"
+                    title={t('Enter a valid phone number using 10 to 15 digits.')}
                     required
                     className="form-input"
-                    placeholder="e.g. +88017XXXXXXXX"
+                  placeholder={t('e.g. +88017XXXXXXXX')}
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   />
@@ -627,7 +631,7 @@ export const MembersPage: React.FC = () => {
                   <input
                     type="email"
                     className="form-input"
-                    placeholder="e.g. member@gmail.com"
+                  placeholder={t('e.g. member@gmail.com')}
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
@@ -672,9 +676,9 @@ export const MembersPage: React.FC = () => {
                   />
                 </div>
                 <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-4 py-3.5 self-end">
-                  <p className="text-[11px] uppercase tracking-wide font-semibold text-emerald-200/80">Monthly payable preview</p>
-                  <p className="text-lg font-extrabold text-emerald-300 mt-0.5">BDT {new Intl.NumberFormat('en-BD').format((Number(formData.initialShareCount) || 0) * shareAmount)}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">{formData.initialShareCount || 0} share(s) × BDT {new Intl.NumberFormat('en-BD').format(shareAmount)}</p>
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-emerald-200/80">{t('Monthly payable preview')}</p>
+                  <p className="text-lg font-extrabold text-emerald-300 mt-0.5">৳{((Number(formData.initialShareCount) || 0) * shareAmount).toFixed(2)}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">{formData.initialShareCount || 0} {t('share(s) ×')} ৳{shareAmount.toFixed(2)}</p>
                 </div>
               </div>
 
@@ -683,7 +687,7 @@ export const MembersPage: React.FC = () => {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Dhaka, Bangladesh"
+                  placeholder={t('e.g. Dhaka, Bangladesh')}
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
@@ -694,7 +698,7 @@ export const MembersPage: React.FC = () => {
                 <textarea
                   className="form-textarea"
                   rows={2}
-                  placeholder="Optional reference notes..."
+                  placeholder={t('Optional reference notes...')}
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 />
@@ -706,10 +710,10 @@ export const MembersPage: React.FC = () => {
                   className="btn btn-secondary"
                   onClick={() => setShowAddModal(false)}
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button type="submit" disabled={submitting} className="btn btn-primary">
-                  {submitting ? 'Registering...' : 'Register Member'}
+                  {submitting ? t('Registering...') : t('Register Member')}
                 </button>
               </div>
             </form>
@@ -760,7 +764,10 @@ export const MembersPage: React.FC = () => {
                 <div className="form-group mb-0">
                   <label className="form-label">Phone Number</label>
                   <input
-                    type="text"
+                    type="tel"
+                    inputMode="tel"
+                    pattern="\\+?[0-9]{10,15}"
+                    title={t('Enter a valid phone number using 10 to 15 digits.')}
                     required
                     className="form-input"
                     value={formData.phone}

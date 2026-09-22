@@ -48,7 +48,7 @@ async function run() {
     }
     const bkashRule = gateways.data?.find((rate) => rate.channel === 'BKASH');
     const bkashAccount = custodyAccounts.data?.find((account) => account.channel === 'BKASH');
-    if (!bkashRule || bkashRule.cashoutRatePercentage !== 1.85 || bkashRule.roundingIncrement !== 10 || !bkashAccount || !members.data[0]) {
+    if (!bkashRule || bkashRule.cashoutRatePercentage !== 1.85 || bkashRule.roundingIncrement !== 0 || !bkashAccount || !members.data[0]) {
       throw new Error('Configured bKash rule or test payment account is unavailable.');
     }
     const previewResponse = await fetch(`${baseUrl}/payments/preview`, {
@@ -57,12 +57,12 @@ async function run() {
       body: JSON.stringify({ memberId: (members.data[0] as any)._id, totalAmount: 1000, paymentMethod: 'BKASH', custodyAccountId: bkashAccount._id, cashoutChargePaid: 0 }),
     });
     const preview = await previewResponse.json() as { data?: { gateway?: { requiredCharge?: number } } };
-    if (!previewResponse.ok || preview.data?.gateway?.requiredCharge !== 20) throw new Error('bKash fee preview did not round BDT 18.50 to BDT 20.');
+    if (!previewResponse.ok || preview.data?.gateway?.requiredCharge !== 18.5) throw new Error(`bKash fee preview did not retain the exact BDT 18.50 fee with zero rounding (received ${preview.data?.gateway?.requiredCharge}).`);
 
     console.log('✓ Settings share amount is readable by authenticated staff.');
     console.log('✓ Assistant accountant is blocked from changing organization rules (HTTP 403).');
     console.log('✓ Member List returns numeric share counts and monthly payable amounts.');
-    console.log('✓ bKash preview calculates a BDT 20 rounded charge for a BDT 1,000 payment.');
+    console.log('✓ bKash preview retains the exact BDT 18.50 charge for a BDT 1,000 payment with zero rounding.');
   } catch (error) {
     console.error('Settings and members test failed:', error);
     process.exitCode = 1;

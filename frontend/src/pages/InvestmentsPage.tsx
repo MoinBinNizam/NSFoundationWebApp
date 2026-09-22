@@ -524,9 +524,6 @@ export const InvestmentsPage: React.FC = () => {
               <TrendingUp className="w-7 h-7 text-emerald-400" />
               Investment Management
             </h1>
-            <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              Issue #8
-            </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
             Common pooled project investments, multi-accountant co-funding, maturity returns, and wallet reinvestments.
@@ -599,7 +596,7 @@ export const InvestmentsPage: React.FC = () => {
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl font-bold text-white tracking-tight">
-                ৳{(stats.totalCapitalInvested || 0).toLocaleString()}
+                BDT {(stats.totalCapitalInvested || 0).toLocaleString()}
               </span>
             </div>
             <div className="mt-2 text-xs text-emerald-400 flex items-center gap-1">
@@ -620,7 +617,7 @@ export const InvestmentsPage: React.FC = () => {
             </div>
             <div className="mt-2">
               <span className="text-2xl font-bold text-blue-300 tracking-tight">
-                ৳{(stats.activeDeployedCapital || 0).toLocaleString()}
+                BDT {(stats.activeDeployedCapital || 0).toLocaleString()}
               </span>
             </div>
             <div className="mt-2 text-xs text-gray-400">
@@ -640,7 +637,7 @@ export const InvestmentsPage: React.FC = () => {
             </div>
             <div className="mt-2">
               <span className="text-2xl font-bold text-purple-300 tracking-tight">
-                ৳{(stats.totalPrincipalReturned || 0).toLocaleString()}
+                BDT {(stats.totalPrincipalReturned || 0).toLocaleString()}
               </span>
             </div>
             <div className="mt-2 text-xs text-gray-400">
@@ -670,12 +667,12 @@ export const InvestmentsPage: React.FC = () => {
                   stats.netRealizedProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
                 }`}
               >
-                {stats.netRealizedProfit >= 0 ? '+' : ''}৳{(stats.netRealizedProfit || 0).toLocaleString()}
+                {stats.netRealizedProfit >= 0 ? '+' : ''}BDT {(stats.netRealizedProfit || 0).toLocaleString()}
               </span>
             </div>
             <div className="mt-2 text-xs text-gray-400 flex items-center justify-between">
-              <span>Profit: +৳{(stats.totalProfitRealized || 0).toLocaleString()}</span>
-              {stats.totalLosses > 0 && <span className="text-rose-400">Loss: -৳{stats.totalLosses.toLocaleString()}</span>}
+              <span>Profit: +BDT {(stats.totalProfitRealized || 0).toLocaleString()}</span>
+              {stats.totalLosses > 0 && <span className="text-rose-400">Loss: -BDT {stats.totalLosses.toLocaleString()}</span>}
             </div>
           </div>
         </div>
@@ -832,8 +829,8 @@ export const InvestmentsPage: React.FC = () => {
                     <div className="flex justify-between items-baseline text-xs mb-1">
                       <span className="text-gray-400">Total Invested:</span>
                       <span className="font-bold text-white">
-                        ৳{prj.totalFunded.toLocaleString()}{' '}
-                        <span className="text-gray-400 font-normal">/ ৳{prj.targetPrincipal.toLocaleString()}</span>
+                        BDT {prj.totalFunded.toLocaleString()}{' '}
+                        <span className="text-gray-400 font-normal">/ BDT {prj.targetPrincipal.toLocaleString()}</span>
                       </span>
                     </div>
 
@@ -863,7 +860,7 @@ export const InvestmentsPage: React.FC = () => {
                           m.netRealizedProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'
                         }`}
                       >
-                        {m.netRealizedProfit >= 0 ? '+' : ''}৳{m.netRealizedProfit.toLocaleString()}
+                        {m.netRealizedProfit >= 0 ? '+' : ''}BDT {m.netRealizedProfit.toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -873,7 +870,7 @@ export const InvestmentsPage: React.FC = () => {
                     <div className="mt-2 text-[11px] text-gray-400 flex justify-between">
                       <span>Outstanding Capital:</span>
                       <span className="font-semibold text-white">
-                        ৳{m.netOutstandingCapital.toLocaleString()}
+                        BDT {m.netOutstandingCapital.toLocaleString()}
                       </span>
                     </div>
                   )}
@@ -1128,7 +1125,7 @@ export const InvestmentsPage: React.FC = () => {
                             <option value="">Select accountant custody account...</option>
                             {custodyAccounts.map((acc) => (
                               <option key={acc._id} value={acc._id}>
-                                {acc.name} ({acc.channel}) — Available: ৳{acc.derivedBalance.toLocaleString()}
+                                {acc.name} ({acc.channel}) — Available: BDT {acc.derivedBalance.toLocaleString()}
                               </option>
                             ))}
                           </select>
@@ -1231,7 +1228,7 @@ export const InvestmentsPage: React.FC = () => {
                     .filter((p) => p.status !== 'CLOSED' && p.status !== 'DEFAULTED')
                     .map((p) => (
                       <option key={p._id} value={p._id}>
-                        {p.projectId} — {p.name} (Funded: ৳{p.totalFunded.toLocaleString()} / ৳{p.targetPrincipal.toLocaleString()})
+                        {p.projectId} — {p.name} (Funded: BDT {p.totalFunded.toLocaleString()} / BDT {p.targetPrincipal.toLocaleString()})
                       </option>
                     ))}
                 </select>
@@ -1312,7 +1309,7 @@ export const InvestmentsPage: React.FC = () => {
                               <option value="">Select custody account...</option>
                               {custodyAccounts.map((acc) => (
                                 <option key={acc._id} value={acc._id} disabled={acc.derivedBalance <= 0}>
-                                  {acc.name} ({acc.channel}) — Avail: ৳{acc.derivedBalance.toLocaleString()}
+                                  {acc.name} ({acc.channel}) — Avail: BDT {acc.derivedBalance.toLocaleString()}
                                 </option>
                               ))}
                             </select>
@@ -1339,7 +1336,7 @@ export const InvestmentsPage: React.FC = () => {
                           <div className="flex justify-between text-[11px] text-gray-400">
                             <span>Holder: {selAccount.holderId?.name || 'Reserve'}</span>
                             <span className="text-emerald-400 font-semibold">
-                              Max Available: ৳{selAccount.derivedBalance.toLocaleString()}
+                              Max Available: BDT {selAccount.derivedBalance.toLocaleString()}
                             </span>
                           </div>
                         )}
@@ -1353,7 +1350,7 @@ export const InvestmentsPage: React.FC = () => {
               <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-between text-xs">
                 <span className="text-indigo-300 font-medium">Total New Capital to Invest:</span>
                 <span className="text-base font-bold text-white">
-                  ৳
+                  BDT{' '}
                   {fundForm.fundings
                     .reduce((sum, f) => sum + (parseFloat(f.amount) || 0), 0)
                     .toLocaleString()}
@@ -1422,7 +1419,7 @@ export const InvestmentsPage: React.FC = () => {
                   <option value="">Select project...</option>
                   {projects.map((p) => (
                     <option key={p._id} value={p._id}>
-                      {p.projectId} — {p.name} (Outstanding: ৳{p.metrics.netOutstandingCapital.toLocaleString()})
+                      {p.projectId} — {p.name} (Outstanding: BDT {p.metrics.netOutstandingCapital.toLocaleString()})
                     </option>
                   ))}
                 </select>
@@ -1492,7 +1489,7 @@ export const InvestmentsPage: React.FC = () => {
               <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl flex items-center justify-between text-xs">
                 <span className="text-purple-300 font-medium">Total Cash/Proceeds Returned:</span>
                 <span className="text-base font-bold text-white">
-                  ৳
+                  BDT{' '}
                   {(
                     (parseFloat(returnForm.principalReturned) || 0) +
                     (parseFloat(returnForm.actualProfit) || 0) -
@@ -1656,7 +1653,7 @@ export const InvestmentsPage: React.FC = () => {
                     <option value="">Select wallet account...</option>
                     {custodyAccounts.map((acc) => (
                       <option key={acc._id} value={acc._id}>
-                        {acc.name} — Avail: ৳{acc.derivedBalance.toLocaleString()}
+                        {acc.name} — Avail: BDT {acc.derivedBalance.toLocaleString()}
                       </option>
                     ))}
                   </select>
@@ -1705,7 +1702,7 @@ export const InvestmentsPage: React.FC = () => {
                       <option value="">Select top-up custody account...</option>
                       {custodyAccounts.map((acc) => (
                         <option key={acc._id} value={acc._id}>
-                          {acc.name} ({acc.channel}) — ৳{acc.derivedBalance.toLocaleString()}
+                          {acc.name} ({acc.channel}) — BDT {acc.derivedBalance.toLocaleString()}
                         </option>
                       ))}
                     </select>
@@ -1774,19 +1771,19 @@ export const InvestmentsPage: React.FC = () => {
                 <div className="p-3 bg-gray-900/80 rounded-xl border border-gray-800">
                   <span className="text-gray-400 block">Total Invested</span>
                   <span className="text-base font-bold text-white">
-                    ৳{selectedProjectForDetail.totalFunded.toLocaleString()}
+                    BDT {selectedProjectForDetail.totalFunded.toLocaleString()}
                   </span>
                 </div>
                 <div className="p-3 bg-gray-900/80 rounded-xl border border-gray-800">
                   <span className="text-gray-400 block">Principal Returned</span>
                   <span className="text-base font-bold text-purple-400">
-                    ৳{selectedProjectForDetail.metrics.totalPrincipalReturned.toLocaleString()}
+                    BDT {selectedProjectForDetail.metrics.totalPrincipalReturned.toLocaleString()}
                   </span>
                 </div>
                 <div className="p-3 bg-gray-900/80 rounded-xl border border-gray-800">
                   <span className="text-gray-400 block">Realized Profit</span>
                   <span className="text-base font-bold text-emerald-400">
-                    +৳{selectedProjectForDetail.metrics.totalProfitRealized.toLocaleString()}
+                    +BDT {selectedProjectForDetail.metrics.totalProfitRealized.toLocaleString()}
                   </span>
                 </div>
                 <div className="p-3 bg-gray-900/80 rounded-xl border border-gray-800">
@@ -1825,7 +1822,7 @@ export const InvestmentsPage: React.FC = () => {
                               {f.custodyAccountId?.name} ({f.custodyAccountId?.channel})
                             </td>
                             <td className="py-2.5 px-3 font-bold text-emerald-400">
-                              ৳{f.amount.toLocaleString()}
+                              BDT {f.amount.toLocaleString()}
                             </td>
                             <td className="py-2.5 px-3 text-gray-400">
                               {f.custodyAccountId?.holderId?.name || f.fundedBy?.name || 'Accountant'}
@@ -1868,13 +1865,13 @@ export const InvestmentsPage: React.FC = () => {
                               {new Date(r.maturityDate).toLocaleDateString()}
                             </td>
                             <td className="py-2.5 px-3 font-medium text-white">
-                              ৳{r.principalReturned.toLocaleString()}
+                              BDT {r.principalReturned.toLocaleString()}
                             </td>
                             <td className="py-2.5 px-3 font-semibold text-emerald-400">
-                              +৳{r.actualProfit.toLocaleString()}
+                              +BDT {r.actualProfit.toLocaleString()}
                             </td>
                             <td className="py-2.5 px-3 font-bold text-purple-400">
-                              ৳{r.totalReturn.toLocaleString()}
+                              BDT {r.totalReturn.toLocaleString()}
                             </td>
                             <td className="py-2.5 px-3 text-gray-300">
                               {r.destinationCustodyAccountId?.name || r.destinationType}

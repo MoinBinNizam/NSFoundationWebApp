@@ -41,6 +41,10 @@ function addMonths(yearMonth: string, count: number): string {
   return toYearMonth(d);
 }
 
+function currency(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 function paymentMethodChannel(method: PaymentMethod): CustodyChannel {
   if (method === PaymentMethod.BANK_TRANSFER) return CustodyChannel.BANK;
   if (method === PaymentMethod.BKASH) return CustodyChannel.BKASH;
@@ -267,11 +271,11 @@ export class PaymentService {
     const currentCashoutDue = member.cashoutDue || 0;
     const paymentBaseAmount = Math.max(0, totalAmount - cashoutChargePaid);
     const gatewayRate = await getGatewayRateForChannel(gatewayChannel, paymentDate);
-    const rawGatewayCharge = paymentBaseAmount * (gatewayRate.cashoutRatePercentage / 100) + gatewayRate.fixedFee;
-    const roundingIncrement = gatewayRate.roundingIncrement || 1;
+    const rawGatewayCharge = currency(paymentBaseAmount * (gatewayRate.cashoutRatePercentage / 100) + gatewayRate.fixedFee);
+    const roundingIncrement = gatewayRate.roundingIncrement ?? 0;
     // Round upward so a member payment never leaves the accountant short of the gateway's charge.
     const requiredCashoutCharge = rawGatewayCharge > 0
-      ? Math.ceil(rawGatewayCharge / roundingIncrement) * roundingIncrement
+      ? roundingIncrement > 0 ? Math.ceil(rawGatewayCharge / roundingIncrement) * roundingIncrement : currency(rawGatewayCharge)
       : 0;
     if (cashoutChargePaid > totalAmount) {
       throw createError('Cash-out charge paid cannot exceed the total amount received.', 400);
@@ -291,8 +295,8 @@ export class PaymentService {
       : 0;
     const requiredChargeForCurrentDue = (() => {
       const dueBase = pastPrincipalDue + pastPenaltyDue + currentPrincipalDue + currentPenaltyDue;
-      const raw = dueBase * (gatewayRate.cashoutRatePercentage / 100) + gatewayRate.fixedFee;
-      return raw > 0 ? Math.ceil(raw / roundingIncrement) * roundingIncrement : 0;
+      const raw = currency(dueBase * (gatewayRate.cashoutRatePercentage / 100) + gatewayRate.fixedFee);
+      return raw > 0 ? roundingIncrement > 0 ? Math.ceil(raw / roundingIncrement) * roundingIncrement : currency(raw) : 0;
     })();
 
     return {

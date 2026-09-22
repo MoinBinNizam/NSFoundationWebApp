@@ -10,10 +10,10 @@ export const MONTHLY_SHARE_VALUE_KEY = 'MONTHLY_SHARE_VALUE';
 export const DEFAULT_MONTHLY_SHARE_VALUE = 500;
 export const DEFAULT_OPERATIONAL_END_YEAR = 2028;
 const DEFAULT_GATEWAY_RATES = [
-  { channel: CustodyChannel.BKASH, cashoutRatePercentage: 1.85, fixedFee: 0, roundingIncrement: 10, description: 'Standard bKash agent cash-out rate; charge rounded up to the nearest BDT 10.' },
-  { channel: CustodyChannel.NAGAD, cashoutRatePercentage: 1.49, fixedFee: 0, roundingIncrement: 10, description: 'Nagad app cash-out rate; update this rule to 1.70% when USSD is used.' },
-  { channel: CustodyChannel.BANK, cashoutRatePercentage: 0, fixedFee: 0, roundingIncrement: 1, description: 'Incoming Islami Bank / CellFin transfers carry no cash-out charge.' },
-  { channel: CustodyChannel.CASH, cashoutRatePercentage: 0, fixedFee: 0, roundingIncrement: 1, description: 'Direct physical cash handover carries no cash-out charge.' },
+  { channel: CustodyChannel.BKASH, cashoutRatePercentage: 1.85, fixedFee: 0, roundingIncrement: 0, description: 'Standard bKash agent cash-out rate; exact calculated charge without rounding.' },
+  { channel: CustodyChannel.NAGAD, cashoutRatePercentage: 1.49, fixedFee: 0, roundingIncrement: 0, description: 'Nagad app cash-out rate; exact calculated charge without rounding.' },
+  { channel: CustodyChannel.BANK, cashoutRatePercentage: 0, fixedFee: 0, roundingIncrement: 0, description: 'Incoming Islami Bank / CellFin transfers carry no cash-out charge.' },
+  { channel: CustodyChannel.CASH, cashoutRatePercentage: 0, fixedFee: 0, roundingIncrement: 0, description: 'Direct physical cash handover carries no cash-out charge.' },
 ] as const;
 
 /** The active monthly contribution amount for one organization share. */
@@ -78,19 +78,19 @@ export async function getGatewayRateSettings() {
   return DEFAULT_GATEWAY_RATES.map((fallback) => {
     const saved = latestByChannel.get(fallback.channel);
     return saved
-      ? { ...saved, roundingIncrement: saved.roundingIncrement || 1, isDefault: false }
+      ? { ...saved, roundingIncrement: saved.roundingIncrement ?? 0, isDefault: false }
       : { ...fallback, _id: `default-${fallback.channel}`, effectiveFrom: null, isDefault: true };
   });
 }
 
 export async function getGatewayRateForChannel(channel: CustodyChannel, at: Date = new Date()) {
   const saved = await GatewayRate.findOne({ channel, effectiveFrom: { $lte: at } }).sort({ effectiveFrom: -1 }).lean();
-  if (saved) return { ...saved, roundingIncrement: saved.roundingIncrement || 1 };
+  if (saved) return { ...saved, roundingIncrement: saved.roundingIncrement ?? 0 };
   return DEFAULT_GATEWAY_RATES.find((rate) => rate.channel === channel) || {
     channel,
     cashoutRatePercentage: 0,
     fixedFee: 0,
-    roundingIncrement: 1,
+    roundingIncrement: 0,
     description: 'No cash-out charge rule configured.',
   };
 }
@@ -103,8 +103,8 @@ export async function saveGatewayRate(
   if (!Object.values(CustodyChannel).includes(input.channel)) throw createError('A valid gateway channel is required.', 400);
   if (!Number.isFinite(input.cashoutRatePercentage) || input.cashoutRatePercentage < 0 || input.cashoutRatePercentage > 100) throw createError('Gateway percentage must be between 0 and 100.', 400);
   if (!Number.isFinite(Number(input.fixedFee || 0)) || Number(input.fixedFee || 0) < 0) throw createError('Fixed fee cannot be negative.', 400);
-  const increment = Number(input.roundingIncrement || 1);
-  if (!Number.isInteger(increment) || increment < 1 || increment > 1000) throw createError('Rounding increment must be a whole amount between BDT 1 and 1,000.', 400);
+  const increment = Number(input.roundingIncrement ?? 0);
+  if (!Number.isInteger(increment) || increment < 0 || increment > 1000) throw createError('Rounding increment must be a whole amount between BDT 0 and 1,000.', 400);
 
   const before = await GatewayRate.findOne({ channel: input.channel }).sort({ effectiveFrom: -1 }).lean();
   const rate = await GatewayRate.findOneAndUpdate(

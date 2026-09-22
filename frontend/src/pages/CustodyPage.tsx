@@ -485,9 +485,6 @@ export const CustodyPage: React.FC = () => {
               <Wallet className="w-7 h-7 text-indigo-400" />
               Accountant Custody Ledger
             </h1>
-            <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              Issue #7
-            </span>
           </div>
           <p className="text-sm text-gray-400 mt-1">
             Authoritative multi-custodian balances, cross-channel transfers, and real-time transaction ledger.
@@ -552,7 +549,7 @@ export const CustodyPage: React.FC = () => {
             </div>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-2xl font-bold text-white tracking-tight">
-                ৳{(summary.totalLiquidFunds || 0).toLocaleString()}
+                BDT {(summary.totalLiquidFunds || 0).toLocaleString()}
               </span>
             </div>
             <div className="mt-2 text-xs text-indigo-400 flex items-center gap-1">
@@ -573,7 +570,7 @@ export const CustodyPage: React.FC = () => {
             </div>
             <div className="mt-2">
               <span className="text-2xl font-bold text-purple-300 tracking-tight">
-                ৳{(summary.totalMoinCustody || 0).toLocaleString()}
+                BDT {(summary.totalMoinCustody || 0).toLocaleString()}
               </span>
             </div>
             <div className="mt-2 text-xs text-gray-400">
@@ -593,7 +590,7 @@ export const CustodyPage: React.FC = () => {
             </div>
             <div className="mt-2">
               <span className="text-2xl font-bold text-blue-300 tracking-tight">
-                ৳{(summary.totalSamratCustody || 0).toLocaleString()}
+                BDT {(summary.totalSamratCustody || 0).toLocaleString()}
               </span>
             </div>
             <div className="mt-2 text-xs text-gray-400">
@@ -609,19 +606,19 @@ export const CustodyPage: React.FC = () => {
             <div className="grid grid-cols-2 gap-2 mt-2">
               <div className="text-xs">
                 <span className="text-gray-400 block">Bank:</span>
-                <span className="font-semibold text-blue-400">৳{(summary.channelTotals.BANK || 0).toLocaleString()}</span>
+                <span className="font-semibold text-blue-400">BDT {(summary.channelTotals.BANK || 0).toLocaleString()}</span>
               </div>
               <div className="text-xs">
                 <span className="text-gray-400 block">Cash:</span>
-                <span className="font-semibold text-emerald-400">৳{(summary.channelTotals.CASH || 0).toLocaleString()}</span>
+                <span className="font-semibold text-emerald-400">BDT {(summary.channelTotals.CASH || 0).toLocaleString()}</span>
               </div>
               <div className="text-xs">
                 <span className="text-gray-400 block">Nagad:</span>
-                <span className="font-semibold text-orange-400">৳{(summary.channelTotals.NAGAD || 0).toLocaleString()}</span>
+                <span className="font-semibold text-orange-400">BDT {(summary.channelTotals.NAGAD || 0).toLocaleString()}</span>
               </div>
               <div className="text-xs">
                 <span className="text-gray-400 block">bKash:</span>
-                <span className="font-semibold text-pink-400">৳{(summary.channelTotals.BKASH || 0).toLocaleString()}</span>
+                <span className="font-semibold text-pink-400">BDT {(summary.channelTotals.BKASH || 0).toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -740,7 +737,7 @@ export const CustodyPage: React.FC = () => {
                             acc.derivedBalance >= 0 ? 'text-white' : 'text-rose-400'
                           }`}
                         >
-                          ৳{(acc.derivedBalance || 0).toLocaleString()}
+                          BDT {(acc.derivedBalance || 0).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -752,7 +749,7 @@ export const CustodyPage: React.FC = () => {
                           <ArrowDownLeft className="w-3 h-3 text-emerald-400" /> Total In
                         </span>
                         <span className="font-medium text-emerald-400">
-                          +৳{(acc.totalInflow || 0).toLocaleString()}
+                          +BDT {(acc.totalInflow || 0).toLocaleString()}
                         </span>
                       </div>
                       <div>
@@ -760,7 +757,7 @@ export const CustodyPage: React.FC = () => {
                           <ArrowUpRight className="w-3 h-3 text-rose-400" /> Total Out
                         </span>
                         <span className="font-medium text-rose-400">
-                          -৳{(acc.totalOutflow || 0).toLocaleString()}
+                          -BDT {(acc.totalOutflow || 0).toLocaleString()}
                         </span>
                       </div>
                     </div>
@@ -992,7 +989,7 @@ export const CustodyPage: React.FC = () => {
                                 isIncoming ? 'text-emerald-400' : 'text-rose-400'
                               }`}
                             >
-                              {isIncoming ? '+' : '-'}৳{mov.amount.toLocaleString()}
+                              {isIncoming ? '+' : '-'}BDT {mov.amount.toLocaleString()}
                             </span>
                           </td>
                           <td className="py-3 px-4 whitespace-nowrap">
@@ -1135,7 +1132,7 @@ export const CustodyPage: React.FC = () => {
                           </div>
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap">
-                          <span className="text-sm font-bold text-white">৳{trf.amount.toLocaleString()}</span>
+                          <span className="text-sm font-bold text-white">BDT {trf.amount.toLocaleString()}</span>
                         </td>
                         <td className="py-3 px-4 text-gray-300 text-xs max-w-xs truncate" title={trf.purpose}>
                           {trf.purpose || 'Inter-account fund transfer'}
@@ -1227,7 +1224,7 @@ export const CustodyPage: React.FC = () => {
                   <option value="">Select source custody account...</option>
                   {accounts.map((acc) => (
                     <option key={acc._id} value={acc._id} disabled={acc.derivedBalance <= 0}>
-                      {acc.name} ({acc.channel}) — Available: ৳{acc.derivedBalance.toLocaleString()}
+                      {acc.name} ({acc.channel}) — Available: BDT {acc.derivedBalance.toLocaleString()}
                     </option>
                   ))}
                 </select>
@@ -1236,7 +1233,7 @@ export const CustodyPage: React.FC = () => {
                   <div className="mt-1.5 flex items-center justify-between text-xs px-2 py-1 rounded bg-gray-900/60 border border-gray-800">
                     <span className="text-gray-400">Holder: {selectedSourceAccount.holderId?.name || 'Society Reserve'}</span>
                     <span className="text-emerald-400 font-semibold">
-                      Max Available: ৳{selectedSourceAccount.derivedBalance.toLocaleString()}
+                      Max Available: BDT {selectedSourceAccount.derivedBalance.toLocaleString()}
                     </span>
                   </div>
                 )}
@@ -1258,7 +1255,7 @@ export const CustodyPage: React.FC = () => {
                     .filter((acc) => acc._id !== transferForm.sourceAccountId)
                     .map((acc) => (
                       <option key={acc._id} value={acc._id}>
-                        {acc.name} ({acc.channel}) — Current: ৳{acc.derivedBalance.toLocaleString()}
+                        {acc.name} ({acc.channel}) — Current: BDT {acc.derivedBalance.toLocaleString()}
                       </option>
                     ))}
                 </select>
@@ -1392,7 +1389,7 @@ export const CustodyPage: React.FC = () => {
                   <option value="">Select account...</option>
                   {accounts.map((acc) => (
                     <option key={acc._id} value={acc._id}>
-                      {acc.name} — Current Ledger: ৳{acc.derivedBalance.toLocaleString()}
+                      {acc.name} — Current Ledger: BDT {acc.derivedBalance.toLocaleString()}
                     </option>
                   ))}
                 </select>
@@ -1404,7 +1401,7 @@ export const CustodyPage: React.FC = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-400">Current Ledger Balance:</span>
                     <span className="font-bold text-white">
-                      ৳{selectedReconcileAccount.derivedBalance.toLocaleString()}
+                      BDT {selectedReconcileAccount.derivedBalance.toLocaleString()}
                     </span>
                   </div>
                   {reconcileVariance !== null && (
@@ -1419,7 +1416,7 @@ export const CustodyPage: React.FC = () => {
                             : 'text-rose-400'
                         }`}
                       >
-                        {reconcileVariance > 0 ? '+' : ''}৳{reconcileVariance.toLocaleString()}
+                        {reconcileVariance > 0 ? '+' : ''}BDT {reconcileVariance.toLocaleString()}
                         {reconcileVariance === 0 ? ' (Exact Match)' : reconcileVariance > 0 ? ' (Surplus)' : ' (Shortage)'}
                       </span>
                     </div>
@@ -1651,7 +1648,7 @@ export const CustodyPage: React.FC = () => {
                 <div className="flex justify-between items-center pt-2 border-t border-gray-800">
                   <span className="text-gray-400 font-semibold uppercase">Transferred Amount:</span>
                   <span className="text-lg font-bold text-emerald-400">
-                    ৳{selectedTransferVoucher.amount.toLocaleString()}
+                    BDT {selectedTransferVoucher.amount.toLocaleString()}
                   </span>
                 </div>
               </div>

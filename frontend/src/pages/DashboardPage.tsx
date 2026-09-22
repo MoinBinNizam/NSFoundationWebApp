@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   Activity,
   BarChart3,
@@ -89,7 +90,7 @@ interface ActivityPage {
 }
 
 const money = (amount: unknown) =>
-  `৳ ${Number(amount || 0).toLocaleString('en-BD', { maximumFractionDigits: 2 })}`;
+  `BDT ${Number(amount || 0).toFixed(2)}`;
 
 const reportLabels: Record<ReportType, string> = {
   collection: 'Collection',
@@ -124,6 +125,7 @@ const formatTimeAgo = (isoDate: string) => {
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
+  const { t } = usePreferences();
   const isPrimary =
     user?.accountantType === 'PRIMARY' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
@@ -257,15 +259,15 @@ export const DashboardPage: React.FC = () => {
         <div>
           <div className="flex items-center gap-2 text-blue-400">
             <BarChart3 size={18} />
-            <span className="text-xs font-bold uppercase tracking-wider">Issue #11 · Analytics</span>
+            <span className="text-xs font-bold uppercase tracking-wider">{t('Analytics')}</span>
           </div>
           <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            {view === 'dashboard' ? 'NS Foundation Dashboard' : 'Society Reports Workspace'}
+            {view === 'dashboard' ? t('NS Foundation Dashboard') : t('Society Reports Workspace')}
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-gray-400">
             {view === 'dashboard'
-              ? 'Real-time financial overview derived directly from immutable ledger projections.'
-              : 'Search, sort, filter, and export auditable reports across all financial operations.'}
+              ? t('Real-time financial overview derived directly from immutable ledger projections.')
+              : t('Search, sort, filter, and export auditable reports across all financial operations.')}
           </p>
         </div>
 
@@ -275,7 +277,7 @@ export const DashboardPage: React.FC = () => {
             className="btn btn-secondary btn-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
           >
             <RefreshCw size={14} className={loading ? 'animate-spin text-blue-400' : 'text-gray-400'} />
-            <span>Refresh</span>
+            <span>{t('Refresh')}</span>
           </button>
         </div>
       </div>
@@ -290,7 +292,7 @@ export const DashboardPage: React.FC = () => {
             }`}
         >
           <BarChart3 size={16} />
-          <span>Dashboard Overview</span>
+          <span>{t('Dashboard Overview')}</span>
         </button>
 
         <button
@@ -301,7 +303,7 @@ export const DashboardPage: React.FC = () => {
             }`}
         >
           <FileText size={16} />
-          <span>Reports & Exports</span>
+          <span>{t('Reports & Exports')}</span>
         </button>
       </div>
 
@@ -321,7 +323,7 @@ export const DashboardPage: React.FC = () => {
           <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
               <Calendar size={14} className="text-blue-400" />
-              <span>Reporting Period:</span>
+              <span>{t('Reporting Period:')}</span>
             </span>
             <div className="grid w-full grid-cols-2 gap-1.5 sm:w-auto">
               <input
@@ -358,14 +360,14 @@ export const DashboardPage: React.FC = () => {
               className="text-xs text-rose-400 hover:text-rose-300 font-semibold px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 transition-all flex items-center gap-1"
             >
               <X size={13} />
-              <span>Clear Filter</span>
+              <span>{t('Clear Filter')}</span>
             </button>
           )}
         </div>
 
         <div className="text-xs text-gray-400">
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2" />
-          {startDate || endDate ? 'Filtered Date Window' : 'All Historical Records'}
+          {startDate || endDate ? t('Filtered Date Window') : t('All Historical Records')}
         </div>
       </div>
 
@@ -380,7 +382,7 @@ export const DashboardPage: React.FC = () => {
               {/* Card 1: Total Collections */}
               <button type="button" onClick={() => openReport('collection')} className="glass-card w-full p-5 text-left border-l-4 border-l-emerald-500 hover:border-emerald-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400/70">
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
-                  <span>Total Collections</span>
+                  <span>{t('Total Collections')}</span>
                   <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                     <ReceiptText size={18} />
                   </div>
@@ -389,9 +391,9 @@ export const DashboardPage: React.FC = () => {
                   {money(dashboard?.metrics.collection.total)}
                 </p>
                 <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
-                  <span>{dashboard?.metrics.collection.count || 0} total receipts</span>
+                  <span>{dashboard?.metrics.collection.count || 0} {t('total receipts')}</span>
                   <span className="text-emerald-400 font-semibold">
-                    Princ: {money(dashboard?.metrics.collection.principal)}
+                    {t('Principal')}: {money(dashboard?.metrics.collection.principal)}
                   </span>
                 </div>
                 <MetricDelta metric={dashboard?.comparisons.collections} label="vs prior month" />
@@ -400,7 +402,7 @@ export const DashboardPage: React.FC = () => {
               {/* Card 2: Operational Expenses */}
               <button type="button" onClick={() => openReport('expenses')} className="glass-card w-full p-5 text-left border-l-4 border-l-rose-500 hover:border-rose-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-rose-400/70">
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
-                  <span>Operational Expenses</span>
+                  <span>{t('Operational Expenses')}</span>
                   <div className="p-2 rounded-xl bg-rose-500/10 text-rose-400 border border-rose-500/20">
                     <WalletCards size={18} />
                   </div>
@@ -409,8 +411,8 @@ export const DashboardPage: React.FC = () => {
                   {money(dashboard?.metrics.expenses.total)}
                 </p>
                 <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
-                  <span>{dashboard?.metrics.expenses.count || 0} expense records</span>
-                  <span className="text-rose-400 font-semibold">Society overheads</span>
+                  <span>{dashboard?.metrics.expenses.count || 0} {t('expense records')}</span>
+                  <span className="text-rose-400 font-semibold">{t('Society overheads')}</span>
                 </div>
                 <MetricDelta metric={dashboard?.comparisons.expenses} label="vs prior month" />
               </button>
@@ -420,8 +422,8 @@ export const DashboardPage: React.FC = () => {
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
                   <span>
                     {dashboard?.roleScope === 'ORGANIZATION'
-                      ? 'Total Society Custody'
-                      : 'My Custody Holdings'}
+                      ? t('Total Society Custody')
+                      : t('My Custody Holdings')}
                   </span>
                   <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
                     <Landmark size={18} />
@@ -431,8 +433,8 @@ export const DashboardPage: React.FC = () => {
                   {money(dashboard?.metrics.custody)}
                 </p>
                 <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
-                  <span>{dashboard?.custodyByAccount.length || 0} accounts active</span>
-                  <span className="text-blue-400 font-semibold">Verified balance</span>
+                  <span>{dashboard?.custodyByAccount.length || 0} {t('active accounts')}</span>
+                  <span className="text-blue-400 font-semibold">{t('Verified balance')}</span>
                 </div>
                 <MetricDelta metric={dashboard?.comparisons.custody} label="vs last month" />
               </button>
@@ -442,8 +444,8 @@ export const DashboardPage: React.FC = () => {
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
                   <span>
                     {dashboard?.roleScope === 'ORGANIZATION'
-                      ? 'Active Members'
-                      : 'Investment Scope'}
+                      ? t('Active Members')
+                      : t('Investment Scope')}
                   </span>
                   <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20">
                     <Users size={18} />
@@ -451,21 +453,21 @@ export const DashboardPage: React.FC = () => {
                 </div>
                 <p className="text-2xl sm:text-3xl font-extrabold text-white mt-3 tracking-tight">
                   {dashboard?.roleScope === 'ORGANIZATION'
-                    ? `${dashboard?.metrics.activeMembers || 0}`
-                    : isPrimary
-                      ? `${dashboard?.metrics.investments?.activeProjectsCount || 0} Projects`
-                      : 'Restricted'}
+                      ? `${dashboard?.metrics.activeMembers || 0}`
+                      : isPrimary
+                      ? `${dashboard?.metrics.investments?.activeProjectsCount || 0} ${t('Projects')}`
+                      : t('Restricted')}
                 </p>
                 <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
                   <span>
                     {dashboard?.roleScope === 'ORGANIZATION'
-                      ? 'In good standing'
+                      ? t('In good standing')
                       : isPrimary
-                        ? `Cap: ${money(dashboard?.metrics.investments?.totalCapitalInvested)}`
-                        : 'Primary accountant only'}
+                        ? `${t('Capital')}: ${money(dashboard?.metrics.investments?.totalCapitalInvested)}`
+                        : t('Primary accountant only')}
                   </span>
                   <span className="text-purple-400 font-semibold">
-                    {dashboard?.roleScope === 'ORGANIZATION' ? 'Enrolled' : 'Authorized'}
+                    {dashboard?.roleScope === 'ORGANIZATION' ? t('Enrolled') : t('Authorized')}
                   </span>
                 </div>
               </div>
@@ -473,7 +475,7 @@ export const DashboardPage: React.FC = () => {
               {/* Card 5: Total Dues */}
               <button type="button" onClick={() => openReport('dues')} className="glass-card w-full p-5 text-left border-l-4 border-l-amber-500 hover:border-amber-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-amber-400/70">
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
-                  <span>Total Dues</span>
+                  <span>{t('Total Dues')}</span>
                   <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
                     <DollarSign size={18} />
                   </div>
@@ -482,8 +484,8 @@ export const DashboardPage: React.FC = () => {
                   {money(dashboard?.metrics.dues.total)}
                 </p>
                 <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
-                  <span>{dashboard?.metrics.dues.count || 0} outstanding ledger months</span>
-                  <span className="text-amber-400 font-semibold">Jan 2024–current</span>
+                  <span>{dashboard?.metrics.dues.count || 0} {t('outstanding ledger months')}</span>
+                  <span className="text-amber-400 font-semibold">{t('January 2024–present')}</span>
                 </div>
                 <MetricDelta metric={dashboard?.comparisons.dues} label="vs prior month" inverse />
               </button>
@@ -504,15 +506,15 @@ export const DashboardPage: React.FC = () => {
                     </div>
                     <div>
                       <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                        Recent System Activity
+                        {t('Recent System Activity')}
                       </h2>
                       <p className="text-xs text-gray-400">
-                        Immutable audit log trail across all society operations
+                        {t('Immutable audit log trail across all society operations')}
                       </p>
                     </div>
                   </div>
                   <span className="text-[11px] font-semibold text-gray-400 bg-slate-900/60 border border-white/5 px-2.5 py-1 rounded-full self-start sm:self-auto">
-                    {displayedActivity.length} of {dashboard?.activityTotal || 0} Logs
+                    {displayedActivity.length} {t('of')} {dashboard?.activityTotal || 0} {t('Logs')}
                   </span>
                 </div>
 
@@ -552,7 +554,7 @@ export const DashboardPage: React.FC = () => {
                             </div>
                             <p className="text-xs text-gray-400 mt-1 truncate">
                               {item.reason ? `${item.reason} · ` : ''}
-                              <span className="text-gray-300 font-medium">By {item.performedBy}</span>
+                              <span className="text-gray-300 font-medium">{t('By')} {item.performedBy}</span>
                             </p>
                           </div>
                         </div>
@@ -567,15 +569,15 @@ export const DashboardPage: React.FC = () => {
                       );
                     })
                   ) : (
-                    <Empty text="No recent activity logged for this scope." />
+                    <Empty text={t('No recent activity logged for this scope.')} />
                   )}
                   {activityPage < (dashboard?.activityPagination.totalPages || 1) && (
                     <div className="flex min-h-12 items-center justify-center border-t border-white/5 pt-3 text-xs text-gray-400">
-                      {loadingMoreActivity ? <><Loader2 size={15} className="mr-2 animate-spin text-blue-400" />Loading older activity…</> : 'Scroll to load 10 older records'}
+                      {loadingMoreActivity ? <><Loader2 size={15} className="mr-2 animate-spin text-blue-400" />{t('Loading older activity…')}</> : t('Scroll to load 10 older records')}
                     </div>
                   )}
                   {activityPage >= (dashboard?.activityPagination.totalPages || 1) && displayedActivity.length > 0 && (
-                    <p className="py-2 text-center text-[11px] font-medium text-gray-500">All {dashboard?.activityTotal || displayedActivity.length} activity records loaded.</p>
+                    <p className="py-2 text-center text-[11px] font-medium text-gray-500">{t('All')} {dashboard?.activityTotal || displayedActivity.length} {t('activity records loaded.')}</p>
                   )}
                 </div>
               </div>
@@ -589,9 +591,9 @@ export const DashboardPage: React.FC = () => {
                     </div>
                     <div>
                       <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-                        Custody Distribution
+                        {t('Custody Distribution')}
                       </h2>
-                      <p className="text-xs text-gray-400">Liquid reserves by payment gateway</p>
+                      <p className="text-xs text-gray-400">{t('Available balance by payment method')}</p>
                     </div>
                   </div>
                   <span className="text-[11px] font-bold text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-full self-start sm:self-auto">
@@ -631,7 +633,7 @@ export const DashboardPage: React.FC = () => {
                                 {money(account.balance)}
                               </p>
                               <span className="text-[10px] font-bold text-blue-400">
-                                {percent.toFixed(1)}% of total
+                                {percent.toFixed(1)}% {t('of total')}
                               </span>
                             </div>
                           </div>
@@ -647,7 +649,7 @@ export const DashboardPage: React.FC = () => {
                       );
                     })
                   ) : (
-                    <Empty text="No active custody accounts in this view." />
+                    <Empty text={t('No active custody accounts in this view.')} />
                   )}
                 </div>
               </div>
@@ -663,20 +665,20 @@ export const DashboardPage: React.FC = () => {
                     </div>
                     <div>
                       <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                        <span>Investment Portfolio Snapshot</span>
+                        <span>{t('Investment Portfolio Snapshot')}</span>
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
-                          Live Portfolio
+                          {t('Live Portfolio')}
                         </span>
                       </h2>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        Capital deployment, active development projects and realized returns
+                        {t('Investment amount, active projects and received profit')}
                       </p>
                     </div>
                   </div>
 
                   <span className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-full border border-indigo-400/25 bg-indigo-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-indigo-300">
                     <ShieldCheck size={13} />
-                    Admin & Primary Accountant
+                    {t('Admin & Primary Accountant')}
                   </span>
                 </div>
 
@@ -684,7 +686,7 @@ export const DashboardPage: React.FC = () => {
                   <div className="p-4 rounded-xl bg-slate-900/60 border border-white/5 flex flex-col justify-between hover:border-white/10 transition-all">
                     <div>
                       <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
-                        <span>Capital Invested</span>
+                        <span>{t('Capital Invested')}</span>
                         <DollarSign size={16} className="text-indigo-400" />
                       </div>
                       <p className="text-xl sm:text-2xl font-extrabold text-white mt-2">
@@ -692,29 +694,29 @@ export const DashboardPage: React.FC = () => {
                       </p>
                     </div>
                     <span className="text-[11px] text-gray-400 mt-2 block">
-                      Total principal funded into projects
+                      {t('Total principal invested in projects')}
                     </span>
                   </div>
 
                   <div className="p-4 rounded-xl bg-slate-900/60 border border-white/5 flex flex-col justify-between hover:border-white/10 transition-all">
                     <div>
                       <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
-                        <span>Active Projects</span>
+                        <span>{t('Active Projects')}</span>
                         <Layers size={16} className="text-cyan-400" />
                       </div>
                       <p className="text-xl sm:text-2xl font-extrabold text-cyan-400 mt-2">
-                        {dashboard.metrics.investments.activeProjectsCount} Projects
+                        {dashboard.metrics.investments.activeProjectsCount} {t('Projects')}
                       </p>
                     </div>
                     <span className="text-[11px] text-gray-400 mt-2 block">
-                      Current underway ventures
+                      {t('Projects currently running')}
                     </span>
                   </div>
 
                   <div className="p-4 rounded-xl bg-slate-900/60 border border-white/5 flex flex-col justify-between hover:border-white/10 transition-all">
                     <div>
                       <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
-                        <span>Realized Net Profit</span>
+                        <span>{t('Realized Net Profit')}</span>
                         <Sparkles size={16} className="text-emerald-400" />
                       </div>
                       <p className="text-xl sm:text-2xl font-extrabold text-emerald-400 mt-2">
@@ -722,7 +724,7 @@ export const DashboardPage: React.FC = () => {
                       </p>
                     </div>
                     <span className="text-[11px] text-gray-400 mt-2 block">
-                      Cumulative profit returned to society
+                      {t('Total profit returned to the society')}
                     </span>
                   </div>
                 </div>
@@ -752,7 +754,7 @@ export const DashboardPage: React.FC = () => {
                     : 'text-gray-400 hover:text-white bg-slate-900/60 border border-white/5'
                   }`}
               >
-                <span>{reportLabels[type]}</span>
+                <span>{t(reportLabels[type])}</span>
               </button>
             ))}
           </div>
@@ -766,7 +768,7 @@ export const DashboardPage: React.FC = () => {
               />
               <input
                 className="form-input text-xs sm:text-sm pl-9 pr-3 py-2 w-full"
-                placeholder={`Search ${reportLabels[reportType]} records…`}
+                placeholder={`${t('Search')} ${t(reportLabels[reportType])} ${t('records…')}`}
                 value={search}
                 onChange={(event) => {
                   setSearch(event.target.value);
@@ -779,7 +781,7 @@ export const DashboardPage: React.FC = () => {
               className="btn btn-primary btn-sm flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider w-full sm:w-auto"
             >
               <Download size={15} />
-              <span>Export CSV</span>
+              <span>{t('Export CSV')}</span>
             </button>
           </div>
 
@@ -792,7 +794,7 @@ export const DashboardPage: React.FC = () => {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th className="w-16 text-center whitespace-nowrap font-bold">SL NO</th>
+                      <th className="w-16 text-center whitespace-nowrap font-bold">{t('SL NO')}</th>
                       {columns.map((column) => (
                         <th key={column} className="whitespace-nowrap">
                           <button
@@ -862,7 +864,7 @@ export const DashboardPage: React.FC = () => {
                     ) : (
                       <tr>
                         <td colSpan={Math.max(columns.length + 1, 1)}>
-                          <Empty text="No records match the current filters." />
+                          <Empty text={t('No records match the current filters.')} />
                         </td>
                       </tr>
                     )}
@@ -873,8 +875,8 @@ export const DashboardPage: React.FC = () => {
               {/* Responsive Pagination Bar */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 border-t border-white/10 text-xs text-gray-400">
                 <span>
-                  Showing {report?.rows.length || 0} of {report?.pagination.total || 0} total records
-                  (10 per page)
+                  {t('Showing')} {report?.rows.length || 0} {t('of')} {report?.pagination.total || 0} {t('total records')}
+                  ({t('10 per page')})
                 </span>
 
                 <div className="flex items-center gap-2">
@@ -887,7 +889,7 @@ export const DashboardPage: React.FC = () => {
                   </button>
 
                   <span className="px-2 font-semibold text-white">
-                    Page {report?.pagination.page || 1} of {report?.pagination.totalPages || 1}
+                    {t('Page')} {report?.pagination.page || 1} {t('of')} {report?.pagination.totalPages || 1}
                   </span>
 
                   <button
@@ -907,12 +909,13 @@ export const DashboardPage: React.FC = () => {
   );
 };
 
-const Loading = () => (
-  <div className="glass-card flex min-h-60 flex-col items-center justify-center text-sm text-gray-400 gap-3 p-8">
+const Loading = () => {
+  const { t } = usePreferences();
+  return <div className="glass-card flex min-h-60 flex-col items-center justify-center text-sm text-gray-400 gap-3 p-8">
     <Loader2 size={24} className="animate-spin text-blue-400" />
-    <span className="font-medium tracking-wide">Loading real-time financial ledger data…</span>
-  </div>
-);
+    <span className="font-medium tracking-wide">{t('Loading real-time financial ledger data…')}</span>
+  </div>;
+};
 
 const Empty: React.FC<{ text: string }> = ({ text }) => (
   <div className="p-8 text-center text-sm text-gray-400 flex flex-col items-center justify-center gap-2">
@@ -926,13 +929,14 @@ const MetricDelta: React.FC<{
   label: string;
   inverse?: boolean;
 }> = ({ metric, label, inverse = false }) => {
-  if (!metric || metric.percentage === null) return <p className="mt-2 text-[10px] font-medium text-gray-500">No prior-month comparison</p>;
+  const { t } = usePreferences();
+  if (!metric || metric.percentage === null) return <p className="mt-2 text-[10px] font-medium text-gray-500">{t('No prior-month comparison')}</p>;
   const isPositive = metric.change > 0;
   const beneficial = inverse ? !isPositive : isPositive;
   const color = beneficial ? 'text-emerald-400' : metric.change === 0 ? 'text-gray-400' : 'text-rose-400';
   return (
     <p className={`mt-2 text-[10px] font-bold ${color}`}>
-      {metric.change === 0 ? 'No change' : `${isPositive ? '↑' : '↓'} ${Math.abs(metric.percentage).toFixed(1)}%`} <span className="font-medium text-gray-500">{label}</span>
+      {metric.change === 0 ? t('No change') : `${isPositive ? '↑' : '↓'} ${Math.abs(metric.percentage).toFixed(1)}%`} <span className="font-medium text-gray-500">{t(label)}</span>
     </p>
   );
 };
@@ -942,6 +946,7 @@ const DashboardAlerts: React.FC<{
   onOpenReport: (type: ReportType) => void;
   showInvestments: boolean;
 }> = ({ alerts, onOpenReport, showInvestments }) => {
+  const { t } = usePreferences();
   if (!alerts) return null;
   const criticalDue = alerts.dueAging.find((item) => item.label === '90+ days');
   const hasAlerts = Boolean(criticalDue?.count || alerts.overdueMembers || alerts.lowCustodyAccounts.length || (showInvestments && alerts.investmentMaturities.length));
@@ -950,37 +955,37 @@ const DashboardAlerts: React.FC<{
     <section className="order-2 glass-card p-5 sm:p-6" aria-labelledby="operational-alerts-title">
       <div className="flex flex-col gap-2 border-b border-white/10 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 id="operational-alerts-title" className="text-sm font-bold uppercase tracking-wider text-white">Operational alerts</h2>
-          <p className="mt-1 text-xs text-gray-400">Items that need management attention, calculated from live ledgers and project records.</p>
+          <h2 id="operational-alerts-title" className="text-sm font-bold uppercase tracking-wider text-white">{t('Operational alerts')}</h2>
+          <p className="mt-1 text-xs text-gray-400">{t('Items that need management attention, calculated from live ledgers and project records.')}</p>
         </div>
         <span className={`self-start rounded-full border px-2.5 py-1 text-[11px] font-bold ${hasAlerts ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'}`}>
-          {hasAlerts ? 'Attention needed' : 'All clear'}
+          {hasAlerts ? t('Attention needed') : t('All clear')}
         </span>
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <button type="button" onClick={() => onOpenReport('dues')} className="rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-4 text-left transition-colors hover:bg-amber-500/[0.1] focus:outline-none focus:ring-2 focus:ring-amber-400/70">
-          <p className="text-xs font-bold uppercase tracking-wider text-amber-300">Due aging</p>
+        <button type="button" onClick={() => onOpenReport('dues')} className="min-w-0 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] p-4 text-left transition-colors hover:bg-amber-500/[0.1] focus:outline-none focus:ring-2 focus:ring-amber-400/70">
+          <p className="text-xs font-bold uppercase tracking-wider text-amber-300">{t('Due aging')}</p>
           <p className="mt-2 text-2xl font-extrabold text-white">{money(criticalDue?.total || 0)}</p>
-          <p className="mt-1 text-xs text-gray-400">{criticalDue?.count || 0} ledger months over 90 days · {alerts.overdueMembers} affected members</p>
+          <p className="mt-1 text-xs text-gray-400">{criticalDue?.count || 0} {t('ledger months over 90 days')} · {alerts.overdueMembers} {t('affected members')}</p>
           <div className="mt-3 flex gap-1" aria-hidden="true">
             {alerts.dueAging.map((item) => <span key={item.label} className="h-1.5 flex-1 rounded-full bg-amber-400/30" style={{ opacity: item.total > 0 ? 1 : 0.25 }} />)}
           </div>
         </button>
 
-        <button type="button" onClick={() => onOpenReport('custody')} className="rounded-xl border border-blue-500/20 bg-blue-500/[0.06] p-4 text-left transition-colors hover:bg-blue-500/[0.1] focus:outline-none focus:ring-2 focus:ring-blue-400/70">
-          <p className="text-xs font-bold uppercase tracking-wider text-blue-300">Low custody balances</p>
+        <button type="button" onClick={() => onOpenReport('custody')} className="min-w-0 rounded-xl border border-blue-500/20 bg-blue-500/[0.06] p-4 text-left transition-colors hover:bg-blue-500/[0.1] focus:outline-none focus:ring-2 focus:ring-blue-400/70">
+          <p className="text-xs font-bold uppercase tracking-wider text-blue-300">{t('Low custody balances')}</p>
           <p className="mt-2 text-2xl font-extrabold text-white">{alerts.lowCustodyAccounts.length}</p>
-          <p className="mt-1 text-xs text-gray-400">Accounts at or below {money(alerts.lowBalanceThreshold)}</p>
-          <p className="mt-3 truncate text-xs font-semibold text-blue-200">{alerts.lowCustodyAccounts.length ? alerts.lowCustodyAccounts.map((account) => account.name).join(' · ') : 'No low-balance accounts'}</p>
+          <p className="mt-1 text-xs text-gray-400">{t('Accounts at or below')} {money(alerts.lowBalanceThreshold)}</p>
+          <p className="mt-3 truncate text-xs font-semibold text-blue-200">{alerts.lowCustodyAccounts.length ? alerts.lowCustodyAccounts.map((account) => account.name).join(' · ') : t('No low-balance accounts')}</p>
         </button>
 
         {showInvestments && (
-          <button type="button" onClick={() => onOpenReport('investments')} className="rounded-xl border border-indigo-500/20 bg-indigo-500/[0.06] p-4 text-left transition-colors hover:bg-indigo-500/[0.1] focus:outline-none focus:ring-2 focus:ring-indigo-400/70">
-            <p className="text-xs font-bold uppercase tracking-wider text-indigo-300">Maturity reminders</p>
+          <button type="button" onClick={() => onOpenReport('investments')} className="min-w-0 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.06] p-4 text-left transition-colors hover:bg-indigo-500/[0.1] focus:outline-none focus:ring-2 focus:ring-indigo-400/70">
+            <p className="text-xs font-bold uppercase tracking-wider text-indigo-300">{t('Maturity reminders')}</p>
             <p className="mt-2 text-2xl font-extrabold text-white">{alerts.investmentMaturities.length}</p>
-            <p className="mt-1 text-xs text-gray-400">Active projects maturing within 30 days</p>
-            <p className="mt-3 truncate text-xs font-semibold text-indigo-200">{alerts.investmentMaturities.length ? alerts.investmentMaturities.map((project) => `${project.name} (${project.daysRemaining}d)`).join(' · ') : 'No upcoming maturities'}</p>
+            <p className="mt-1 text-xs text-gray-400">{t('Active projects maturing within 30 days')}</p>
+            <p className="mt-3 max-w-full truncate text-xs font-semibold text-indigo-200">{alerts.investmentMaturities.length ? alerts.investmentMaturities.map((project) => `${project.name} (${project.daysRemaining}${t(' days')})`).join(' · ') : t('No upcoming maturities')}</p>
           </button>
         )}
       </div>
@@ -992,6 +997,7 @@ const FinancialTrendChart: React.FC<{
   trend: Array<{ month: string; collections: number; expenses: number; dues: number }>;
   onOpenReport: (type: ReportType) => void;
 }> = ({ trend, onOpenReport }) => {
+  const { t, language } = usePreferences();
   const width = 720;
   const height = 250;
   const padding = { top: 18, right: 16, bottom: 36, left: 14 };
@@ -1007,7 +1013,7 @@ const FinancialTrendChart: React.FC<{
   const line = (key: 'collections' | 'expenses' | 'dues') => trend.map((item, index) => point(item[key], index)).join(' ');
   const formatMonth = (month: string) => {
     const [year, monthNumber] = month.split('-').map(Number);
-    return new Intl.DateTimeFormat('en-BD', { month: 'short', year: trend.length > 6 ? '2-digit' : undefined }).format(new Date(year, monthNumber - 1, 1));
+    return new Intl.DateTimeFormat(language === 'bn' ? 'bn-BD' : 'en-BD', { month: 'short', year: trend.length > 6 ? '2-digit' : undefined }).format(new Date(year, monthNumber - 1, 1));
   };
   const totalCollections = trend.reduce((sum, item) => sum + item.collections, 0);
   const totalExpenses = trend.reduce((sum, item) => sum + item.expenses, 0);
@@ -1021,12 +1027,12 @@ const FinancialTrendChart: React.FC<{
             <TrendingUp size={16} />
           </div>
           <div>
-            <h2 id="financial-trend-title" className="text-sm font-bold uppercase tracking-wider text-white">Financial performance trend</h2>
-            <p className="mt-0.5 text-xs text-gray-400">Monthly collections, expenses, and outstanding dues from the reporting window.</p>
+            <h2 id="financial-trend-title" className="text-sm font-bold uppercase tracking-wider text-white">{t('Financial performance trend')}</h2>
+            <p className="mt-0.5 text-xs text-gray-400">{t('Monthly collections, expenses, and outstanding dues from the reporting window.')}</p>
           </div>
         </div>
         <span className={`self-start rounded-full border px-2.5 py-1 text-[11px] font-bold ${totalCollections - totalExpenses >= 0 ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-300' : 'border-rose-500/25 bg-rose-500/10 text-rose-300'}`}>
-          Net cash flow {money(totalCollections - totalExpenses)}
+          {t('Net cash flow')} {money(totalCollections - totalExpenses)}
         </span>
       </div>
 
@@ -1062,10 +1068,10 @@ const FinancialTrendChart: React.FC<{
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-2 text-[11px] font-semibold text-gray-400">
-        <button type="button" onClick={() => onOpenReport('collection')} className="inline-flex min-h-0 items-center gap-1.5 rounded-md border border-transparent px-2 py-1 transition-colors hover:border-emerald-400/30 hover:bg-emerald-500/15 hover:text-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/70"><i className="h-2 w-2 rounded-full bg-emerald-400" />Collections</button>
-        <button type="button" onClick={() => onOpenReport('expenses')} className="inline-flex min-h-0 items-center gap-1.5 rounded-md border border-transparent px-2 py-1 transition-colors hover:border-rose-400/30 hover:bg-rose-500/15 hover:text-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-400/70"><i className="h-2 w-2 rounded-full bg-rose-400" />Expenses</button>
-        <button type="button" onClick={() => onOpenReport('dues')} className="inline-flex min-h-0 items-center gap-1.5 rounded-md border border-transparent px-2 py-1 transition-colors hover:border-amber-400/30 hover:bg-amber-500/15 hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-400/70"><i className="h-2 w-2 rounded-full bg-amber-400" />Outstanding dues</button>
-        {!hasData && <span className="text-gray-500">No financial activity in this reporting window.</span>}
+        <button type="button" onClick={() => onOpenReport('collection')} className="inline-flex min-h-0 items-center gap-1.5 rounded-md border border-transparent px-2 py-1 transition-colors hover:border-emerald-400/30 hover:bg-emerald-500/15 hover:text-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/70"><i className="h-2 w-2 rounded-full bg-emerald-400" />{t('Collections')}</button>
+        <button type="button" onClick={() => onOpenReport('expenses')} className="inline-flex min-h-0 items-center gap-1.5 rounded-md border border-transparent px-2 py-1 transition-colors hover:border-rose-400/30 hover:bg-rose-500/15 hover:text-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-400/70"><i className="h-2 w-2 rounded-full bg-rose-400" />{t('Expenses')}</button>
+        <button type="button" onClick={() => onOpenReport('dues')} className="inline-flex min-h-0 items-center gap-1.5 rounded-md border border-transparent px-2 py-1 transition-colors hover:border-amber-400/30 hover:bg-amber-500/15 hover:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-400/70"><i className="h-2 w-2 rounded-full bg-amber-400" />{t('Outstanding dues')}</button>
+        {!hasData && <span className="text-gray-500">{t('No financial activity in this reporting window.')}</span>}
       </div>
     </section>
   );

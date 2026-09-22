@@ -7,6 +7,7 @@ node_modules/
 dist/
 coverage/
 *.log
+.mongodb-data/
 *.tsbuildinfo
 npm-debug.log*
 yarn-debug.log*

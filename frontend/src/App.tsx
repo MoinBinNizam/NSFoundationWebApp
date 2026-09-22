@@ -15,12 +15,15 @@ import { ExpensesPage } from './pages/ExpensesPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { DistributionPage } from './pages/DistributionPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { PreferencesPage } from './pages/PreferencesPage';
+import { LocalizationLayer } from './components/LocalizationLayer';
 
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
         <LogoProvider>
+          <LocalizationLayer />
           <Routes>
           {/* Public Authentication Route */}
           <Route path="/login" element={<LoginPage />} />
@@ -46,6 +49,7 @@ export const App: React.FC = () => {
             <Route path="expenses" element={<ExpensesPage />} />
             <Route path="distribution" element={<DistributionPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="preferences" element={<PreferencesPage />} />
             {/* Catch-all redirect to members */}
             <Route path="*" element={<Navigate to="/members" replace />} />
           </Route>

@@ -246,7 +246,7 @@ export interface IGatewayRate {
   channel: CustodyChannel;
   cashoutRatePercentage: number;
   fixedFee: number;
-  roundingIncrement?: number; // Charge is rounded up to this whole BDT amount; 1 means no rounding
+  roundingIncrement?: number; // 0 keeps the exact charge; a positive amount rounds the charge upward
   effectiveFrom: Date;
   description?: string;
   createdAt: Date;
