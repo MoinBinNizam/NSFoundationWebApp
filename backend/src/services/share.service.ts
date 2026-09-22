@@ -1,25 +1,13 @@
 import { ShareHistory } from '../models/ShareHistory.js';
 import { Member } from '../models/Member.js';
 import { MemberYearAccount } from '../models/MemberYearAccount.js';
-import { SystemConfig } from '../models/SystemConfig.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { Payment } from '../models/Payment.js';
 import { ShareEventType, IUser, IMemberYearAccount, IShareHistory } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 import { HydratedDocument, Types } from 'mongoose';
-
-const DEFAULT_MONTHLY_SHARE_VALUE = 500; // BDT per month per share (SRS section 5.1)
-
-/**
- * Retrieves the effective monthly installment per share (default: 500 BDT).
- */
-export async function getMonthlyShareValue(): Promise<number> {
-  const config = await SystemConfig.findOne({ key: 'MONTHLY_SHARE_VALUE' });
-  if (config && typeof config.value === 'number') {
-    return config.value;
-  }
-  return DEFAULT_MONTHLY_SHARE_VALUE;
-}
+import { getMonthlyShareValue } from './settings.service.js';
+export { getMonthlyShareValue } from './settings.service.js';
 
 /**
  * Retrieves the latest active share count for a member as of an effective month.

@@ -99,24 +99,28 @@ async function seed() {
         channel: CustodyChannel.BKASH,
         cashoutRatePercentage: 1.85,
         fixedFee: 0,
+        roundingIncrement: 10,
         description: 'Standard bKash Personal Cash Out Rate (1.85% / 18.5 BDT per 1000)',
       },
       {
         channel: CustodyChannel.NAGAD,
-        cashoutRatePercentage: 1.5,
+        cashoutRatePercentage: 1.49,
         fixedFee: 0,
-        description: 'Standard Nagad App/USSD Cash Out Rate (1.50% / 15.0 BDT per 1000)',
+        roundingIncrement: 10,
+        description: 'Nagad app cash-out rate (1.49%); update the rule to 1.70% for USSD cash-out.',
       },
       {
         channel: CustodyChannel.BANK,
         cashoutRatePercentage: 0,
         fixedFee: 0,
+        roundingIncrement: 1,
         description: 'Direct Bank Deposit (No cash out fee applied)',
       },
       {
         channel: CustodyChannel.CASH,
         cashoutRatePercentage: 0,
         fixedFee: 0,
+        roundingIncrement: 1,
         description: 'Direct Physical Cash Handover (No cash out fee applied)',
       },
     ];
@@ -126,6 +130,7 @@ async function seed() {
       if (existing) {
         existing.cashoutRatePercentage = gw.cashoutRatePercentage;
         existing.fixedFee = gw.fixedFee;
+        existing.roundingIncrement = gw.roundingIncrement;
         existing.description = gw.description;
         await existing.save();
         console.log(`[UPDATED] Gateway Rate for '${gw.channel}'`);

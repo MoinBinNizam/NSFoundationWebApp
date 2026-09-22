@@ -17,10 +17,11 @@ import {
   PaymentMethod,
   PaymentStatus,
   IUser,
+  CustodyChannel,
 } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
+import { getGatewayRateForChannel, getMonthlyShareValue } from './settings.service.js';
 
-const MONTHLY_SHARE_PRICE = 500; // 500 BDT per share per month (SRS 5.1)
 
 /**
  * Format date to YYYY-MM
@@ -38,6 +39,13 @@ function addMonths(yearMonth: string, count: number): string {
   const [y, m] = yearMonth.split('-').map(Number);
   const d = new Date(y, m - 1 + count, 1);
   return toYearMonth(d);
+}
+
+function paymentMethodChannel(method: PaymentMethod): CustodyChannel {
+  if (method === PaymentMethod.BANK_TRANSFER) return CustodyChannel.BANK;
+  if (method === PaymentMethod.BKASH) return CustodyChannel.BKASH;
+  if (method === PaymentMethod.NAGAD) return CustodyChannel.NAGAD;
+  return CustodyChannel.CASH;
 }
 
 export class PaymentService {
@@ -93,23 +101,41 @@ export class PaymentService {
     paymentDate?: string | Date;
     totalAmount: number;
     cashoutChargePaid?: number;
-    unpaidCashoutCharge?: number;
     paymentMethod: PaymentMethod;
+    custodyAccountId?: string;
   }) {
     const { memberId, totalAmount } = input;
     const paymentDate = input.paymentDate ? new Date(input.paymentDate) : new Date();
     const cashoutChargePaid = Math.max(0, Number(input.cashoutChargePaid) || 0);
-    const unpaidCashoutCharge = Math.max(0, Number(input.unpaidCashoutCharge) || 0);
 
     const member = await Member.findById(memberId);
     if (!member) {
       throw createError('Member not found', 404);
     }
 
+    const selectedAccount = input.custodyAccountId ? await CustodyAccount.findById(input.custodyAccountId).lean() : null;
+    if (input.custodyAccountId && (!selectedAccount || !selectedAccount.isActive)) {
+      throw createError('Destination custody account not found or inactive.', 400);
+    }
+    const gatewayChannel = selectedAccount?.channel || paymentMethodChannel(input.paymentMethod);
+    const accountPaymentMethod = gatewayChannel === CustodyChannel.BANK
+      ? PaymentMethod.BANK_TRANSFER
+      : gatewayChannel === CustodyChannel.BKASH
+        ? PaymentMethod.BKASH
+        : gatewayChannel === CustodyChannel.NAGAD
+          ? PaymentMethod.NAGAD
+          : gatewayChannel === CustodyChannel.CASH
+            ? PaymentMethod.CASH
+            : null;
+    if (accountPaymentMethod && input.paymentMethod !== accountPaymentMethod) {
+      throw createError('Payment method must match the selected destination custody account.', 400);
+    }
+
     const currentYearMonth = toYearMonth(paymentDate);
     const dayOfMonth = paymentDate.getDate();
     const currentMemberShares = await this.getMemberShareCount(member._id, currentYearMonth);
-    const monthlyObligation = currentMemberShares * MONTHLY_SHARE_PRICE;
+    const monthlyShareValue = await getMonthlyShareValue();
+    const monthlyObligation = currentMemberShares * monthlyShareValue;
 
     // Remaining cash pool to allocate to obligations
     let remainingCash = Math.max(0, totalAmount - cashoutChargePaid);
@@ -215,7 +241,7 @@ export class PaymentService {
     let advanceMonthCursor = addMonths(currentYearMonth, 1);
     while (remainingCash > 0) {
       const futureShares = await this.getMemberShareCount(member._id, advanceMonthCursor);
-      const futureMonthlyObligation = futureShares * MONTHLY_SHARE_PRICE;
+      const futureMonthlyObligation = futureShares * monthlyShareValue;
       const advanceAllocated = Math.min(remainingCash, futureMonthlyObligation);
 
       allocations.push({
@@ -239,7 +265,35 @@ export class PaymentService {
     const coversTo = coveredMonths[coveredMonths.length - 1] || currentYearMonth;
 
     const currentCashoutDue = member.cashoutDue || 0;
-    const newCashoutDue = Math.max(0, currentCashoutDue - cashoutChargePaid + unpaidCashoutCharge);
+    const paymentBaseAmount = Math.max(0, totalAmount - cashoutChargePaid);
+    const gatewayRate = await getGatewayRateForChannel(gatewayChannel, paymentDate);
+    const rawGatewayCharge = paymentBaseAmount * (gatewayRate.cashoutRatePercentage / 100) + gatewayRate.fixedFee;
+    const roundingIncrement = gatewayRate.roundingIncrement || 1;
+    // Round upward so a member payment never leaves the accountant short of the gateway's charge.
+    const requiredCashoutCharge = rawGatewayCharge > 0
+      ? Math.ceil(rawGatewayCharge / roundingIncrement) * roundingIncrement
+      : 0;
+    if (cashoutChargePaid > totalAmount) {
+      throw createError('Cash-out charge paid cannot exceed the total amount received.', 400);
+    }
+    const totalChargeDueBeforePayment = currentCashoutDue + requiredCashoutCharge;
+    if (cashoutChargePaid > totalChargeDueBeforePayment) {
+      throw createError(`Cash-out charge paid cannot exceed the member's due charge of BDT ${totalChargeDueBeforePayment}.`, 400);
+    }
+    const newCashoutDue = Math.max(0, totalChargeDueBeforePayment - cashoutChargePaid);
+    const newlyUnpaidCashoutCharge = Math.max(0, requiredCashoutCharge - Math.max(0, cashoutChargePaid - currentCashoutDue));
+    const pastPrincipalDue = existingDues.reduce((sum, due) => sum + Math.max(0, due.principalDue - due.principalPaid), 0);
+    const pastPenaltyDue = existingDues.reduce((sum, due) => sum + Math.max(0, due.penaltyDue - due.penaltyPaid), 0);
+    const currentPrincipalDue = Math.max(0, monthlyObligation - (currentLedger?.principalPaid || 0));
+    const currentPenaltyRule = await this.getPenaltyRule(currentYearMonth);
+    const currentPenaltyDue = dayOfMonth > currentPenaltyRule.graceDayOfMonth && !(await this.isMonthWaived(currentYearMonth, member._id))
+      ? Math.max(0, currentMemberShares * currentPenaltyRule.ratePerShare - (currentLedger?.penaltyPaid || 0))
+      : 0;
+    const requiredChargeForCurrentDue = (() => {
+      const dueBase = pastPrincipalDue + pastPenaltyDue + currentPrincipalDue + currentPenaltyDue;
+      const raw = dueBase * (gatewayRate.cashoutRatePercentage / 100) + gatewayRate.fixedFee;
+      return raw > 0 ? Math.ceil(raw / roundingIncrement) * roundingIncrement : 0;
+    })();
 
     return {
       member: {
@@ -258,7 +312,24 @@ export class PaymentService {
         penaltyAmount: totalPenalty,
         advanceAmount: totalAdvance,
         cashoutChargePaid,
-        unpaidCashoutCharge,
+        unpaidCashoutCharge: newlyUnpaidCashoutCharge,
+      },
+      gateway: {
+        channel: gatewayChannel,
+        ratePercentage: gatewayRate.cashoutRatePercentage,
+        fixedFee: gatewayRate.fixedFee,
+        roundingIncrement,
+        rawCharge: rawGatewayCharge,
+        requiredCharge: requiredCashoutCharge,
+      },
+      dueSummary: {
+        previousMonthsPrincipal: pastPrincipalDue,
+        previousMonthsPenalty: pastPenaltyDue,
+        currentMonthPayable: currentPrincipalDue,
+        currentMonthPenalty: currentPenaltyDue,
+        carriedCashoutCharge: currentCashoutDue,
+        estimatedCashoutCharge: requiredChargeForCurrentDue,
+        totalDue: pastPrincipalDue + pastPenaltyDue + currentPrincipalDue + currentPenaltyDue + currentCashoutDue + requiredChargeForCurrentDue,
       },
       coverage: {
         coversFrom,
@@ -280,7 +351,6 @@ export class PaymentService {
       totalAmount: number;
       paymentMethod: PaymentMethod;
       cashoutChargePaid?: number;
-      unpaidCashoutCharge?: number;
       transactionReference?: string;
       notes?: string;
     },
@@ -311,8 +381,8 @@ export class PaymentService {
       paymentDate,
       totalAmount,
       cashoutChargePaid: input.cashoutChargePaid,
-      unpaidCashoutCharge: input.unpaidCashoutCharge,
       paymentMethod,
+      custodyAccountId,
     });
 
     // 2. Generate formatted sequential Receipt Number: RCP-YYYYMM-XXXX
@@ -373,7 +443,7 @@ export class PaymentService {
         .reduce((sum, a) => sum + a.amount, 0);
 
       const shareCount = await this.getMemberShareCount(member._id, month);
-      const monthlyObligation = shareCount * MONTHLY_SHARE_PRICE;
+      const monthlyObligation = shareCount * (await getMonthlyShareValue());
 
       const existingLedger = await MonthlyLedger.findOne({ memberId: member._id, month });
       if (existingLedger) {

@@ -15,4 +15,7 @@ Please complete these annotations and make sure all the cards are responsive spe
 Please give me suggestion if any other changes needed in the Dashboard page and components, let me know and implement after my confirmation.
 
 -----------------------------
+Please Add a Dynamic Share Amount of this Org. setting option in a new settings Module. transfer Penalty Rules & Waivers section from Contributions & Payments to the new Settings page. All rules of NS Foundation should be dynamically setting option in here. Admin only can set the rules. 
+In the Member Management module Register New Member form you did not included fields for No. of Shares. If No. of Shares is input then Monthly Payable amount will preview here which is (No. of Shares*Share amount). E.g Share Amount for a member set to 500 BDT in the settings module; and No. of Shares set to 2 then Monthly Payable should display BDT 1000. Please update the table columns Member List accordingly so that a accountant easily understand details of a member. Update list title to Member List here. SL NO order keep intact. Update Actions accordingly. Please suggest me any other improvement required here.
+
 

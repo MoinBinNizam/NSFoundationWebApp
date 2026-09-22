@@ -30,6 +30,10 @@ interface MemberData {
   joinDate: string;
   address?: string;
   notes?: string;
+  shareCount: number;
+  shareAmount: number;
+  monthlyPayable: number;
+  shareEffectiveMonth?: string | null;
   createdAt: string;
 }
 
@@ -69,6 +73,7 @@ export const MembersPage: React.FC = () => {
 
   // Form states
   const [nextIdPreview, setNextIdPreview] = useState<string>('NSF001');
+  const [shareAmount, setShareAmount] = useState<number>(500);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -77,6 +82,7 @@ export const MembersPage: React.FC = () => {
     joinDate: new Date().toISOString().split('T')[0],
     address: '',
     notes: '',
+    initialShareCount: '1',
   });
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -101,9 +107,10 @@ export const MembersPage: React.FC = () => {
         status: statusFilter,
       });
 
-      const [membersRes, statsRes] = await Promise.all([
+      const [membersRes, statsRes, shareSettingRes] = await Promise.all([
         apiRequest<MemberData[]>(`/members?${queryParams.toString()}`),
         apiRequest<MemberStats>('/members/stats'),
+        apiRequest<{ value: number }>('/settings/share-amount'),
       ]);
 
       setMembers(membersRes.data || []);
@@ -111,6 +118,7 @@ export const MembersPage: React.FC = () => {
         setPagination(membersRes.pagination);
       }
       setStats(statsRes.data || { total: 0, active: 0, inactive: 0, dropped: 0 });
+      setShareAmount(Number(shareSettingRes.data?.value) || 500);
     } catch (err) {
       console.error('Error loading members:', err);
     } finally {
@@ -133,6 +141,7 @@ export const MembersPage: React.FC = () => {
       joinDate: new Date().toISOString().split('T')[0],
       address: '',
       notes: '',
+      initialShareCount: '1',
     });
 
     try {
@@ -156,6 +165,7 @@ export const MembersPage: React.FC = () => {
       joinDate: m.joinDate ? m.joinDate.split('T')[0] : '',
       address: m.address || '',
       notes: m.notes || '',
+      initialShareCount: String(m.shareCount || 1),
     });
     setShowEditModal(true);
   };
@@ -389,7 +399,12 @@ export const MembersPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Member Data Table */}
+      <div>
+        <h2 className="text-lg font-bold text-white">Member List</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Share ownership and current monthly payable for every registered member.</p>
+      </div>
+
+      {/* Member List */}
       <div className="table-container glass-card overflow-hidden">
         <table className="data-table">
           <thead>
@@ -398,6 +413,8 @@ export const MembersPage: React.FC = () => {
               <th className="whitespace-nowrap font-bold">Member ID</th>
               <th className="whitespace-nowrap font-bold">Full Name</th>
               <th className="whitespace-nowrap font-bold">Contact Info</th>
+              <th className="whitespace-nowrap font-bold">Shares</th>
+              <th className="whitespace-nowrap font-bold">Monthly Payable</th>
               <th className="whitespace-nowrap font-bold">Status</th>
               <th className="whitespace-nowrap font-bold">Join Date</th>
               <th className="text-right whitespace-nowrap font-bold">Actions</th>
@@ -406,14 +423,14 @@ export const MembersPage: React.FC = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} className="text-center py-12 text-gray-400">
+                <td colSpan={9} className="text-center py-12 text-gray-400">
                   <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
                   <span>Loading members registry...</span>
                 </td>
               </tr>
             ) : members.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-12 text-gray-400">
+                <td colSpan={9} className="text-center py-12 text-gray-400">
                   <Users size={32} className="opacity-30 mx-auto mb-3" />
                   <p>No members found matching your search criteria.</p>
                 </td>
@@ -470,6 +487,15 @@ export const MembersPage: React.FC = () => {
                       </div>
                     </td>
                     <td>
+                      <div className="flex flex-col gap-0.5 whitespace-nowrap">
+                        <span className="font-bold text-white">{m.shareCount} {m.shareCount === 1 ? 'share' : 'shares'}</span>
+                        <span className="text-[11px] text-gray-500">BDT {new Intl.NumberFormat('en-BD').format(m.shareAmount || shareAmount)} each</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="font-semibold text-emerald-300 whitespace-nowrap">BDT {new Intl.NumberFormat('en-BD').format(m.monthlyPayable ?? ((m.shareCount || 0) * shareAmount))}</span>
+                    </td>
+                    <td>
                       <span className={`badge ${badgeClass}`}>{m.status}</span>
                     </td>
                     <td>
@@ -479,30 +505,33 @@ export const MembersPage: React.FC = () => {
                       </div>
                     </td>
                     <td className="text-right">
-                      <div className="inline-flex gap-1.5">
+                      <div className="inline-flex gap-1.5 whitespace-nowrap">
                         <button
                           onClick={() => handleOpenDetails(m)}
-                          className="btn btn-secondary btn-sm p-1.5"
+                          className="btn btn-secondary btn-sm px-2 py-1.5"
                           title="View Member Details"
                         >
                           <Eye size={14} />
+                          <span className="hidden xl:inline">View</span>
                         </button>
                         {canEdit && (
                           <button
                             onClick={() => handleOpenEditModal(m)}
-                            className="btn btn-secondary btn-sm p-1.5"
+                            className="btn btn-secondary btn-sm px-2 py-1.5"
                             title="Edit Member"
                           >
                             <Edit2 size={14} />
+                            <span className="hidden xl:inline">Edit</span>
                           </button>
                         )}
                         {canDelete && m.status !== 'DROPPED' && (
                           <button
                             onClick={() => handleOpenDelete(m)}
-                            className="btn btn-danger btn-sm p-1.5"
+                            className="btn btn-danger btn-sm px-2 py-1.5"
                             title="Drop Member"
                           >
                             <Trash2 size={14} />
+                            <span className="hidden xl:inline">Drop</span>
                           </button>
                         )}
                       </div>
@@ -626,6 +655,26 @@ export const MembersPage: React.FC = () => {
                     value={formData.joinDate}
                     onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="form-group mb-0">
+                  <label className="form-label">No. of Shares *</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    step="1"
+                    className="form-input"
+                    value={formData.initialShareCount}
+                    onChange={(e) => setFormData({ ...formData, initialShareCount: e.target.value })}
+                  />
+                </div>
+                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-4 py-3.5 self-end">
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-emerald-200/80">Monthly payable preview</p>
+                  <p className="text-lg font-extrabold text-emerald-300 mt-0.5">BDT {new Intl.NumberFormat('en-BD').format((Number(formData.initialShareCount) || 0) * shareAmount)}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">{formData.initialShareCount || 0} share(s) × BDT {new Intl.NumberFormat('en-BD').format(shareAmount)}</p>
                 </div>
               </div>
 
@@ -841,6 +890,17 @@ export const MembersPage: React.FC = () => {
               <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
                 <span className="text-gray-400 font-medium">Join Date:</span>
                 <span className="text-white font-semibold">{new Date(selectedMember.joinDate).toLocaleDateString()}</span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
+                  <span className="text-gray-400 font-medium">Shares:</span>
+                  <span className="text-white font-semibold">{selectedMember.shareCount}</span>
+                </div>
+                <div className="flex justify-between items-center p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <span className="text-emerald-100/70 font-medium">Monthly Payable:</span>
+                  <span className="text-emerald-300 font-semibold">BDT {new Intl.NumberFormat('en-BD').format(selectedMember.monthlyPayable)}</span>
+                </div>
               </div>
 
               {selectedMember.address && (

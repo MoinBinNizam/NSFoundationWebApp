@@ -15,7 +15,7 @@ export class PaymentController {
    */
   static async previewPayment(req: Request, res: Response, next: NextFunction) {
     try {
-      const { memberId, totalAmount, paymentDate, paymentMethod, cashoutChargePaid, unpaidCashoutCharge } = req.body;
+      const { memberId, totalAmount, paymentDate, paymentMethod, custodyAccountId, cashoutChargePaid } = req.body;
       if (!memberId || totalAmount === undefined) {
         return next(createError('memberId and totalAmount are required', 400));
       }
@@ -25,8 +25,8 @@ export class PaymentController {
         totalAmount: Number(totalAmount),
         paymentDate,
         paymentMethod,
+        custodyAccountId,
         cashoutChargePaid: Number(cashoutChargePaid) || 0,
-        unpaidCashoutCharge: Number(unpaidCashoutCharge) || 0,
       });
 
       res.status(200).json({
@@ -51,7 +51,6 @@ export class PaymentController {
         totalAmount,
         paymentMethod,
         cashoutChargePaid,
-        unpaidCashoutCharge,
         transactionReference,
         notes,
       } = req.body;
@@ -73,7 +72,6 @@ export class PaymentController {
           totalAmount: Number(totalAmount),
           paymentMethod,
           cashoutChargePaid: Number(cashoutChargePaid) || 0,
-          unpaidCashoutCharge: Number(unpaidCashoutCharge) || 0,
           transactionReference,
           notes,
         },

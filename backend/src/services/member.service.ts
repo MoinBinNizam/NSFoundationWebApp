@@ -1,8 +1,10 @@
 import { Member } from '../models/Member.js';
 import { AuditLog } from '../models/AuditLog.js';
-import { IMember, MemberStatus, IUser } from '../types/models.js';
+import { ShareHistory } from '../models/ShareHistory.js';
+import { IMember, MemberStatus, IUser, ShareEventType } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 import { HydratedDocument, Types } from 'mongoose';
+import { getMonthlyShareValue } from './settings.service.js';
 
 export interface CreateMemberInput {
   name: string;
@@ -13,6 +15,7 @@ export interface CreateMemberInput {
   joinDate?: Date | string;
   address?: string;
   notes?: string;
+  initialShareCount?: number | string;
 }
 
 export interface UpdateMemberInput {
@@ -64,6 +67,10 @@ export async function createMember(
   meta?: { ip?: string; userAgent?: string }
 ): Promise<HydratedDocument<IMember>> {
   const phone = input.phone.trim();
+  const initialShareCount = Number(input.initialShareCount ?? 1);
+  if (!Number.isInteger(initialShareCount) || initialShareCount < 1 || initialShareCount > 10000) {
+    throw createError('Number of shares must be a whole number between 1 and 10,000.', 400);
+  }
   const existingPhone = await Member.findOne({ phone });
   if (existingPhone) {
     throw createError(`A member with phone number '${phone}' already exists.`, 409);
@@ -90,14 +97,26 @@ export async function createMember(
     notes: input.notes?.trim(),
   });
 
+  const joinDate = input.joinDate ? new Date(input.joinDate) : new Date();
+  const effectiveMonth = `${joinDate.getFullYear()}-${String(joinDate.getMonth() + 1).padStart(2, '0')}`;
+  const initialShareEvent = await ShareHistory.create({
+    memberId: member._id,
+    effectiveMonth,
+    shareCount: initialShareCount,
+    previousShareCount: 0,
+    eventType: ShareEventType.INITIAL_ALLOCATION,
+    changedBy: actingUser._id,
+    notes: 'Initial share allocation recorded during member registration.',
+  });
+
   // Record audit log
   await AuditLog.create({
     performedBy: actingUser._id,
     action: 'CREATE_MEMBER',
     entityName: 'Member',
     entityId: member._id,
-    afterState: member.toObject(),
-    reason: `New member registered with ID ${member.memberId}`,
+    afterState: { ...member.toObject(), initialShareCount, initialShareEventId: initialShareEvent._id },
+    reason: `New member registered with ID ${member.memberId} and ${initialShareCount} initial share(s).`,
     ipAddress: meta?.ip,
     userAgent: meta?.userAgent,
   });
@@ -132,17 +151,36 @@ export async function getMembers(options: MemberQueryOptions = {}) {
   const sortField = options.sortBy || 'memberId';
   const sortDirection = options.sortOrder === 'desc' ? -1 : 1;
 
-  const [members, total] = await Promise.all([
+  const [members, total, shareAmount] = await Promise.all([
     Member.find(filter)
       .sort({ [sortField]: sortDirection })
       .skip(skip)
       .limit(limit)
       .lean(),
     Member.countDocuments(filter),
+    getMonthlyShareValue(),
   ]);
 
+  const histories = members.length
+    ? await ShareHistory.find({ memberId: { $in: members.map((member) => member._id) } })
+      .sort({ effectiveMonth: -1, createdAt: -1 })
+      .lean()
+    : [];
+  const latestShares = new Map<string, (typeof histories)[number]>();
+  for (const history of histories) {
+    const id = history.memberId.toString();
+    if (!latestShares.has(id)) latestShares.set(id, history);
+  }
+  const enrichedMembers = members.map((member) => {
+    const share = latestShares.get(member._id.toString());
+    // Legacy members without a recorded history retain the same one-share
+    // fallback used by the payment engine until their history is migrated.
+    const shareCount = share?.shareCount ?? 1;
+    return { ...member, shareCount, shareEffectiveMonth: share?.effectiveMonth || null, shareAmount, monthlyPayable: shareCount * shareAmount };
+  });
+
   return {
-    members,
+    members: enrichedMembers,
     pagination: {
       total,
       page,

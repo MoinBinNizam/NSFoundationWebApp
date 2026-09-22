@@ -13,7 +13,9 @@
     "test:reinvestments": "tsx src/scripts/test-reinvestments.ts",
     "test:expenses": "tsx src/scripts/test-expenses.ts",
     "seed:expenses-demo": "tsx src/scripts/seed-expenses-demo.ts",
-    "test:reporting": "tsx src/scripts/test-reporting.ts"
+    "sync:gateway-rules": "tsx src/scripts/sync-gateway-rules.ts",
+    "test:reporting": "tsx src/scripts/test-reporting.ts",
+    "test:settings-members": "tsx src/scripts/test-settings-members.ts"
   },
   "keywords": [],
   "author": "",

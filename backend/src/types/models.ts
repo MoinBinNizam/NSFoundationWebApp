@@ -29,6 +29,7 @@ export enum MemberStatus {
 }
 
 export enum ShareEventType {
+  INITIAL_ALLOCATION = 'INITIAL_ALLOCATION', // Initial share count captured during member registration
   TEMPORARY_CHANGE = 'TEMPORARY_CHANGE', // Interim change in 2024 (locked from 2025-01-01)
   ANNUAL_FINALIZATION = 'ANNUAL_FINALIZATION', // Closing year baseline
   TRANSFER = 'TRANSFER', // Post-2024 share sale/transfer between members
@@ -239,6 +240,7 @@ export interface IGatewayRate {
   channel: CustodyChannel;
   cashoutRatePercentage: number;
   fixedFee: number;
+  roundingIncrement?: number; // Charge is rounded up to this whole BDT amount; 1 means no rounding
   effectiveFrom: Date;
   description?: string;
   createdAt: Date;

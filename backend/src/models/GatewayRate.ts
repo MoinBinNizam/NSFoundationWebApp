@@ -20,6 +20,11 @@ const gatewayRateSchema = new Schema<IGatewayRate>(
       default: 0,
       min: [0, 'Fixed fee cannot be negative'],
     },
+    roundingIncrement: {
+      type: Number,
+      default: 1,
+      min: [1, 'Rounding increment must be at least 1 BDT'],
+    },
     effectiveFrom: {
       type: Date,
       default: Date.now,

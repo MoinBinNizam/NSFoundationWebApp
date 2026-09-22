@@ -19,7 +19,6 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
-  Settings,
 } from 'lucide-react';
 
 interface CustodyAccountItem {
@@ -135,6 +134,9 @@ interface PenaltyWaiverItem {
   };
 }
 
+const paymentMethodForChannel = (channel?: string) =>
+  channel === 'BANK' ? 'BANK_TRANSFER' : channel === 'NAGAD' ? 'NAGAD' : channel === 'CASH' ? 'CASH' : 'BKASH';
+
 export const PaymentsPage: React.FC = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
@@ -190,7 +192,6 @@ export const PaymentsPage: React.FC = () => {
     totalAmount: '',
     paymentMethod: 'BKASH',
     cashoutChargePaid: '0',
-    unpaidCashoutCharge: '0',
     transactionReference: '',
     notes: '',
   });
@@ -202,7 +203,6 @@ export const PaymentsPage: React.FC = () => {
       penaltyAmount: number;
       advanceAmount: number;
       cashoutChargePaid: number;
-      unpaidCashoutCharge: number;
     };
     member: {
       shares: number;
@@ -210,6 +210,8 @@ export const PaymentsPage: React.FC = () => {
       currentCashoutDue: number;
       newCashoutDue: number;
     };
+    gateway: { channel: string; ratePercentage: number; fixedFee: number; roundingIncrement: number; requiredCharge: number; };
+    dueSummary: { previousMonthsPrincipal: number; previousMonthsPenalty: number; currentMonthPayable: number; currentMonthPenalty: number; carriedCashoutCharge: number; estimatedCashoutCharge: number; totalDue: number; };
   } | null>(null);
 
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
@@ -249,7 +251,7 @@ export const PaymentsPage: React.FC = () => {
 
       // Default custody account if available
       if (custodyRes.data && custodyRes.data.length > 0 && !formData.custodyAccountId) {
-        setFormData((prev) => ({ ...prev, custodyAccountId: custodyRes.data[0]._id }));
+        setFormData((prev) => ({ ...prev, custodyAccountId: custodyRes.data[0]._id, paymentMethod: paymentMethodForChannel(custodyRes.data[0].channel) }));
       }
     } catch (err) {
       console.error('Error fetching metadata:', err);
@@ -328,7 +330,6 @@ export const PaymentsPage: React.FC = () => {
           penaltyAmount: number;
           advanceAmount: number;
           cashoutChargePaid: number;
-          unpaidCashoutCharge: number;
         };
         member: {
           shares: number;
@@ -336,6 +337,8 @@ export const PaymentsPage: React.FC = () => {
           currentCashoutDue: number;
           newCashoutDue: number;
         };
+        gateway: { channel: string; ratePercentage: number; fixedFee: number; roundingIncrement: number; requiredCharge: number; };
+        dueSummary: { previousMonthsPrincipal: number; previousMonthsPenalty: number; currentMonthPayable: number; currentMonthPenalty: number; carriedCashoutCharge: number; estimatedCashoutCharge: number; totalDue: number; };
       }>('/payments/preview', {
         method: 'POST',
         body: JSON.stringify({
@@ -343,8 +346,8 @@ export const PaymentsPage: React.FC = () => {
           paymentDate: formData.paymentDate,
           totalAmount: Number(formData.totalAmount),
           paymentMethod: formData.paymentMethod,
+          custodyAccountId: formData.custodyAccountId,
           cashoutChargePaid: Number(formData.cashoutChargePaid) || 0,
-          unpaidCashoutCharge: Number(formData.unpaidCashoutCharge) || 0,
         }),
       });
       setAllocationPreview(res.data);
@@ -375,7 +378,6 @@ export const PaymentsPage: React.FC = () => {
           totalAmount: Number(formData.totalAmount),
           paymentMethod: formData.paymentMethod,
           cashoutChargePaid: Number(formData.cashoutChargePaid) || 0,
-          unpaidCashoutCharge: Number(formData.unpaidCashoutCharge) || 0,
           transactionReference: formData.transactionReference,
           notes: formData.notes,
         }),
@@ -465,7 +467,6 @@ export const PaymentsPage: React.FC = () => {
               totalAmount: '',
               paymentMethod: 'BKASH',
               cashoutChargePaid: '0',
-              unpaidCashoutCharge: '0',
               transactionReference: '',
               notes: '',
             });
@@ -504,19 +505,6 @@ export const PaymentsPage: React.FC = () => {
           <span>Receipts & Payment History</span>
         </button>
 
-        {isAdmin && (
-          <button
-            onClick={() => setActiveTab('rules')}
-            className={`pb-3 px-4 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 ${
-              activeTab === 'rules'
-                ? 'border-blue-500 text-blue-400'
-                : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-          >
-            <Settings size={16} />
-            <span>Penalty Rules & Waivers</span>
-          </button>
-        )}
       </div>
 
       {/* TAB 1: COLLECTION ANALYTICS & STATS DASHBOARD */}
@@ -1164,6 +1152,7 @@ export const PaymentsPage: React.FC = () => {
                           ...prev,
                           receiverId: newReceiverId,
                           custodyAccountId: accs[0]._id,
+                          paymentMethod: paymentMethodForChannel(accs[0].channel),
                         }));
                       }
                     }}
@@ -1186,9 +1175,11 @@ export const PaymentsPage: React.FC = () => {
                     required
                     className="form-select"
                     value={formData.custodyAccountId}
-                    onChange={(e) =>
-                      setFormData({ ...formData, custodyAccountId: e.target.value })
-                    }
+                    onChange={(e) => {
+                      const account = custodyAccounts.find((item) => item._id === e.target.value);
+                      setFormData({ ...formData, custodyAccountId: e.target.value, paymentMethod: paymentMethodForChannel(account?.channel) });
+                      setAllocationPreview(null);
+                    }}
                   >
                     {custodyAccounts
                       .filter(
@@ -1205,23 +1196,14 @@ export const PaymentsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Grid: Payment Method & Payment Date */}
+              {/* Gateway and payment date */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="form-group">
-                  <label className="form-label">Payment Method</label>
-                  <select
-                    required
-                    className="form-select"
-                    value={formData.paymentMethod}
-                    onChange={(e) =>
-                      setFormData({ ...formData, paymentMethod: e.target.value })
-                    }
-                  >
-                    <option value="BKASH">bKash</option>
-                    <option value="NAGAD">Nagad</option>
-                    <option value="CASH">Physical Cash</option>
-                    <option value="BANK_TRANSFER">Bank Deposit</option>
-                  </select>
+                  <label className="form-label">Applied Payment Gateway</label>
+                  <div className="form-input flex items-center bg-slate-900/70 text-gray-300">
+                    {formData.paymentMethod === 'BANK_TRANSFER' ? 'Bank / CellFin' : formData.paymentMethod === 'CASH' ? 'Physical Cash' : formData.paymentMethod === 'BKASH' ? 'bKash' : 'Nagad'}
+                  </div>
+                  <p className="text-[10px] text-gray-500 mt-1">Set automatically from the destination custody account.</p>
                 </div>
 
                 <div className="form-group">
@@ -1240,7 +1222,7 @@ export const PaymentsPage: React.FC = () => {
 
               {/* Total Cash Amount */}
               <div className="form-group">
-                <label className="form-label">Total Cash Amount Received (BDT)</label>
+                <label className="form-label">Total Amount Received, Including Any Cash-out Charge (BDT)</label>
                 <div className="flex gap-2">
                   <input
                     type="number"
@@ -1287,27 +1269,11 @@ export const PaymentsPage: React.FC = () => {
                       }
                     />
                     <span className="text-[10px] text-gray-500 mt-0.5 block">
-                      Clears member's previous cashout dues
+                      Includes a prior carried charge if the member settles it now.
                     </span>
                   </div>
-
-                  <div>
-                    <label className="text-[11px] text-gray-400 font-semibold block mb-1">
-                      Unpaid Cash Out Charge (owed for next time):
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      className="form-input text-xs"
-                      placeholder="0"
-                      value={formData.unpaidCashoutCharge}
-                      onChange={(e) =>
-                        setFormData({ ...formData, unpaidCashoutCharge: e.target.value })
-                      }
-                    />
-                    <span className="text-[10px] text-gray-500 mt-0.5 block">
-                      Records fee member didn't pay for this transaction
-                    </span>
+                  <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 px-3 py-2.5 text-xs text-gray-400">
+                    The unpaid portion is calculated automatically from the selected gateway and carried forward to the next month.
                   </div>
                 </div>
               </div>
@@ -1343,6 +1309,10 @@ export const PaymentsPage: React.FC = () => {
                     <span className="text-emerald-400">
                       ৳ {formData.totalAmount} (Pri: ৳{allocationPreview.breakdown.principalAmount}, Pen: ৳{allocationPreview.breakdown.penaltyAmount}, Adv: ৳{allocationPreview.breakdown.advanceAmount})
                     </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
+                    <div className="rounded-lg bg-slate-900/60 border border-white/5 p-3 space-y-1"><p className="font-bold text-blue-300">Current gateway charge</p><p className="text-white">BDT {allocationPreview.gateway.requiredCharge} <span className="text-gray-500 font-normal">({allocationPreview.gateway.ratePercentage}% · round up to {allocationPreview.gateway.roundingIncrement})</span></p><p className="text-gray-400">Paid now: BDT {allocationPreview.breakdown.cashoutChargePaid} · carried: BDT {allocationPreview.member.newCashoutDue}</p></div>
+                    <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 space-y-1"><p className="font-bold text-amber-200">Member total due snapshot</p><p className="text-white">BDT {allocationPreview.dueSummary.totalDue}</p><p className="text-gray-400">Past: {allocationPreview.dueSummary.previousMonthsPrincipal + allocationPreview.dueSummary.previousMonthsPenalty} · This month: {allocationPreview.dueSummary.currentMonthPayable + allocationPreview.dueSummary.currentMonthPenalty} · Carried fee: {allocationPreview.dueSummary.carriedCashoutCharge}</p></div>
                   </div>
                 </div>
               )}

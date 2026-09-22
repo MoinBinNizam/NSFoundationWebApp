@@ -12,6 +12,7 @@ import {
   BarChart3,
   LogOut,
   Shield,
+  Settings2,
   Menu,
   X,
 } from 'lucide-react';
@@ -31,6 +32,8 @@ export const Layout: React.FC = () => {
 
   const currentModuleTitle = location.pathname.startsWith('/distribution')
     ? 'Final Distribution (Issue #12)'
+    : location.pathname.startsWith('/settings')
+    ? 'Settings'
     : location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/reports')
     ? 'Dashboard & Reports (Issue #11)'
     : location.pathname.startsWith('/expenses')
@@ -55,6 +58,7 @@ export const Layout: React.FC = () => {
     { label: 'Accountant Custody', path: '/custody', icon: Wallet, badge: 'Issue #7' },
     ...(user?.accountantType === 'PRIMARY' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ label: 'Investments', path: '/investments', icon: TrendingUp, badge: 'Issue #8' }, { label: 'Project Wallets', path: '/reinvestments', icon: Repeat2, badge: 'Issue #9' }] : []),
     { label: 'Expenses', path: '/expenses', icon: Receipt, badge: 'Issue #10' },
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Settings', path: '/settings', icon: Settings2, badge: 'Admin' }] : []),
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT' ? [{ label: 'Final Distribution', path: '/distribution', icon: PieChart, badge: 'Issue #12' }] : []),
   ];
 
