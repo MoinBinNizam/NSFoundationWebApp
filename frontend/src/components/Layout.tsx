@@ -50,6 +50,8 @@ export const Layout: React.FC = () => {
     ? 'Annual Governance'
     : location.pathname.startsWith('/documents')
     ? 'Statements & Reports'
+    : location.pathname.startsWith('/audit')
+    ? 'Audit & Security'
     : location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/reports')
     ? 'Dashboard & Reports'
     : location.pathname.startsWith('/expenses')
@@ -78,6 +80,7 @@ export const Layout: React.FC = () => {
     { label: 'Language & Appearance', path: '/preferences', icon: Languages, badge: 'Settings', issue: '#16' },
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Organization Settings', path: '/settings', icon: Settings2, badge: 'Admin', issue: '#15' }] : []),
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Annual Governance', path: '/governance', icon: Scale, badge: 'Admin', issue: '#19' }] : []),
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Audit & Security', path: '/audit', icon: Shield, badge: 'Admin', issue: '#13' }] : []),
     ...(user?.role === 'SUPER_ADMIN' || (user?.role === 'ADMIN' && user?.accountantType === 'PRIMARY') ? [{ label: 'Historical Migration', path: '/migrations', icon: Database, badge: 'Admin', issue: '#17' }] : []),
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT' ? [{ label: 'Final Distribution', path: '/distribution', icon: PieChart, issue: '#12' }] : []),
   ];

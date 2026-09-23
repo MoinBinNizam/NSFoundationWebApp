@@ -8,7 +8,7 @@ if %errorLevel% neq 0 (
 )
 
 echo ====================================================
-echo  Restoring valid mongod.cfg and starting MongoDB...
+echo  Restoring a low-memory mongod.cfg and starting MongoDB...
 echo ====================================================
 
 (
@@ -22,7 +22,7 @@ echo storage:
 echo   dbPath: C:\Program Files\MongoDB\Server\8.0\data
 echo   wiredTiger:
 echo     engineConfig:
-echo       cacheSizeGB: 1
+echo       cacheSizeGB: 0.25
 echo.
 echo # where to write logging data.
 echo systemLog:

@@ -21,6 +21,7 @@ import { RegisterPage } from './pages/RegisterPage';
 import { PasswordResetPage } from './pages/PasswordResetPage';
 import { GovernancePage } from './pages/GovernancePage';
 import { DocumentsPage } from './pages/DocumentsPage';
+import { AuditPage } from './pages/AuditPage';
 import { LocalizationLayer } from './components/LocalizationLayer';
 
 export const App: React.FC = () => {
@@ -60,6 +61,7 @@ export const App: React.FC = () => {
             <Route path="migrations" element={<MigrationPage />} />
             <Route path="governance" element={<GovernancePage />} />
             <Route path="documents" element={<DocumentsPage />} />
+            <Route path="audit" element={<ProtectedRoute roles={['ADMIN', 'SUPER_ADMIN']}><AuditPage /></ProtectedRoute>} />
             {/* Catch-all redirect to members */}
             <Route path="*" element={<Navigate to="/members" replace />} />
           </Route>

@@ -21,9 +21,12 @@ export function errorHandler(
   const isProduction = process.env.NODE_ENV === 'production';
   const statusCode = err.statusCode ?? 500;
 
+  const safeMessage = isProduction && !err.isOperational
+    ? 'An unexpected error occurred. Please contact an administrator with the request ID.'
+    : (err.message || 'An unexpected error occurred.');
   const body: Record<string, unknown> = {
     status: 'error',
-    message: err.message || 'An unexpected error occurred.',
+    message: safeMessage,
   };
 
   // Only expose stack traces in non-production environments

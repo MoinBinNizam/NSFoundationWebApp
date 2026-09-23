@@ -1,5 +1,7 @@
 Yes. This is feasible, and given your finalized NS Foundation architecture, I would implement it as an **optional Receipt/OCR layer on top of the existing Contributions & Payments workflow**, not as a replacement for the payment engine.
-
+   My requirement is- The accountant can choose- whether to enter payment manually or upload receipt for OCR extraction. If OCR fails to extract the data, the accountant can enter the data manually. If OCR successfully extracts the data, and insert the data in the right input fields, the accountant should review and correct if necessary before final posting. OCR should be optional.
+   OCR extraction can be done through API Integration with any OCR service (such as Google Vision API, Amazon Textract, or Azure Form Recognizer). No need to build OCR from scratch. 
+   
 The key architectural principle should be:
 
 > **OCR extracts data; the accounting/business engine decides how that payment is posted.**

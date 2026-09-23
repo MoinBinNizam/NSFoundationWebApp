@@ -52,6 +52,18 @@ const auditLogSchema = new Schema<IAuditLog>(
 );
 
 auditLogSchema.index({ entityName: 1, entityId: 1, createdAt: -1 });
+auditLogSchema.index({ performedBy: 1, createdAt: -1 });
+auditLogSchema.index({ action: 1, createdAt: -1 });
+
+// Audit records are append-only evidence.  Normal application code can create
+// a record, but must never revise or remove one after it has been persisted.
+auditLogSchema.pre('save', function preventAuditEdits(next) {
+  if (!this.isNew) return next(new Error('Audit records are immutable and cannot be updated.'));
+  next();
+});
+auditLogSchema.pre(['updateOne', 'updateMany', 'findOneAndUpdate', 'deleteOne', 'deleteMany', 'findOneAndDelete'] as any, function preventAuditMutation(next) {
+  next(new Error('Audit records are immutable and cannot be changed or deleted.'));
+});
 
 export const AuditLog: Model<IAuditLog> = mongoose.model<IAuditLog>('AuditLog', auditLogSchema);
 export default AuditLog;

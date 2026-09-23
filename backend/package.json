@@ -15,7 +15,8 @@
     "seed:expenses-demo": "tsx src/scripts/seed-expenses-demo.ts",
     "sync:gateway-rules": "tsx src/scripts/sync-gateway-rules.ts",
     "test:reporting": "tsx src/scripts/test-reporting.ts",
-    "test:settings-members": "tsx src/scripts/test-settings-members.ts"
+    "test:settings-members": "tsx src/scripts/test-settings-members.ts",
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
@@ -37,6 +38,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.0.0",
     "tsx": "^4.16.2",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.9"
   }
 }
