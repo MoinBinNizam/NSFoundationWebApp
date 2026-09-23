@@ -31,7 +31,7 @@ export const Layout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { theme, setTheme, t } = usePreferences();
+  const { theme, setTheme, language, setLanguage, t } = usePreferences();
 
   const handleLogout = () => {
     logout();
@@ -218,6 +218,16 @@ export const Layout: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')}
+              className="btn btn-secondary btn-sm gap-1.5 px-2.5 font-bold"
+              title={t('Switch language')}
+              aria-label={t('Switch language')}
+              data-localization-skip
+            >
+              <Languages size={16} />
+              <span>{language === 'en' ? 'বাংলা' : 'EN'}</span>
+            </button>
             <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="btn btn-secondary btn-sm px-2.5" title={t('Switch color theme')} aria-label={t('Switch color theme')}>{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>
             <span className="badge badge-active hidden sm:inline-flex text-[11px] py-1">
               {t('System Operational')}
