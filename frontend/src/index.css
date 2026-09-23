@@ -345,6 +345,8 @@ textarea:focus-visible {
   .table-container {
     width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
     border-radius: var(--radius-lg);
     border: 1px solid var(--border);
     -webkit-overflow-scrolling: touch;

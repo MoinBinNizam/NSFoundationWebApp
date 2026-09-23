@@ -19,6 +19,8 @@ import {
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Download,
+  Printer,
 } from 'lucide-react';
 
 interface CustodyAccountItem {
@@ -50,6 +52,53 @@ interface AllocationItem {
   allocationType: string;
   amount: number;
   description: string;
+}
+
+const receiptValue = (value: string | number | undefined | null) => String(value ?? '')
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#039;');
+
+const receiptMoney = (value: number) => `৳ ${Number(value || 0).toLocaleString(undefined, {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})}`;
+
+/** A deliberately small, standalone document: it avoids printing the full React
+ * application and is constrained to one A4 sheet for fast print/download. */
+function createReceiptDocument(payment: PaymentItem, allocations: AllocationItem[]) {
+  const displayedAllocations = allocations.slice(0, 12);
+  const allocationRows = displayedAllocations.map((allocation) => `
+    <tr><td>${receiptValue(allocation.targetMonth)}</td><td>${receiptValue(allocation.allocationType)}</td><td class="amount">${receiptMoney(allocation.amount)}</td></tr>`).join('');
+  const extraAllocations = allocations.length > displayedAllocations.length
+    ? `<tr><td colspan="3" class="muted">আরও ${allocations.length - displayedAllocations.length}টি বরাদ্দ মোটের মধ্যে অন্তর্ভুক্ত আছে।</td></tr>`
+    : '';
+  const optionalLines = [
+    payment.penaltyAmount > 0 ? ['Late penalty', payment.penaltyAmount] : null,
+    payment.advanceAmount > 0 ? ['Advance payment', payment.advanceAmount] : null,
+    payment.cashoutCharge > 0 ? ['Cash-out charge', payment.cashoutCharge] : null,
+  ].filter((line): line is [string, number] => line !== null)
+    .map(([label, amount]) => `<div class="line"><span>${label}</span><strong>${receiptMoney(amount)}</strong></div>`).join('');
+
+  return `<!doctype html><html lang="bn"><head><meta charset="utf-8"><title>Payment Receipt ${receiptValue(payment.receiptNumber)}</title><style>
+    @page { size: A4 portrait; margin: 9mm; }
+    * { box-sizing: border-box; } body { margin: 0; color: #152238; font: 10.5pt/1.32 Arial, "Noto Sans Bengali", sans-serif; }
+    .receipt { width: 100%; max-width: 192mm; margin: 0 auto; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10mm; page-break-inside: avoid; }
+    h1 { margin: 0; font-size: 16pt; letter-spacing: .03em; } .subtitle, .muted { color: #64748b; font-size: 8.5pt; }
+    .top { display: flex; justify-content: space-between; gap: 12mm; border-bottom: 2px solid #2563eb; padding-bottom: 5mm; } .receipt-no { color: #1d4ed8; font-weight: 700; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin: 5mm 0; } .meta strong, .total strong { display: block; } .right { text-align: right; }
+    table { width: 100%; border-collapse: collapse; margin: 4mm 0; font-size: 9pt; } th { background: #eff6ff; text-align: left; } th, td { padding: 2.1mm 2.5mm; border: 1px solid #cbd5e1; } .amount { text-align: right; white-space: nowrap; }
+    .summary { margin-left: auto; width: 82mm; padding: 3.5mm; border: 1px solid #bfdbfe; border-radius: 6px; } .line, .total { display: flex; justify-content: space-between; gap: 8mm; padding: 1mm 0; } .total { margin-top: 2mm; padding-top: 2mm; border-top: 1px solid #94a3b8; font-size: 11pt; }
+    .footer { display: flex; justify-content: space-between; gap: 10mm; margin-top: 7mm; padding-top: 4mm; border-top: 1px dashed #94a3b8; font-size: 8.5pt; } @media print { .receipt { border-color: #94a3b8; } }
+  </style></head><body><main class="receipt">
+    <header class="top"><div><h1>NS FOUNDATION COOPERATIVE SOCIETY</h1><div class="subtitle">Official Member Contribution &amp; Payment Receipt</div></div><div class="right receipt-no">${receiptValue(payment.receiptNumber)}</div></header>
+    <section class="meta"><div><div class="subtitle">Member</div><strong>${receiptValue(payment.memberId?.name)}</strong><div>${receiptValue(payment.memberId?.memberId)} · ${receiptValue(payment.memberId?.phone)}</div></div><div class="right"><div class="subtitle">Payment details</div><strong>${receiptValue(new Date(payment.paymentDate).toLocaleDateString())}</strong><div>${receiptValue(payment.paymentMethod)} · Received by ${receiptValue(payment.receiverId?.name)}</div></div></section>
+    <div class="subtitle">Accounting allocations</div><table><thead><tr><th>Period</th><th>Allocation type</th><th class="amount">Amount</th></tr></thead><tbody>${allocationRows}${extraAllocations}</tbody></table>
+    <section class="summary"><div class="line"><span>Principal</span><strong>${receiptMoney(payment.principalAmount)}</strong></div>${optionalLines}<div class="total"><span>Total received</span><strong>${receiptMoney(payment.totalAmount)}</strong></div></section>
+    <footer class="footer"><span>Custody: ${receiptValue(payment.custodyAccountId?.name)}</span><span>Verified deposit</span><span>Member signature: __________________</span></footer>
+  </main></body></html>`;
 }
 
 interface PaymentItem {
@@ -408,6 +457,91 @@ export const PaymentsPage: React.FC = () => {
     } catch (err) {
       console.error('Error fetching receipt details:', err);
     }
+  };
+
+  const printReceipt = () => {
+    if (!selectedReceipt) return;
+    // Open synchronously from the click event so browsers do not defer or block
+    // the preview. This window contains only the A4 receipt, never the app shell.
+    const printWindow = window.open('', '_blank', 'popup,width=860,height=1000');
+    if (!printWindow) return;
+    printWindow.document.open();
+    printWindow.document.write(createReceiptDocument(selectedReceipt.payment, selectedReceipt.allocations));
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.requestAnimationFrame(() => printWindow.print());
+  };
+
+  const downloadReceipt = () => {
+    if (!selectedReceipt) return;
+    const { payment, allocations } = selectedReceipt;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1240;
+    canvas.height = 1754; // A4 portrait at ~150dpi; always one image/page.
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.strokeStyle = '#cbd5e1';
+    context.lineWidth = 2;
+    context.strokeRect(54, 54, 1132, 1646);
+    const text = (value: string, x: number, y: number, font = '26px Arial', color = '#152238') => {
+      context.font = font;
+      context.fillStyle = color;
+      context.fillText(value, x, y);
+    };
+    text('NS FOUNDATION COOPERATIVE SOCIETY', 90, 118, 'bold 34px Arial');
+    text('Official Member Contribution & Payment Receipt', 90, 154, '22px Arial', '#64748b');
+    text(payment.receiptNumber, 850, 122, 'bold 24px Arial', '#1d4ed8');
+    context.strokeStyle = '#2563eb';
+    context.lineWidth = 4;
+    context.beginPath(); context.moveTo(88, 180); context.lineTo(1152, 180); context.stroke();
+    text('Member', 90, 230, 'bold 20px Arial', '#64748b');
+    text(payment.memberId?.name || '', 90, 270, 'bold 28px Arial');
+    text(`${payment.memberId?.memberId || ''} · ${payment.memberId?.phone || ''}`, 90, 305, '22px Arial', '#475569');
+    text('Payment details', 800, 230, 'bold 20px Arial', '#64748b');
+    text(new Date(payment.paymentDate).toLocaleDateString(), 800, 270, 'bold 26px Arial');
+    text(`${payment.paymentMethod} · ${payment.receiverId?.name || ''}`, 800, 305, '20px Arial', '#475569');
+    text('Accounting allocations', 90, 360, 'bold 21px Arial', '#64748b');
+    const columns = [90, 410, 780, 1120];
+    const tableTop = 382;
+    context.fillStyle = '#eff6ff'; context.fillRect(90, tableTop, 1030, 38);
+    text('Period', columns[0] + 12, tableTop + 27, 'bold 19px Arial');
+    text('Allocation type', columns[1] + 12, tableTop + 27, 'bold 19px Arial');
+    text('Amount', columns[2] + 12, tableTop + 27, 'bold 19px Arial');
+    let y = tableTop + 38;
+    allocations.slice(0, 12).forEach((allocation) => {
+      context.strokeStyle = '#cbd5e1'; context.lineWidth = 1;
+      context.strokeRect(90, y, 1030, 42);
+      context.beginPath(); context.moveTo(columns[1], y); context.lineTo(columns[1], y + 42); context.moveTo(columns[2], y); context.lineTo(columns[2], y + 42); context.stroke();
+      text(allocation.targetMonth, columns[0] + 12, y + 28, '18px Arial', '#1d4ed8');
+      text(allocation.allocationType, columns[1] + 12, y + 28, '18px Arial');
+      text(receiptMoney(allocation.amount), columns[2] + 12, y + 28, 'bold 18px Arial');
+      y += 42;
+    });
+    if (allocations.length > 12) { text(`আরও ${allocations.length - 12}টি বরাদ্দ মোটের মধ্যে অন্তর্ভুক্ত আছে।`, 102, y + 28, '17px Arial', '#64748b'); y += 42; }
+    y += 50;
+    const summary: Array<[string, number]> = [
+      ['Principal', payment.principalAmount],
+      ...(payment.penaltyAmount > 0 ? [['Late penalty', payment.penaltyAmount] as [string, number]] : []),
+      ...(payment.advanceAmount > 0 ? [['Advance payment', payment.advanceAmount] as [string, number]] : []),
+      ...(payment.cashoutCharge > 0 ? [['Cash-out charge', payment.cashoutCharge] as [string, number]] : []),
+    ];
+    summary.forEach(([label, amount]) => { text(label, 700, y, '20px Arial', '#475569'); text(receiptMoney(amount), 940, y, 'bold 20px Arial'); y += 34; });
+    context.strokeStyle = '#94a3b8'; context.beginPath(); context.moveTo(690, y); context.lineTo(1120, y); context.stroke(); y += 38;
+    text('Total received', 700, y, 'bold 25px Arial'); text(receiptMoney(payment.totalAmount), 930, y, 'bold 25px Arial', '#1d4ed8');
+    text(`Custody: ${payment.custodyAccountId?.name || ''}`, 90, 1570, '19px Arial', '#475569');
+    text('Verified deposit', 90, 1610, 'bold 19px Arial', '#166534');
+    text('Member signature: ______________________', 700, 1610, '19px Arial', '#475569');
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${payment.receiptNumber}.png`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    }, 'image/png');
   };
 
   // Submit Admin Penalty Rule
@@ -802,8 +936,8 @@ export const PaymentsPage: React.FC = () => {
           </div>
 
           {/* Payments Table */}
-          <div className="table-container glass-card overflow-hidden">
-            <table className="data-table">
+          <div className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
+            <table className="data-table min-w-[1060px]">
               <thead>
                 <tr>
                   <th>Receipt #</th>
@@ -1523,10 +1657,19 @@ export const PaymentsPage: React.FC = () => {
             <div className="p-4 border-t border-white/10 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={downloadReceipt}
                 className="btn btn-secondary text-xs"
               >
-                Print Receipt
+                <Download size={15} />
+                <span>Download Receipt</span>
+              </button>
+              <button
+                type="button"
+                onClick={printReceipt}
+                className="btn btn-secondary text-xs"
+              >
+                <Printer size={15} />
+                <span>Print Receipt</span>
               </button>
               <button
                 type="button"

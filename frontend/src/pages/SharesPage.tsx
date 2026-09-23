@@ -451,8 +451,8 @@ export const SharesPage: React.FC = () => {
 
       {/* TAB 1: MEMBER SHARES & POSITIONS */}
       {activeTab === 'positions' && (
-        <div className="table-container glass-card overflow-hidden">
-          <table className="data-table">
+        <div className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
+          <table className="data-table min-w-[860px]">
             <thead>
               <tr>
                 <th>Member</th>
@@ -615,8 +615,8 @@ export const SharesPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="table-container glass-card overflow-hidden">
-            <table className="data-table">
+          <div className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
+            <table className="data-table min-w-[960px]">
               <thead>
                 <tr>
                   <th>Effective Month</th>
@@ -754,8 +754,8 @@ export const SharesPage: React.FC = () => {
             )}
           </div>
 
-          <div className="table-container glass-card overflow-hidden">
-            <table className="data-table">
+          <div className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
+            <table className="data-table min-w-[1020px]">
               <thead>
                 <tr>
                   <th>Member</th>
