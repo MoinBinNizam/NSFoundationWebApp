@@ -23,3 +23,5 @@ export * from './Policy.js';
 export * from './PolicyVersion.js';
 export * from './DistributionBatch.js';
 export * from './MemberDistribution.js';
+export * from './MigrationBatch.js';
+export * from './MigrationRecord.js';

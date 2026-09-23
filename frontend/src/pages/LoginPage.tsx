@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import { BrandLogo } from '../components/BrandLogo';
@@ -142,6 +142,8 @@ export const LoginPage: React.FC = () => {
               )}
             </button>
           </form>
+
+          <div className="mt-4 flex justify-between text-xs"><Link className="text-blue-300 hover:text-blue-200" to="/forgot-password">Forgot password?</Link><Link className="text-blue-300 hover:text-blue-200" to="/register">Create member account</Link></div>
 
           {/* Quick Credential Helpers */}
           <div className="mt-8 pt-5 border-t border-slate-800">

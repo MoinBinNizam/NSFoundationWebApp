@@ -16,6 +16,9 @@ import { DashboardPage } from './pages/DashboardPage';
 import { DistributionPage } from './pages/DistributionPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { PreferencesPage } from './pages/PreferencesPage';
+import { MigrationPage } from './pages/MigrationPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { PasswordResetPage } from './pages/PasswordResetPage';
 import { LocalizationLayer } from './components/LocalizationLayer';
 
 export const App: React.FC = () => {
@@ -27,6 +30,8 @@ export const App: React.FC = () => {
           <Routes>
           {/* Public Authentication Route */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<PasswordResetPage />} />
 
           {/* Protected Application Routes */}
           <Route
@@ -50,6 +55,7 @@ export const App: React.FC = () => {
             <Route path="distribution" element={<DistributionPage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="preferences" element={<PreferencesPage />} />
+            <Route path="migrations" element={<MigrationPage />} />
             {/* Catch-all redirect to members */}
             <Route path="*" element={<Navigate to="/members" replace />} />
           </Route>

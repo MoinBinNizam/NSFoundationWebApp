@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, getMe, register, listStaff, provisionStaff, offboardStaff } from '../controllers/auth.controller.js';
+import { login, getMe, register, listStaff, provisionStaff, offboardStaff, publicRegister, requestPasswordReset, resetPassword } from '../controllers/auth.controller.js';
 import { authenticate, requireRole } from '../middlewares/auth.js';
 import { UserRole } from '../types/models.js';
 
@@ -7,6 +7,9 @@ const router = Router();
 
 // Public routes
 router.post('/login', login);
+router.post('/public-register', publicRegister);
+router.post('/forgot-password', requestPasswordReset);
+router.post('/reset-password', resetPassword);
 
 // Protected routes (Any authenticated active user)
 router.get('/me', authenticate, getMe);

@@ -14,12 +14,30 @@ async function seed() {
 
     const usersToSeed = [
       {
+        name: 'NS Foundation Super Admin',
+        email: 'superadmin@nsfoundation.org',
+        password: process.env.SEED_SUPER_ADMIN_PASSWORD || 'SuperAdmin@123456',
+        phone: '+8801700000000',
+        role: UserRole.SUPER_ADMIN,
+        accountantType: null,
+        status: UserStatus.ACTIVE,
+      },
+      {
         name: 'Moin Bin Nizam (Primary Admin & Accountant)',
         email: 'admin@nsfoundation.org',
         password: process.env.SEED_ADMIN_PASSWORD || 'Admin@123456',
         phone: '+8801700000001',
         role: UserRole.ADMIN,
         accountantType: AccountantType.PRIMARY,
+        status: UserStatus.ACTIVE,
+      },
+      {
+        name: 'NS Foundation Member Demo',
+        email: 'member@nsfoundation.org',
+        password: process.env.SEED_MEMBER_PASSWORD || 'Member@123456',
+        phone: '+8801700000003',
+        role: UserRole.MEMBER,
+        accountantType: null,
         status: UserStatus.ACTIVE,
       },
       {

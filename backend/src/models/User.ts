@@ -42,6 +42,8 @@ const userSchema = new Schema<IUser>(
     gatewayAccessKeyHash: { type: String, select: false, default: null },
     gatewayAccessKeyPrefix: { type: String, default: null },
     sessionVersion: { type: Number, default: 0, min: 0 },
+    passwordResetTokenHash: { type: String, select: false, default: null },
+    passwordResetExpiresAt: { type: Date, select: false, default: null },
     offboardedAt: { type: Date, default: null },
     offboardedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     status: {

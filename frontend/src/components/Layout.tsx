@@ -13,6 +13,7 @@ import {
   LogOut,
   Shield,
   Settings2,
+  Database,
   Sun,
   Moon,
   Languages,
@@ -41,6 +42,8 @@ export const Layout: React.FC = () => {
     ? 'Language & Appearance'
     : location.pathname.startsWith('/settings')
     ? 'Organization Settings'
+    : location.pathname.startsWith('/migrations')
+    ? 'Historical Migration'
     : location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/reports')
     ? 'Dashboard & Reports'
     : location.pathname.startsWith('/expenses')
@@ -58,16 +61,17 @@ export const Layout: React.FC = () => {
     : 'Member Management';
 
   const navItems = [
-    { label: 'Dashboard & Reports', path: '/dashboard', icon: BarChart3 },
-    { label: 'Member Management', path: '/members', icon: Users },
-    { label: 'Shares & Annual Account', path: '/shares', icon: PieChart },
-    { label: 'Contributions & Payments', path: '/payments', icon: CreditCard },
-    { label: 'Accountant Custody', path: '/custody', icon: Wallet },
-    ...(user?.accountantType === 'PRIMARY' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ label: 'Investments', path: '/investments', icon: TrendingUp }, { label: 'Project Wallets', path: '/reinvestments', icon: Repeat2 }] : []),
-    { label: 'Expenses', path: '/expenses', icon: Receipt },
-    { label: 'Language & Appearance', path: '/preferences', icon: Languages, badge: 'Settings' },
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Organization Settings', path: '/settings', icon: Settings2, badge: 'Admin' }] : []),
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT' ? [{ label: 'Final Distribution', path: '/distribution', icon: PieChart }] : []),
+    { label: 'Dashboard & Reports', path: '/dashboard', icon: BarChart3, issue: '#11' },
+    { label: 'Member Management', path: '/members', icon: Users, issue: '#4' },
+    { label: 'Shares & Annual Account', path: '/shares', icon: PieChart, issue: '#5' },
+    { label: 'Contributions & Payments', path: '/payments', icon: CreditCard, issue: '#6' },
+    { label: 'Accountant Custody', path: '/custody', icon: Wallet, issue: '#7' },
+    ...(user?.accountantType === 'PRIMARY' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ label: 'Investments', path: '/investments', icon: TrendingUp, issue: '#8' }, { label: 'Project Wallets', path: '/reinvestments', icon: Repeat2, issue: '#9' }] : []),
+    { label: 'Expenses', path: '/expenses', icon: Receipt, issue: '#10' },
+    { label: 'Language & Appearance', path: '/preferences', icon: Languages, badge: 'Settings', issue: '#16' },
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Organization Settings', path: '/settings', icon: Settings2, badge: 'Admin', issue: '#15' }] : []),
+    ...(user?.role === 'SUPER_ADMIN' || (user?.role === 'ADMIN' && user?.accountantType === 'PRIMARY') ? [{ label: 'Historical Migration', path: '/migrations', icon: Database, badge: 'Admin', issue: '#17' }] : []),
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT' ? [{ label: 'Final Distribution', path: '/distribution', icon: PieChart, issue: '#12' }] : []),
   ];
 
   return (
@@ -134,11 +138,18 @@ export const Layout: React.FC = () => {
                   <Icon size={18} />
                   <span>{t(item.label)}</span>
                 </div>
-                {item.badge && (
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/25 text-blue-400 border border-blue-500/30">
-                    {item.badge}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {item.issue && (
+                    <span title={`Temporary implementation marker for Issue ${item.issue}`} className="text-[9px] font-bold px-1 py-0.5 rounded bg-violet-500/15 text-violet-300 border border-violet-400/25">
+                      {item.issue}
+                    </span>
+                  )}
+                  {item.badge && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/25 text-blue-400 border border-blue-500/30">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
               </NavLink>
             );
           })}

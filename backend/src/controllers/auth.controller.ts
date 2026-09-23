@@ -10,6 +10,52 @@ import { normalizePhone } from '../middlewares/sanitize.js';
 import { CustodyChannel } from '../types/models.js';
 import crypto from 'crypto';
 
+function validatePassword(password: unknown): string {
+  if (typeof password !== 'string' || password.length < 10) throw createError('Password must contain at least 10 characters.', 400);
+  return password;
+}
+
+function hashResetToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+/** Public self-registration creates a least-privilege MEMBER account only. */
+export async function publicRegister(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { name, email, password, phone } = req.body;
+    if (!name || !email) return next(createError('Name and email are required.', 400));
+    const safePassword = validatePassword(password);
+    const normalizedEmail = String(email).toLowerCase().trim();
+    if (await User.exists({ email: normalizedEmail })) return next(createError('An account with this email already exists.', 409));
+    const user = await User.create({ name: String(name).trim(), email: normalizedEmail, phone: normalizePhone(phone), passwordHash: await hashPassword(safePassword), role: UserRole.MEMBER, accountantType: null, status: UserStatus.ACTIVE });
+    res.status(201).json({ success: true, message: 'Registration successful. An administrator must grant operational access.', data: { id: user._id, name: user.name, email: user.email, role: user.role, status: user.status } });
+  } catch (error) { next(error); }
+}
+
+/** Starts password recovery without revealing whether an email is registered. */
+export async function requestPasswordReset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const email = String(req.body.email || '').toLowerCase().trim();
+    const user = await User.findOne({ email }).select('+passwordResetTokenHash +passwordResetExpiresAt');
+    let resetToken: string | undefined;
+    if (user) { resetToken = crypto.randomBytes(32).toString('hex'); user.passwordResetTokenHash = hashResetToken(resetToken); user.passwordResetExpiresAt = new Date(Date.now() + 15 * 60 * 1000); await user.save(); }
+    const data = process.env.NODE_ENV === 'development' && resetToken ? { developmentResetToken: resetToken } : undefined;
+    res.json({ success: true, message: 'If an account exists, password recovery instructions have been issued.', data });
+  } catch (error) { next(error); }
+}
+
+export async function resetPassword(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const token = String(req.body.token || ''); const safePassword = validatePassword(req.body.password);
+    if (!token) return next(createError('Reset token is required.', 400));
+    const user = await User.findOne({ passwordResetTokenHash: hashResetToken(token), passwordResetExpiresAt: { $gt: new Date() } }).select('+passwordResetTokenHash +passwordResetExpiresAt');
+    if (!user) return next(createError('Reset token is invalid or expired.', 400));
+    user.passwordHash = await hashPassword(safePassword); user.passwordResetTokenHash = null; user.passwordResetExpiresAt = null; user.sessionVersion = Number(user.sessionVersion || 0) + 1; await user.save();
+    await AuditLog.create({ performedBy: user._id, action: 'PASSWORD_RESET', entityName: 'User', entityId: user._id, reason: 'Password reset token redeemed.', ipAddress: req.ip, userAgent: req.headers['user-agent'] });
+    res.json({ success: true, message: 'Password reset successful. Please sign in again.' });
+  } catch (error) { next(error); }
+}
+
 /**
  * POST /api/auth/login
  * Public endpoint for user login.
@@ -171,9 +217,7 @@ export async function register(
       return next(createError('Name, email, and password are required.', 400));
     }
 
-    if (password.length < 6) {
-      return next(createError('Password must be at least 6 characters long.', 400));
-    }
+    validatePassword(password);
 
     // Validate role if supplied
     if (role && !Object.values(UserRole).includes(role)) {
@@ -183,6 +227,13 @@ export async function register(
     // Validate accountantType if supplied
     if (accountantType && !Object.values(AccountantType).includes(accountantType)) {
       return next(createError(`Invalid accountant type: ${accountantType}`, 400));
+    }
+
+    if (role === UserRole.SUPER_ADMIN && req.user?.role !== UserRole.SUPER_ADMIN) {
+      return next(createError('Only a Super Admin can provision another Super Admin.', 403));
+    }
+    if (role === UserRole.ACCOUNTANT && !accountantType) {
+      return next(createError('An Accountant account must specify PRIMARY or ASSISTANT type.', 400));
     }
 
     const existing = await User.findOne({ email: email.toLowerCase().trim() });

@@ -117,3 +117,12 @@ export function requireInvestmentAccess(req: AuthRequest, _res: Response, next: 
   }
   next();
 }
+
+/** Migration review is available to Super Admins and Moin's Primary Admin account. */
+export function requireMigrationAccess(req: AuthRequest, _res: Response, next: NextFunction): void {
+  if (!req.user) return next(createError('Authentication required.', 401));
+  const allowed = req.user.role === UserRole.SUPER_ADMIN ||
+    (req.user.role === UserRole.ADMIN && req.user.accountantType === AccountantType.PRIMARY);
+  if (!allowed) return next(createError('Historical migration access is restricted to Super Admins and the Primary Admin Accountant.', 403));
+  next();
+}

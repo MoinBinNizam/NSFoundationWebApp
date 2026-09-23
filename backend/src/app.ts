@@ -14,6 +14,7 @@ import expenseRoutes from './routes/expense.routes.js';
 import reportingRoutes from './routes/reporting.routes.js';
 import distributionRoutes from './routes/distribution.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
+import migrationRoutes from './routes/migration.routes.js';
 
 const app = express();
 
@@ -61,6 +62,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/reports', reportingRoutes);
 app.use('/api/distributions', distributionRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/migrations', migrationRoutes);
 
 // ─── 404 HANDLER ─────────────────────────────────────────────────────────────
 app.use((_req: Request, _res: Response, next: NextFunction) => {

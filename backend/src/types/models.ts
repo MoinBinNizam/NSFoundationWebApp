@@ -120,6 +120,12 @@ export enum DistributionBasis {
   ACTIVE_SHARES = 'ACTIVE_SHARES',
 }
 
+export enum MigrationRecordStatus {
+  VERIFIED = 'VERIFIED',
+  REVIEW_REQUIRED = 'REVIEW_REQUIRED',
+  UNRESOLVED = 'UNRESOLVED',
+}
+
 // ==========================================
 // MODEL INTERFACES
 // ==========================================
@@ -136,6 +142,8 @@ export interface IUser {
   gatewayAccessKeyHash?: string | null;
   gatewayAccessKeyPrefix?: string | null;
   sessionVersion?: number;
+  passwordResetTokenHash?: string | null;
+  passwordResetExpiresAt?: Date | null;
   offboardedAt?: Date | null;
   offboardedBy?: Types.ObjectId | null;
   status: UserStatus;
