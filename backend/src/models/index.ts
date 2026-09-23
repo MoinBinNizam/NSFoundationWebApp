@@ -25,3 +25,4 @@ export * from './DistributionBatch.js';
 export * from './MemberDistribution.js';
 export * from './MigrationBatch.js';
 export * from './MigrationRecord.js';
+export * from './IdempotencyKey.js';

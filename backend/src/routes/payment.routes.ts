@@ -5,6 +5,7 @@ import {
   requireAccountant,
   requireRole,
 } from '../middlewares/auth.js';
+import { financialIdempotency } from '../middlewares/security.js';
 import { UserRole, AccountantType } from '../types/models.js';
 
 const router = Router();
@@ -30,6 +31,7 @@ router.post(
 router.post(
   '/',
   requireAccountant(AccountantType.PRIMARY, AccountantType.ASSISTANT),
+  financialIdempotency('PAYMENT_CREATE'),
   PaymentController.createPayment
 );
 

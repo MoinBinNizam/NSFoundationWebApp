@@ -7,6 +7,15 @@ const PORT = parseInt(process.env.PORT ?? '5000', 10);
 
 async function startServer(): Promise<void> {
   try {
+    if (process.env.NODE_ENV === 'production') {
+      const secret = process.env.JWT_SECRET || '';
+      if (secret.length < 32 || secret.includes('dev_secret') || secret.includes('change_in_production')) {
+        throw new Error('Production requires a unique JWT_SECRET of at least 32 characters.');
+      }
+      if (!process.env.CORS_ORIGIN?.startsWith('https://')) {
+        throw new Error('Production requires an HTTPS CORS_ORIGIN.');
+      }
+    }
     // Step 1: Connect to MongoDB before accepting HTTP traffic
     console.log('[server] Connecting to MongoDB...');
     await connectDatabase();

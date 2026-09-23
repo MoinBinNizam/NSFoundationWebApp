@@ -5,6 +5,7 @@ import {
   requireAccountant,
   requireRole,
 } from '../middlewares/auth.js';
+import { financialIdempotency } from '../middlewares/security.js';
 import { UserRole, AccountantType } from '../types/models.js';
 
 const router = Router();
@@ -23,11 +24,12 @@ router.get('/transfers', CustodyController.listTransfers);
 router.post(
   '/transfer',
   requireAccountant(AccountantType.PRIMARY, AccountantType.ASSISTANT),
+  financialIdempotency('CUSTODY_TRANSFER'),
   CustodyController.executeTransfer
 );
 
 // Admin-only: create accounts and reconcile balances with physical/bank statement
 router.post('/accounts', requireRole(UserRole.ADMIN), CustodyController.createAccount);
-router.post('/reconcile', requireRole(UserRole.ADMIN), CustodyController.reconcileAccount);
+router.post('/reconcile', requireRole(UserRole.ADMIN), financialIdempotency('CUSTODY_RECONCILIATION'), CustodyController.reconcileAccount);
 
 export default router;

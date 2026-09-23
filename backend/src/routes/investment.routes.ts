@@ -4,6 +4,7 @@ import {
   authenticate,
   requireInvestmentAccess,
 } from '../middlewares/auth.js';
+import { financialIdempotency } from '../middlewares/security.js';
 
 const router = Router();
 
@@ -23,16 +24,19 @@ router.post(
 
 router.post(
   '/projects/:id/fund',
+  financialIdempotency('INVESTMENT_FUND'),
   InvestmentController.fundProject
 );
 
 router.post(
   '/projects/:id/returns',
+  financialIdempotency('INVESTMENT_RETURN'),
   InvestmentController.recordReturn
 );
 
 router.post(
   '/reinvest',
+  financialIdempotency('INVESTMENT_REINVEST'),
   InvestmentController.reinvest
 );
 

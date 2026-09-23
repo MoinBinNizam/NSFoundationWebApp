@@ -14,3 +14,4 @@ yarn-debug.log*
 yarn-error.log*
 .eslintcache
 .DS_Store
+.docs/test-login credentials.md

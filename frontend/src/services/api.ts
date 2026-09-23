@@ -21,6 +21,9 @@ export async function apiRequest<T = unknown>(
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
   };
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes((options.method || 'GET').toUpperCase())) {
+    headers['Idempotency-Key'] = crypto.randomUUID();
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;

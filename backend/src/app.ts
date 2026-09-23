@@ -3,6 +3,7 @@ import cors from 'cors';
 import { getDatabaseStatus } from './config/db.js';
 import { errorHandler, createError } from './middlewares/error.js';
 import { sanitizeRequest } from './middlewares/sanitize.js';
+import { securityHeaders } from './middlewares/security.js';
 import authRoutes from './routes/auth.routes.js';
 import memberRoutes from './routes/member.routes.js';
 import shareRoutes from './routes/share.routes.js';
@@ -17,6 +18,8 @@ import settingsRoutes from './routes/settings.routes.js';
 import migrationRoutes from './routes/migration.routes.js';
 
 const app = express();
+app.disable('x-powered-by');
+app.use(securityHeaders);
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
 const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:5173';

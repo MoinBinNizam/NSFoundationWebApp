@@ -1,0 +1,1 @@
+Important: production must use MongoDB as a replica set or managed cluster before transaction-based rollback guarantees can be enabled. A standalone MongoDB server cannot provide true multi-record transaction safety.
