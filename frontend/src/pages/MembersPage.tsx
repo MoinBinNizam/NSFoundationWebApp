@@ -30,7 +30,6 @@ interface MemberData {
   status: 'ACTIVE' | 'INACTIVE' | 'DROPPED';
   joinDate: string;
   address?: string;
-  notes?: string;
   shareCount: number;
   shareAmount: number;
   monthlyPayable: number;
@@ -83,7 +82,6 @@ export const MembersPage: React.FC = () => {
     status: 'ACTIVE',
     joinDate: new Date().toISOString().split('T')[0],
     address: '',
-    notes: '',
     initialShareCount: '1',
   });
   const [formError, setFormError] = useState<string | null>(null);
@@ -142,7 +140,6 @@ export const MembersPage: React.FC = () => {
       status: 'ACTIVE',
       joinDate: new Date().toISOString().split('T')[0],
       address: '',
-      notes: '',
       initialShareCount: '1',
     });
 
@@ -166,7 +163,6 @@ export const MembersPage: React.FC = () => {
       status: m.status,
       joinDate: m.joinDate ? m.joinDate.split('T')[0] : '',
       address: m.address || '',
-      notes: m.notes || '',
       initialShareCount: String(m.shareCount || 1),
     });
     setShowEditModal(true);
@@ -185,8 +181,8 @@ export const MembersPage: React.FC = () => {
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-    if (!/^\+?[1-9]\d{9,14}$/.test(formData.phone.replace(/[\s().-]/g, ''))) {
-      setFormError(t('Enter a valid phone number using 10 to 15 digits.'));
+    if (!/^(?:01[3-9]\d{8}|\+?[1-9]\d{6,14})$/.test(formData.phone.replace(/[\s().-]/g, ''))) {
+      setFormError(t('Enter a Bangladesh mobile number or an international phone number.'));
       return;
     }
     setSubmitting(true);
@@ -209,8 +205,8 @@ export const MembersPage: React.FC = () => {
     e.preventDefault();
     if (!selectedMember) return;
     setFormError(null);
-    if (!/^\+?[1-9]\d{9,14}$/.test(formData.phone.replace(/[\s().-]/g, ''))) {
-      setFormError(t('Enter a valid phone number using 10 to 15 digits.'));
+    if (!/^(?:01[3-9]\d{8}|\+?[1-9]\d{6,14})$/.test(formData.phone.replace(/[\s().-]/g, ''))) {
+      setFormError(t('Enter a Bangladesh mobile number or an international phone number.'));
       return;
     }
     setSubmitting(true);
@@ -616,8 +612,8 @@ export const MembersPage: React.FC = () => {
                   <input
                     type="tel"
                     inputMode="tel"
-                    pattern="\\+?[0-9]{10,15}"
-                    title={t('Enter a valid phone number using 10 to 15 digits.')}
+                    pattern="(?:01[3-9][0-9]{8}|\\+?[1-9][0-9]{6,14})"
+                    title={t('Enter a Bangladesh mobile number or an international phone number.')}
                     required
                     className="form-input"
                   placeholder={t('e.g. +88017XXXXXXXX')}
@@ -640,8 +636,9 @@ export const MembersPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="form-group mb-0">
-                  <label className="form-label">Status</label>
+                  <label className="form-label">Status *</label>
                   <select
+                    required
                     className="form-select"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
@@ -652,9 +649,10 @@ export const MembersPage: React.FC = () => {
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label">Join Date</label>
+                  <label className="form-label">Join Date *</label>
                   <input
                     type="date"
+                    required
                     className="form-input"
                     value={formData.joinDate}
                     onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
@@ -690,17 +688,6 @@ export const MembersPage: React.FC = () => {
                   placeholder={t('e.g. Dhaka, Bangladesh')}
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group mb-0">
-                <label className="form-label">Notes</label>
-                <textarea
-                  className="form-textarea"
-                  rows={2}
-                  placeholder={t('Optional reference notes...')}
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 />
               </div>
 
@@ -766,8 +753,8 @@ export const MembersPage: React.FC = () => {
                   <input
                     type="tel"
                     inputMode="tel"
-                    pattern="\\+?[0-9]{10,15}"
-                    title={t('Enter a valid phone number using 10 to 15 digits.')}
+                    pattern="(?:01[3-9][0-9]{8}|\\+?[1-9][0-9]{6,14})"
+                    title={t('Enter a Bangladesh mobile number or an international phone number.')}
                     required
                     className="form-input"
                     value={formData.phone}
@@ -788,8 +775,9 @@ export const MembersPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="form-group mb-0">
-                  <label className="form-label">Status</label>
+                  <label className="form-label">Status *</label>
                   <select
+                    required
                     className="form-select"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
@@ -801,9 +789,10 @@ export const MembersPage: React.FC = () => {
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label">Join Date</label>
+                  <label className="form-label">Join Date *</label>
                   <input
                     type="date"
+                    required
                     className="form-input"
                     value={formData.joinDate}
                     onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
@@ -818,16 +807,6 @@ export const MembersPage: React.FC = () => {
                   className="form-input"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                />
-              </div>
-
-              <div className="form-group mb-0">
-                <label className="form-label">Notes</label>
-                <textarea
-                  className="form-textarea"
-                  rows={2}
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                 />
               </div>
 
@@ -917,12 +896,6 @@ export const MembersPage: React.FC = () => {
                 </div>
               )}
 
-              {selectedMember.notes && (
-                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
-                  <span className="text-gray-400 block mb-1 font-medium">Notes:</span>
-                  <p className="text-gray-300">{selectedMember.notes}</p>
-                </div>
-              )}
             </div>
 
             <div className="flex justify-end pt-5">

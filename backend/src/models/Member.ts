@@ -32,19 +32,14 @@ const memberSchema = new Schema<IMember>(
     status: {
       type: String,
       enum: Object.values(MemberStatus),
-      default: MemberStatus.ACTIVE,
+      required: [true, 'Member status is required'],
       index: true,
     },
     joinDate: {
       type: Date,
-      default: Date.now,
-      required: true,
+      required: [true, 'Member join date is required'],
     },
     address: {
-      type: String,
-      trim: true,
-    },
-    notes: {
       type: String,
       trim: true,
     },

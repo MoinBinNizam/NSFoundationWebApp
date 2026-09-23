@@ -182,7 +182,6 @@ export interface IMember {
   status: MemberStatus;
   joinDate: Date;
   address?: string;
-  notes?: string;
   cashoutDue?: number; // Outstanding cash out charges from unpaid gateway fees
   createdAt: Date;
   updatedAt: Date;

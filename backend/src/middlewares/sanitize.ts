@@ -30,8 +30,11 @@ export function sanitizeRequest(req: Request, _res: Response, next: NextFunction
 export function normalizePhone(value?: string): string | undefined {
   if (!value) return undefined;
   const normalized = value.replace(/[\s().-]/g, '');
+  // Bangladesh domestic mobile format (01XXXXXXXXX) is accepted alongside
+  // international E.164 numbers and stored consistently as +8801XXXXXXXXX.
+  if (/^01[3-9]\d{8}$/.test(normalized)) return `+880${normalized.slice(1)}`;
   if (!/^\+?[1-9]\d{6,14}$/.test(normalized)) {
-    throw createError('Phone number must use an international E.164 format, for example +8801712345678.', 400);
+    throw createError('Enter a Bangladesh mobile number (for example 01712345678) or an international number in E.164 format (for example +8801712345678).', 400);
   }
   return normalized.startsWith('+') ? normalized : `+${normalized}`;
 }

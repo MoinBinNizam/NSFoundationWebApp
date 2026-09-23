@@ -25,9 +25,9 @@ export async function createMemberHandler(
       return next(createError('Authentication required.', 401));
     }
 
-    const { name, phone } = req.body;
-    if (!name || !phone) {
-      return next(createError('Member name and phone number are required.', 400));
+    const { name, phone, status, joinDate } = req.body;
+    if (!name || !phone || !status || !joinDate) {
+      return next(createError('Member name, phone number, status, and join date are required.', 400));
     }
 
     const member = await createMember(req.body, req.user, {

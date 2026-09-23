@@ -12,10 +12,9 @@ export interface CreateMemberInput {
   phone: string;
   email?: string;
   memberId?: string;
-  status?: MemberStatus;
-  joinDate?: Date | string;
+  status: MemberStatus;
+  joinDate: Date | string;
   address?: string;
-  notes?: string;
   initialShareCount?: number | string;
 }
 
@@ -26,7 +25,6 @@ export interface UpdateMemberInput {
   status?: MemberStatus;
   joinDate?: Date | string;
   address?: string;
-  notes?: string;
 }
 
 export interface MemberQueryOptions {
@@ -92,13 +90,12 @@ export async function createMember(
     name: input.name.trim(),
     phone,
     email: input.email?.trim().toLowerCase(),
-    status: input.status || MemberStatus.ACTIVE,
-    joinDate: input.joinDate ? new Date(input.joinDate) : new Date(),
+    status: input.status,
+    joinDate: new Date(input.joinDate),
     address: input.address?.trim(),
-    notes: input.notes?.trim(),
   });
 
-  const joinDate = input.joinDate ? new Date(input.joinDate) : new Date();
+  const joinDate = new Date(input.joinDate);
   const effectiveMonth = `${joinDate.getFullYear()}-${String(joinDate.getMonth() + 1).padStart(2, '0')}`;
   const initialShareEvent = await ShareHistory.create({
     memberId: member._id,
@@ -239,8 +236,6 @@ export async function updateMember(
   if (input.status) member.status = input.status;
   if (input.joinDate) member.joinDate = new Date(input.joinDate);
   if (input.address !== undefined) member.address = input.address?.trim();
-  if (input.notes !== undefined) member.notes = input.notes?.trim();
-
   await member.save();
 
   await AuditLog.create({
