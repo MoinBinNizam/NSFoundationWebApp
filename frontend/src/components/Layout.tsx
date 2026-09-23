@@ -15,6 +15,7 @@ import {
   Settings2,
   Database,
   Scale,
+  FileText,
   Sun,
   Moon,
   Languages,
@@ -47,6 +48,8 @@ export const Layout: React.FC = () => {
     ? 'Historical Migration'
     : location.pathname.startsWith('/governance')
     ? 'Annual Governance'
+    : location.pathname.startsWith('/documents')
+    ? 'Statements & Reports'
     : location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/reports')
     ? 'Dashboard & Reports'
     : location.pathname.startsWith('/expenses')
@@ -65,6 +68,7 @@ export const Layout: React.FC = () => {
 
   const navItems = [
     { label: 'Dashboard & Reports', path: '/dashboard', icon: BarChart3, issue: '#11' },
+    { label: 'Statements & Reports', path: '/documents', icon: FileText, issue: '#20' },
     { label: 'Member Management', path: '/members', icon: Users, issue: '#4' },
     { label: 'Shares & Annual Account', path: '/shares', icon: PieChart, issue: '#5' },
     { label: 'Contributions & Payments', path: '/payments', icon: CreditCard, issue: '#6' },

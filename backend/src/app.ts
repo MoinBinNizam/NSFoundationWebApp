@@ -17,6 +17,7 @@ import distributionRoutes from './routes/distribution.routes.js';
 import settingsRoutes from './routes/settings.routes.js';
 import migrationRoutes from './routes/migration.routes.js';
 import governanceRoutes from './routes/governance.routes.js';
+import documentRoutes from './routes/document.routes.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -68,6 +69,7 @@ app.use('/api/distributions', distributionRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/migrations', migrationRoutes);
 app.use('/api/governance', governanceRoutes);
+app.use('/api/documents', documentRoutes);
 
 // ─── 404 HANDLER ─────────────────────────────────────────────────────────────
 app.use((_req: Request, _res: Response, next: NextFunction) => {
