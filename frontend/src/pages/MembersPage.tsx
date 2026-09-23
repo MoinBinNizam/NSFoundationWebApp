@@ -209,6 +209,11 @@ export const MembersPage: React.FC = () => {
       setFormError(t('Enter a Bangladesh mobile number or an international phone number.'));
       return;
     }
+    const requestedShareCount = Number(formData.initialShareCount);
+    if (!Number.isInteger(requestedShareCount) || requestedShareCount < 1 || requestedShareCount > 10_000) {
+      setFormError(t('Number of shares must be a whole number between 1 and 10,000.'));
+      return;
+    }
     setSubmitting(true);
 
     try {
@@ -216,6 +221,19 @@ export const MembersPage: React.FC = () => {
         method: 'PUT',
         body: JSON.stringify(formData),
       });
+      if (requestedShareCount !== selectedMember.shareCount) {
+        await apiRequest('/shares/change', {
+          method: 'POST',
+          body: JSON.stringify({
+            memberId: selectedMember._id,
+            shareCount: requestedShareCount,
+            effectiveMonth: new Date().toISOString().slice(0, 7),
+            eventType: 'TEMPORARY_CHANGE',
+            isAdministrativeOverride: true,
+            notes: 'Share count updated from Member Management.',
+          }),
+        });
+      }
       setShowEditModal(false);
       fetchData();
     } catch (err: unknown) {
@@ -612,7 +630,6 @@ export const MembersPage: React.FC = () => {
                   <input
                     type="tel"
                     inputMode="tel"
-                    pattern="(?:01[3-9][0-9]{8}|\\+?[1-9][0-9]{6,14})"
                     title={t('Enter a Bangladesh mobile number or an international phone number.')}
                     required
                     className="form-input"
@@ -753,7 +770,6 @@ export const MembersPage: React.FC = () => {
                   <input
                     type="tel"
                     inputMode="tel"
-                    pattern="(?:01[3-9][0-9]{8}|\\+?[1-9][0-9]{6,14})"
                     title={t('Enter a Bangladesh mobile number or an international phone number.')}
                     required
                     className="form-input"
@@ -797,6 +813,19 @@ export const MembersPage: React.FC = () => {
                     value={formData.joinDate}
                     onChange={(e) => setFormData({ ...formData, joinDate: e.target.value })}
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="form-group mb-0">
+                  <label className="form-label">No. of Shares *</label>
+                  <input type="number" required min="1" max="10000" step="1" className="form-input" value={formData.initialShareCount} onChange={(e) => setFormData({ ...formData, initialShareCount: e.target.value })} />
+                  <p className="text-[11px] text-gray-500 mt-1">Changes are recorded in the share history.</p>
+                </div>
+                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-4 py-3.5 self-end">
+                  <p className="text-[11px] uppercase tracking-wide font-semibold text-emerald-200/80">Monthly payable preview</p>
+                  <p className="text-lg font-extrabold text-emerald-300 mt-0.5">৳{((Number(formData.initialShareCount) || 0) * shareAmount).toFixed(2)}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5">{formData.initialShareCount || 0} share(s) × ৳{shareAmount.toFixed(2)}</p>
                 </div>
               </div>
 
