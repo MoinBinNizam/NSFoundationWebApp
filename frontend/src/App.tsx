@@ -19,6 +19,7 @@ import { PreferencesPage } from './pages/PreferencesPage';
 import { MigrationPage } from './pages/MigrationPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { PasswordResetPage } from './pages/PasswordResetPage';
+import { GovernancePage } from './pages/GovernancePage';
 import { LocalizationLayer } from './components/LocalizationLayer';
 
 export const App: React.FC = () => {
@@ -56,6 +57,7 @@ export const App: React.FC = () => {
             <Route path="settings" element={<SettingsPage />} />
             <Route path="preferences" element={<PreferencesPage />} />
             <Route path="migrations" element={<MigrationPage />} />
+            <Route path="governance" element={<GovernancePage />} />
             {/* Catch-all redirect to members */}
             <Route path="*" element={<Navigate to="/members" replace />} />
           </Route>

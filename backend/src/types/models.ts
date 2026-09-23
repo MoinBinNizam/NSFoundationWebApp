@@ -126,6 +126,14 @@ export enum MigrationRecordStatus {
   UNRESOLVED = 'UNRESOLVED',
 }
 
+export enum AnnualClosingStatus {
+  DRAFT = 'DRAFT', REVIEWED = 'REVIEWED', APPROVED = 'APPROVED', LOCKED = 'LOCKED', CORRECTED = 'CORRECTED',
+}
+
+export enum MemberExitStatus {
+  PROPOSED = 'PROPOSED', APPROVED = 'APPROVED', PARTIALLY_PAID = 'PARTIALLY_PAID', SETTLED = 'SETTLED', CANCELLED = 'CANCELLED',
+}
+
 // ==========================================
 // MODEL INTERFACES
 // ==========================================

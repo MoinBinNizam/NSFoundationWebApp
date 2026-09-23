@@ -26,3 +26,5 @@ export * from './MemberDistribution.js';
 export * from './MigrationBatch.js';
 export * from './MigrationRecord.js';
 export * from './IdempotencyKey.js';
+export * from './AnnualClosing.js';
+export * from './MemberExitSettlement.js';

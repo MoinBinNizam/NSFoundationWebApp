@@ -14,6 +14,7 @@ import {
   Shield,
   Settings2,
   Database,
+  Scale,
   Sun,
   Moon,
   Languages,
@@ -44,6 +45,8 @@ export const Layout: React.FC = () => {
     ? 'Organization Settings'
     : location.pathname.startsWith('/migrations')
     ? 'Historical Migration'
+    : location.pathname.startsWith('/governance')
+    ? 'Annual Governance'
     : location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/reports')
     ? 'Dashboard & Reports'
     : location.pathname.startsWith('/expenses')
@@ -70,6 +73,7 @@ export const Layout: React.FC = () => {
     { label: 'Expenses', path: '/expenses', icon: Receipt, issue: '#10' },
     { label: 'Language & Appearance', path: '/preferences', icon: Languages, badge: 'Settings', issue: '#16' },
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Organization Settings', path: '/settings', icon: Settings2, badge: 'Admin', issue: '#15' }] : []),
+    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Annual Governance', path: '/governance', icon: Scale, badge: 'Admin', issue: '#19' }] : []),
     ...(user?.role === 'SUPER_ADMIN' || (user?.role === 'ADMIN' && user?.accountantType === 'PRIMARY') ? [{ label: 'Historical Migration', path: '/migrations', icon: Database, badge: 'Admin', issue: '#17' }] : []),
     ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT' ? [{ label: 'Final Distribution', path: '/distribution', icon: PieChart, issue: '#12' }] : []),
   ];

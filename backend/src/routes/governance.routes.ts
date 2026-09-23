@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { GovernanceController } from '../controllers/governance.controller.js';
+import { authenticate, requireRole } from '../middlewares/auth.js';
+import { financialIdempotency } from '../middlewares/security.js';
+import { UserRole } from '../types/models.js';
+const router = Router(); router.use(authenticate);
+router.get('/annual/:year/summary', GovernanceController.annualSummary); router.get('/annual', GovernanceController.annualList); router.post('/annual', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), financialIdempotency('ANNUAL_CLOSING_CREATE'), GovernanceController.createAnnual); router.post('/annual/:id/:action', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), financialIdempotency('ANNUAL_CLOSING_ACTION'), GovernanceController.annualAction);
+router.get('/policies', GovernanceController.policyList); router.get('/policies/:id/versions', GovernanceController.policyVersions); router.post('/policies', requireRole(UserRole.SUPER_ADMIN), financialIdempotency('POLICY_CREATE'), GovernanceController.policyCreate); router.put('/policies/:id', requireRole(UserRole.SUPER_ADMIN), financialIdempotency('POLICY_AMEND'), GovernanceController.policyAmend);
+router.get('/exits', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), GovernanceController.exitList); router.post('/exits', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), financialIdempotency('MEMBER_EXIT_PROPOSE'), GovernanceController.exitPropose); router.post('/exits/:id/approve', requireRole(UserRole.SUPER_ADMIN), financialIdempotency('MEMBER_EXIT_APPROVE'), GovernanceController.exitApprove); router.post('/exits/:id/pay', requireRole(UserRole.SUPER_ADMIN), financialIdempotency('MEMBER_EXIT_PAY'), GovernanceController.exitPay);
+export default router;

@@ -1,0 +1,5 @@
+import { Schema, Model, Types, model } from 'mongoose';
+import { AnnualClosingStatus } from '../types/models.js';
+export interface IAnnualClosing { year: number; status: AnnualClosingStatus; summary: Record<string, number>; preparedBy: Types.ObjectId; reviewedBy?: Types.ObjectId; approvedBy?: Types.ObjectId; lockedBy?: Types.ObjectId; notes?: string; createdAt: Date; updatedAt: Date; }
+const schema = new Schema<IAnnualClosing>({ year: { type: Number, required: true, unique: true, min: 2024, index: true }, status: { type: String, enum: Object.values(AnnualClosingStatus), default: AnnualClosingStatus.DRAFT, index: true }, summary: { type: Schema.Types.Mixed, required: true }, preparedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true }, reviewedBy: { type: Schema.Types.ObjectId, ref: 'User' }, approvedBy: { type: Schema.Types.ObjectId, ref: 'User' }, lockedBy: { type: Schema.Types.ObjectId, ref: 'User' }, notes: { type: String, trim: true } }, { timestamps: true });
+export const AnnualClosing: Model<IAnnualClosing> = model<IAnnualClosing>('AnnualClosing', schema);
