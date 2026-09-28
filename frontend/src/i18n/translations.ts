@@ -758,9 +758,21 @@ export const bangla: Record<string, string> = {
   'Retry': 'পুনরায় চেষ্টা',
   'REBUILD MEMBER LEDGER': 'সদস্য লেজার পুনর্গঠন',
   'RUN CUSTODY RECONCILIATION': 'তহবিল হিসাব মিলকরণ',
-  'REFRESH DASHBOARD SUMMARY': 'ড্যাশবোর্ড সারসংক্ষেপ রিফ্রেশ',
   'IMPORT MIGRATION BATCH': 'মাইগ্রেশন ব্যাচ ইমপোর্ট',
   'GENERATE ANNUAL DOCUMENT': 'বার্ষিক নথি তৈরি',
+  'Upload Receipt (OCR)': 'রসিদ আপলোড (OCR)',
+  'Receipt OCR Queue': 'রসিদ OCR সারি',
+  'Payment Receipt OCR & Verification': 'পেমেন্ট রসিদ OCR ও যাচাইকরণ',
+  'Original Receipt': 'মূল রসিদ',
+  'Candidate Member': 'সম্ভাব্য সদস্য',
+  'Transaction Reference / TrxID': 'লেনদেন রেফারেন্স / TrxID',
+  'Suspected Duplicate Detected': 'সম্ভাব্য ডুপ্লিকেট শনাক্ত',
+  'Accountant Override Reason (Required)': 'হিসাবরক্ষক অগ্রাহ্য করার কারণ (বাধ্যতামূলক)',
+  'Confirm & Post Payment': 'নিশ্চিত করুন ও পেমেন্ট পোস্ট করুন',
+  'Save Verification': 'যাচাই সংরক্ষণ',
+  'Ready to Post': 'পোস্টের জন্য প্রস্তুত',
+  'Duplicate Suspected': 'ডুপ্লিকেট সন্দেহ',
+  'Needs Review': 'পর্যালোচনা প্রয়োজন',
 };
 
 export const englishFromBangla = Object.fromEntries(Object.entries(bangla).map(([english, bengali]) => [bengali, english]));

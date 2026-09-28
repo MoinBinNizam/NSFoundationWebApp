@@ -12,6 +12,7 @@ import authRoutes from './routes/auth.routes.js';
 import memberRoutes from './routes/member.routes.js';
 import shareRoutes from './routes/share.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
+import receiptRoutes from './routes/receipt.routes.js';
 import custodyRoutes from './routes/custody.routes.js';
 import investmentRoutes from './routes/investment.routes.js';
 import reinvestmentRoutes from './routes/reinvestment.routes.js';
@@ -117,6 +118,7 @@ app.get('/api/ready', async (_req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/shares', shareRoutes);
+app.use('/api/payments/receipts', receiptRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/custody', custodyRoutes);
 app.use('/api/investments', investmentRoutes);

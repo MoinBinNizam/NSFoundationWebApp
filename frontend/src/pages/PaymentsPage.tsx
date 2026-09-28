@@ -22,6 +22,7 @@ import {
   Download,
   Printer,
 } from 'lucide-react';
+import { ReceiptOcrManager } from '../components/ReceiptOcrManager';
 
 interface CustodyAccountItem {
   _id: string;
@@ -191,7 +192,7 @@ export const PaymentsPage: React.FC = () => {
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
   // Active Top-level Tab
-  const [activeTab, setActiveTab] = useState<'analytics' | 'ledger' | 'rules'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'ledger' | 'rules' | 'ocr'>('analytics');
 
   // Filter States for Analytics
   const [timeframe, setTimeframe] = useState<'daily' | 'monthly' | 'yearly'>('monthly');
@@ -589,35 +590,49 @@ export const PaymentsPage: React.FC = () => {
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setCollectError(null);
-            setAllocationPreview(null);
-            setFormData({
-              memberId: membersList[0]?._id || '',
-              custodyAccountId: custodyAccounts[0]?._id || '',
-              receiverId: user?.id || '',
-              paymentDate: new Date().toISOString().split('T')[0],
-              totalAmount: '',
-              paymentMethod: 'BKASH',
-              cashoutChargePaid: '0',
-              transactionReference: '',
-              notes: '',
-            });
-            setShowCollectModal(true);
-          }}
-          className="btn btn-primary shrink-0 self-start sm:self-auto shadow-lg shadow-blue-500/20"
-        >
-          <Plus size={18} />
-          <span>Collect Payment</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setActiveTab('ocr')}
+            className={`btn shrink-0 self-start sm:self-auto border transition-all flex items-center gap-2 ${
+              activeTab === 'ocr'
+                ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                : 'btn-secondary border-blue-500/30 text-blue-400 hover:bg-blue-500/10'
+            }`}
+          >
+            <Sparkles size={18} />
+            <span>Upload Receipt (OCR)</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setCollectError(null);
+              setAllocationPreview(null);
+              setFormData({
+                memberId: membersList[0]?._id || '',
+                custodyAccountId: custodyAccounts[0]?._id || '',
+                receiverId: user?.id || '',
+                paymentDate: new Date().toISOString().split('T')[0],
+                totalAmount: '',
+                paymentMethod: 'BKASH',
+                cashoutChargePaid: '0',
+                transactionReference: '',
+                notes: '',
+              });
+              setShowCollectModal(true);
+            }}
+            className="btn btn-primary shrink-0 self-start sm:self-auto shadow-lg shadow-blue-500/20"
+          >
+            <Plus size={18} />
+            <span>Collect Payment</span>
+          </button>
+        </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-white/10 gap-2">
+      <div className="flex border-b border-white/10 gap-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab('analytics')}
-          className={`pb-3 px-4 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 ${
+          className={`pb-3 px-4 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'analytics'
               ? 'border-blue-500 text-blue-400'
               : 'border-transparent text-gray-400 hover:text-white'
@@ -629,7 +644,7 @@ export const PaymentsPage: React.FC = () => {
 
         <button
           onClick={() => setActiveTab('ledger')}
-          className={`pb-3 px-4 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 ${
+          className={`pb-3 px-4 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 whitespace-nowrap ${
             activeTab === 'ledger'
               ? 'border-blue-500 text-blue-400'
               : 'border-transparent text-gray-400 hover:text-white'
@@ -639,6 +654,17 @@ export const PaymentsPage: React.FC = () => {
           <span>Receipts & Payment History</span>
         </button>
 
+        <button
+          onClick={() => setActiveTab('ocr')}
+          className={`pb-3 px-4 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 whitespace-nowrap ${
+            activeTab === 'ocr'
+              ? 'border-blue-500 text-blue-400'
+              : 'border-transparent text-gray-400 hover:text-white'
+          }`}
+        >
+          <Sparkles size={16} />
+          <span>Receipt OCR Queue</span>
+        </button>
       </div>
 
       {/* TAB 1: COLLECTION ANALYTICS & STATS DASHBOARD */}
@@ -1191,6 +1217,22 @@ export const PaymentsPage: React.FC = () => {
             </table>
           </div>
         </div>
+      )}
+
+      {/* TAB 3: RECEIPT OCR QUEUE & VERIFICATION */}
+      {activeTab === 'ocr' && (
+        <ReceiptOcrManager
+          membersList={membersList}
+          custodyAccounts={custodyAccounts}
+          onPaymentPosted={(payment) => {
+            fetchPaymentsLedger();
+            fetchStats();
+            fetchMetadata();
+            if (payment?._id) {
+              handleViewReceipt(payment._id);
+            }
+          }}
+        />
       )}
 
       {/* MODAL 1: RECORD PAYMENT COLLECTION */}
