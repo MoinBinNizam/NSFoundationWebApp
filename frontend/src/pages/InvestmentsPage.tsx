@@ -601,7 +601,7 @@ export const InvestmentsPage: React.FC = () => {
             </div>
             <div className="mt-2 text-xs text-emerald-400 flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
-              Across {stats.totalProjectsCount} projects ({stats.activeProjectsCount} Active)
+              {`Across ${stats.totalProjectsCount} projects (${stats.activeProjectsCount} Active)`}
             </div>
           </div>
 

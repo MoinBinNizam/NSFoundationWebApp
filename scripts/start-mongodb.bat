@@ -24,6 +24,10 @@ echo   wiredTiger:
 echo     engineConfig:
 echo       cacheSizeGB: 0.25
 echo.
+echo # Disable the optional diagnostic collector on this constrained local machine.
+echo setParameter:
+echo   diagnosticDataCollectionEnabled: false
+echo.
 echo # where to write logging data.
 echo systemLog:
 echo   destination: file

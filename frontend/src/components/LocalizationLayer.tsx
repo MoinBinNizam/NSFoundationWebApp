@@ -9,8 +9,9 @@ function localizeNode(node: Text, language: 'en' | 'bn') {
   const leading = original.match(/^\s*/)?.[0] || '';
   const trailing = original.match(/\s*$/)?.[0] || '';
   const translated = translateText(original.trim(), language)
-    .replace(/\bBDT\b/g, '৳')
-    .replace(/টাকা/g, '৳')
+    // Currency symbols belong next to monetary values, never inside ordinary
+    // Bangla labels such as “টাকার পরিমাণ”.
+    .replace(/\bBDT\s*([+-]?[\d,]+(?:\.\d+)?)/g, '৳ $1')
     .replace(/([+-]?)৳\s*(-?[\d,]+(?:\.\d+)?)/g, (_match, sign: string, value: string) => `${sign}৳ ${Number(value.replace(/,/g, '')).toFixed(2)}`);
   if (translated !== original.trim()) node.nodeValue = `${leading}${translated}${trailing}`;
 }
@@ -23,7 +24,7 @@ function localizeNode(node: Text, language: 'en' | 'bn') {
  */
 function formatAdjacentTakaValue(node: Text) {
   const prefix = node.nodeValue || '';
-  if (!/^\s*[+-]?৳\s*$/.test(prefix)) return;
+  if (!/^\s*[+-]?(?:৳|BDT)\s*$/.test(prefix)) return;
   const next = node.nextSibling;
   if (next?.nodeType !== Node.TEXT_NODE) return;
   const rawValue = next.nodeValue || '';

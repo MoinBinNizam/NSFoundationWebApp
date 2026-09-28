@@ -21,16 +21,20 @@ import {
   Languages,
   Menu,
   X,
+  Activity,
 } from 'lucide-react';
 
 import { BrandLogo } from './BrandLogo';
 import { usePreferences } from '../context/PreferencesContext';
+import { BackgroundJobsDrawer } from './BackgroundJobsDrawer';
 
 export const Layout: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [jobsDrawerOpen, setJobsDrawerOpen] = useState(false);
+  const [activeJobsCount, setActiveJobsCount] = useState(0);
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
 
   const handleLogout = () => {
@@ -219,6 +223,19 @@ export const Layout: React.FC = () => {
 
           <div className="flex items-center gap-3">
             <button
+              onClick={() => setJobsDrawerOpen(true)}
+              className="btn btn-secondary btn-sm px-2.5 relative"
+              title={t('Background Tasks & Queue')}
+              aria-label={t('Background Tasks & Queue')}
+            >
+              <Activity size={16} className={activeJobsCount > 0 ? 'text-amber-400 animate-pulse' : 'text-gray-300'} />
+              {activeJobsCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-[9px] font-extrabold text-black flex items-center justify-center animate-bounce">
+                  {activeJobsCount}
+                </span>
+              )}
+            </button>
+            <button
               onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')}
               className="btn btn-secondary btn-sm gap-1.5 px-2.5 font-bold"
               title={t('Switch language')}
@@ -234,6 +251,13 @@ export const Layout: React.FC = () => {
             </span>
           </div>
         </header>
+
+        {/* Background Jobs Drawer */}
+        <BackgroundJobsDrawer
+          isOpen={jobsDrawerOpen}
+          onClose={() => setJobsDrawerOpen(false)}
+          onActiveJobsCountChange={setActiveJobsCount}
+        />
 
         {/* Page Outlet */}
         <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">

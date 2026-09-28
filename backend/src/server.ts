@@ -2,6 +2,7 @@ import 'dotenv/config';
 import http from 'http';
 import app from './app.js';
 import { connectDatabase } from './config/db.js';
+import { JobWorkerService } from './services/jobs/job-worker.service.js';
 
 const PORT = parseInt(process.env.PORT ?? '5000', 10);
 
@@ -21,7 +22,10 @@ async function startServer(): Promise<void> {
     await connectDatabase();
     console.log('[server] MongoDB connected successfully.');
 
-    // Step 2: Start HTTP server
+    // Step 2: Start background worker
+    JobWorkerService.start();
+
+    // Step 3: Start HTTP server
     const server = http.createServer(app);
     let isShuttingDown = false;
 
@@ -44,13 +48,15 @@ async function startServer(): Promise<void> {
       console.log(`[server] Environment : ${process.env.NODE_ENV ?? 'development'}`);
       console.log(`[server] Port        : ${PORT}`);
       console.log(`[server] Health      : http://localhost:${PORT}/api/health`);
+      console.log(`[server] Readiness   : http://localhost:${PORT}/api/ready`);
     });
 
     // Graceful shutdown handlers
-    const shutdown = (signal: string) => {
+    const shutdown = async (signal: string) => {
       if (isShuttingDown) return;
       isShuttingDown = true;
       console.log(`\n[server] Received ${signal}. Shutting down gracefully...`);
+      await JobWorkerService.stop();
       server.close(() => {
         console.log('[server] HTTP server closed.');
         process.exit(0);
