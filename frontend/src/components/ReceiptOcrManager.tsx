@@ -797,7 +797,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
                   {/* Total Amount */}
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
-                      Total Amount (BDT)
+                      Total Amount (৳)
                     </label>
                     <input
                       type="number"

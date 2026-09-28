@@ -784,11 +784,11 @@ export const PaymentsPage: React.FC = () => {
           <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 transition-opacity duration-200 ${loadingStats ? 'opacity-50' : 'opacity-100'}`}>
             <div className="glass-card p-5 border-l-4 border-l-blue-500">
               <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase">
-                <span>Total Received</span>
+                <span>Total In</span>
                 <DollarSign size={18} className="text-blue-400" />
               </div>
               <p className="text-2xl sm:text-3xl font-extrabold text-white mt-2">
-                BDT  {(stats?.totals.totalReceived || 0).toLocaleString()}
+                ৳ {(stats?.totals.totalReceived || 0).toLocaleString()}
               </p>
               <span className="text-[11px] text-gray-500 mt-1 block">
                 {stats?.totals.count || 0} total receipts
@@ -801,7 +801,7 @@ export const PaymentsPage: React.FC = () => {
                 <Layers size={18} className="text-emerald-400" />
               </div>
               <p className="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-2">
-                BDT  {(stats?.totals.totalPrincipal || 0).toLocaleString()}
+                ৳ {(stats?.totals.totalPrincipal || 0).toLocaleString()}
               </p>
               <span className="text-[11px] text-gray-500 mt-1 block">Monthly share dues settled</span>
             </div>
@@ -812,7 +812,7 @@ export const PaymentsPage: React.FC = () => {
                 <AlertTriangle size={18} className="text-rose-400" />
               </div>
               <p className="text-2xl sm:text-3xl font-extrabold text-rose-400 mt-2">
-                BDT  {(stats?.totals.totalPenalty || 0).toLocaleString()}
+                ৳ {(stats?.totals.totalPenalty || 0).toLocaleString()}
               </p>
               <span className="text-[11px] text-gray-500 mt-1 block">Late payment fines</span>
             </div>
@@ -823,7 +823,7 @@ export const PaymentsPage: React.FC = () => {
                 <Sparkles size={18} className="text-purple-400" />
               </div>
               <p className="text-2xl sm:text-3xl font-extrabold text-purple-400 mt-2">
-                BDT  {(stats?.totals.totalAdvance || 0).toLocaleString()}
+                ৳ {(stats?.totals.totalAdvance || 0).toLocaleString()}
               </p>
               <span className="text-[11px] text-gray-500 mt-1 block">Prepaid future months</span>
             </div>
@@ -834,10 +834,10 @@ export const PaymentsPage: React.FC = () => {
                 <CreditCard size={18} className="text-amber-400" />
               </div>
               <p className="text-2xl sm:text-3xl font-extrabold text-amber-400 mt-2">
-                BDT  {(stats?.totals.totalCashoutCharge || 0).toLocaleString()}
+                ৳ {(stats?.totals.totalCashoutCharge || 0).toLocaleString()}
               </p>
               <span className="text-[11px] text-gray-500 mt-1 block">
-                BDT  {stats?.totals.totalUnpaidCashout || 0} unpaid due
+                ৳ {stats?.totals.totalUnpaidCashout || 0} unpaid due
               </span>
             </div>
           </div>
@@ -874,7 +874,7 @@ export const PaymentsPage: React.FC = () => {
                           {m.label}
                         </span>
                         <p className="text-lg font-extrabold text-white mt-1">
-                          BDT  {data.total.toLocaleString()}
+                          ৳ {data.total.toLocaleString()}
                         </p>
                       </div>
                       <div className="mt-3 flex items-center justify-between text-[10px] text-gray-500">
@@ -915,10 +915,10 @@ export const PaymentsPage: React.FC = () => {
 
                       <div className="text-right">
                         <p className="text-base font-extrabold text-white">
-                          BDT  {acc.total.toLocaleString()}
+                          ৳ {acc.total.toLocaleString()}
                         </p>
                         <span className="text-[11px] text-gray-400">
-                          {acc.count} collections (BDT  {acc.penalty} penalty)
+                          {acc.count} collections (৳ {acc.penalty} penalty)
                         </span>
                       </div>
                     </div>
@@ -1032,27 +1032,27 @@ export const PaymentsPage: React.FC = () => {
                       </td>
                       <td>
                         <span className="font-extrabold text-sm text-white">
-                          BDT  {p.totalAmount.toLocaleString()}
+                          ৳ {p.totalAmount.toLocaleString()}
                         </span>
                       </td>
                       <td>
                         <div className="text-[11px] space-y-0.5">
                           <span className="text-emerald-400 block">
-                            Pri: BDT {p.principalAmount}
+                            Pri: ৳ {p.principalAmount}
                           </span>
                           {p.penaltyAmount > 0 && (
                             <span className="text-rose-400 block">
-                              Pen: BDT {p.penaltyAmount}
+                              Pen: ৳ {p.penaltyAmount}
                             </span>
                           )}
                           {p.advanceAmount > 0 && (
                             <span className="text-purple-400 block">
-                              Adv: BDT {p.advanceAmount}
+                              Adv: ৳ {p.advanceAmount}
                             </span>
                           )}
                           {p.cashoutCharge > 0 && (
                             <span className="text-amber-400 block">
-                              CO: BDT {p.cashoutCharge}
+                              CO: ৳ {p.cashoutCharge}
                             </span>
                           )}
                         </div>
@@ -1153,7 +1153,7 @@ export const PaymentsPage: React.FC = () => {
                       {r.effectiveTo || 'Active (Ongoing)'}
                     </td>
                     <td className="font-bold text-rose-400 text-sm">
-                      BDT  {r.ratePerShare} / share
+                      ৳ {r.ratePerShare} / share
                     </td>
                     <td className="text-xs text-gray-300">
                       {r.graceDayOfMonth}th of month
@@ -1296,7 +1296,7 @@ export const PaymentsPage: React.FC = () => {
                     <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-xs">
                       <AlertTriangle size={15} className="shrink-0" />
                       <span>
-                        Member has <strong>BDT  {selectedMemberObj.cashoutDue}</strong> previous unpaid gateway cashout charge due!
+                        Member has <strong>৳ {selectedMemberObj.cashoutDue}</strong> previous unpaid gateway cashout charge due!
                       </span>
                     </div>
                   ) : (
@@ -1398,7 +1398,7 @@ export const PaymentsPage: React.FC = () => {
 
               {/* Total Cash Amount */}
               <div className="form-group">
-                <label className="form-label">Total Amount Received, Including Any Cash-out Charge (BDT)</label>
+                <label className="form-label">Total Amount Received, Including Any Cash-out Charge (৳)</label>
                 <div className="flex gap-2">
                   <input
                     type="number"
@@ -1462,7 +1462,7 @@ export const PaymentsPage: React.FC = () => {
                       Authoritative Allocation Breakdown:
                     </span>
                     <span className="text-gray-300">
-                      Member Shares: {allocationPreview.member.shares} (BDT {allocationPreview.member.monthlyObligation}/mo)
+                      Member Shares: {allocationPreview.member.shares} (৳ {allocationPreview.member.monthlyObligation}/mo)
                     </span>
                   </div>
 
@@ -1475,7 +1475,7 @@ export const PaymentsPage: React.FC = () => {
                         <span className="text-gray-300">
                           {a.targetMonth} &bull; {a.description}
                         </span>
-                        <span className="font-bold text-white">BDT  {a.amount}</span>
+                        <span className="font-bold text-white">৳ {a.amount}</span>
                       </div>
                     ))}
                   </div>
@@ -1483,12 +1483,12 @@ export const PaymentsPage: React.FC = () => {
                   <div className="pt-2 border-t border-white/10 flex items-center justify-between text-xs font-bold">
                     <span className="text-gray-400">Total Accounted For:</span>
                     <span className="text-emerald-400">
-                      BDT  {formData.totalAmount} (Pri: BDT {allocationPreview.breakdown.principalAmount}, Pen: BDT {allocationPreview.breakdown.penaltyAmount}, Adv: BDT {allocationPreview.breakdown.advanceAmount})
+                      ৳ {formData.totalAmount} (Pri: ৳ {allocationPreview.breakdown.principalAmount}, Pen: ৳ {allocationPreview.breakdown.penaltyAmount}, Adv: ৳ {allocationPreview.breakdown.advanceAmount})
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs">
-                    <div className="rounded-lg bg-slate-900/60 border border-white/5 p-3 space-y-1"><p className="font-bold text-blue-300">Current gateway charge</p><p className="text-white">BDT {allocationPreview.gateway.requiredCharge} <span className="text-gray-500 font-normal">({allocationPreview.gateway.ratePercentage}% · round up to {allocationPreview.gateway.roundingIncrement})</span></p><p className="text-gray-400">Paid now: BDT {allocationPreview.breakdown.cashoutChargePaid} · carried: BDT {allocationPreview.member.newCashoutDue}</p></div>
-                    <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 space-y-1"><p className="font-bold text-amber-200">Member total due snapshot</p><p className="text-white">BDT {allocationPreview.dueSummary.totalDue}</p><p className="text-gray-400">Past: {allocationPreview.dueSummary.previousMonthsPrincipal + allocationPreview.dueSummary.previousMonthsPenalty} · This month: {allocationPreview.dueSummary.currentMonthPayable + allocationPreview.dueSummary.currentMonthPenalty} · Carried fee: {allocationPreview.dueSummary.carriedCashoutCharge}</p></div>
+                    <div className="rounded-lg bg-slate-900/60 border border-white/5 p-3 space-y-1"><p className="font-bold text-blue-300">Current gateway charge</p><p className="text-white">৳ {allocationPreview.gateway.requiredCharge} <span className="text-gray-500 font-normal">({allocationPreview.gateway.ratePercentage}% · round up to {allocationPreview.gateway.roundingIncrement})</span></p><p className="text-gray-400">Paid now: ৳ {allocationPreview.breakdown.cashoutChargePaid} · carried: ৳ {allocationPreview.member.newCashoutDue}</p></div>
+                    <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 space-y-1"><p className="font-bold text-amber-200">Member total due snapshot</p><p className="text-white">৳ {allocationPreview.dueSummary.totalDue}</p><p className="text-gray-400">Past: {allocationPreview.dueSummary.previousMonthsPrincipal + allocationPreview.dueSummary.previousMonthsPenalty} · This month: {allocationPreview.dueSummary.currentMonthPayable + allocationPreview.dueSummary.currentMonthPenalty} · Carried fee: {allocationPreview.dueSummary.carriedCashoutCharge}</p></div>
                   </div>
                 </div>
               )}
@@ -1639,7 +1639,7 @@ export const PaymentsPage: React.FC = () => {
                             {a.allocationType}
                           </td>
                           <td className="p-2.5 text-right font-bold text-white">
-                            BDT  {a.amount.toLocaleString()}
+                            ৳ {a.amount.toLocaleString()}
                           </td>
                         </tr>
                       ))}
@@ -1652,30 +1652,30 @@ export const PaymentsPage: React.FC = () => {
               <div className="p-3.5 bg-white/5 rounded-xl space-y-1.5 text-xs">
                 <div className="flex justify-between text-gray-300">
                   <span>Principal Obligations:</span>
-                  <span>BDT  {selectedReceipt.payment.principalAmount}</span>
+                  <span>৳ {selectedReceipt.payment.principalAmount}</span>
                 </div>
                 {selectedReceipt.payment.penaltyAmount > 0 && (
                   <div className="flex justify-between text-rose-400">
                     <span>Late Penalties:</span>
-                    <span>BDT  {selectedReceipt.payment.penaltyAmount}</span>
+                    <span>৳ {selectedReceipt.payment.penaltyAmount}</span>
                   </div>
                 )}
                 {selectedReceipt.payment.advanceAmount > 0 && (
                   <div className="flex justify-between text-purple-400">
                     <span>Advance Prepayment:</span>
-                    <span>BDT  {selectedReceipt.payment.advanceAmount}</span>
+                    <span>৳ {selectedReceipt.payment.advanceAmount}</span>
                   </div>
                 )}
                 {selectedReceipt.payment.cashoutCharge > 0 && (
                   <div className="flex justify-between text-amber-400">
                     <span>Cash Out Charge Paid:</span>
-                    <span>BDT  {selectedReceipt.payment.cashoutCharge}</span>
+                    <span>৳ {selectedReceipt.payment.cashoutCharge}</span>
                   </div>
                 )}
                 <div className="pt-2 border-t border-white/10 flex justify-between font-extrabold text-sm text-white">
                   <span>Total Cash Received:</span>
                   <span className="text-blue-400">
-                    BDT  {selectedReceipt.payment.totalAmount.toLocaleString()} BDT
+                    ৳ {selectedReceipt.payment.totalAmount.toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -1769,7 +1769,7 @@ export const PaymentsPage: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="form-group">
-                  <label className="form-label">Rate (BDT / Share)</label>
+                  <label className="form-label">Rate (৳ / Share)</label>
                   <input
                     type="number"
                     required

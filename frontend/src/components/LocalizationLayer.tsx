@@ -8,33 +8,37 @@ function localizeNode(node: Text, language: 'en' | 'bn') {
   const original = node.nodeValue || '';
   const leading = original.match(/^\s*/)?.[0] || '';
   const trailing = original.match(/\s*$/)?.[0] || '';
-  const translated = translateText(original.trim(), language)
+  const trimmed = original.trim();
+  if (trimmed === 'BDT' || trimmed === 'টাকা') {
+    node.nodeValue = `${leading}৳${trailing}`;
+    return;
+  }
+  const translated = translateText(trimmed, language)
     // Currency symbols belong next to monetary values, never inside ordinary
     // Bangla labels such as “টাকার পরিমাণ”.
     .replace(/\bBDT\s*([+-]?[\d,]+(?:\.\d+)?)/g, '৳ $1')
-    .replace(/([+-]?)৳\s*(-?[\d,]+(?:\.\d+)?)/g, (_match, sign: string, value: string) => `${sign}৳ ${Number(value.replace(/,/g, '')).toFixed(2)}`);
-  if (translated !== original.trim()) node.nodeValue = `${leading}${translated}${trailing}`;
+    .replace(/(?:^|\s)টাকা\s*([+-]?[\d,]+(?:\.\d+)?)/g, ' ৳ $1')
+    .replace(/\bBDT\b/g, '৳');
+  if (translated !== trimmed) node.nodeValue = `${leading}${translated}${trailing}`;
 }
 
 /**
  * React commonly renders a currency prefix and a dynamic number as adjacent
  * text nodes. Format that pair in the presentation layer so legacy modules
- * consistently show the compact taka symbol and a decimal amount without
- * touching the numeric values stored in MongoDB.
+ * consistently show the compact taka symbol without touching the numeric
+ * values stored in MongoDB.
  */
 function formatAdjacentTakaValue(node: Text) {
   const prefix = node.nodeValue || '';
-  if (!/^\s*[+-]?(?:৳|BDT)\s*$/.test(prefix)) return;
+  if (!/^\s*[+-]?(?:৳|BDT|টাকা)\s*$/.test(prefix)) return;
   const next = node.nextSibling;
   if (next?.nodeType !== Node.TEXT_NODE) return;
   const rawValue = next.nodeValue || '';
   const numeric = rawValue.trim().replace(/,/g, '');
   if (!/^-?\d+(?:\.\d+)?$/.test(numeric)) return;
-  const formatted = Number(numeric).toFixed(2);
   const sign = prefix.match(/[+-]/)?.[0] || '';
   const normalizedPrefix = `${prefix.match(/^\s*/)?.[0] || ''}${sign}৳ `;
   if (node.nodeValue !== normalizedPrefix) node.nodeValue = normalizedPrefix;
-  if (rawValue.trim() !== formatted) next.nodeValue = rawValue.replace(rawValue.trim(), formatted);
 }
 
 /**
