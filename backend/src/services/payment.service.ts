@@ -399,11 +399,29 @@ export class PaymentService {
 
     // 2. Generate formatted sequential Receipt Number: RCP-YYYYMM-XXXX
     const prefix = `RCP-${currentYearMonth.replace('-', '')}`;
-    const countThisMonth = await Payment.countDocuments({
+    const latestPayment = await Payment.findOne({
       receiptNumber: { $regex: `^${prefix}` },
-    });
-    const seqStr = String(countThisMonth + 1).padStart(4, '0');
-    const receiptNumber = `${prefix}-${seqStr}`;
+    }).sort({ receiptNumber: -1 });
+
+    let nextSeq = 1;
+    if (latestPayment?.receiptNumber) {
+      const parts = latestPayment.receiptNumber.split('-');
+      const lastSeq = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(lastSeq)) {
+        nextSeq = lastSeq + 1;
+      }
+    }
+
+    let receiptNumber = '';
+    while (true) {
+      const candidate = `${prefix}-${String(nextSeq).padStart(4, '0')}`;
+      const exists = await Payment.exists({ receiptNumber: candidate });
+      if (!exists) {
+        receiptNumber = candidate;
+        break;
+      }
+      nextSeq += 1;
+    }
 
     // 3. Create Payment record
     const payment = await Payment.create({
