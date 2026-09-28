@@ -804,6 +804,7 @@ export const bangla: Record<string, string> = {
   'Active (Ongoing)': 'সক্রিয় (চলমান)',
   'Total Accounted For:': 'মোট হিসাবকৃত:',
   'Previous Unpaid Cashout Due': 'পূর্বের অপরিশোধিত ক্যাশআউট চার্জ',
+  'Duplicate': 'ডুপ্লিকেট',
 };
 
 export const englishFromBangla = Object.fromEntries(Object.entries(bangla).map(([english, bengali]) => [bengali, english]));

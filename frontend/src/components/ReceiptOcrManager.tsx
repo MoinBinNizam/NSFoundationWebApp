@@ -130,10 +130,11 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
     setLoading(true);
     try {
       const query = statusFilter !== 'ALL' ? `?status=${statusFilter}` : '';
-      const res = await apiRequest<{ receipts: ReceiptItem[] }>(`/payments/receipts${query}`);
-      if (res.data?.receipts) {
-        setReceipts(res.data.receipts);
-      }
+      const res = await apiRequest<any>(`/payments/receipts${query}`);
+      const list = Array.isArray(res.data)
+        ? res.data
+        : res.data?.receipts || (Array.isArray(res) ? res : []);
+      setReceipts(list);
     } catch (err: any) {
       console.error('Failed to fetch receipts:', err);
     } finally {
@@ -158,7 +159,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
     }
 
     try {
-      const res = await apiRequest<{ results: ReceiptItem[] }>('/payments/receipts', {
+      const res = await apiRequest<any>('/payments/receipts', {
         method: 'POST',
         body: formData,
       });
@@ -167,8 +168,11 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
       await fetchReceipts();
 
       // If single file uploaded, automatically open review
-      if (res.data?.results?.length === 1) {
-        openReview(res.data.results[0]);
+      const uploadedData = res.data;
+      if (Array.isArray(uploadedData) && uploadedData.length === 1) {
+        openReview(uploadedData[0]);
+      } else if (uploadedData && !Array.isArray(uploadedData) && uploadedData.receiptId) {
+        openReview(uploadedData);
       }
     } catch (err: any) {
       setActionError(err.message || 'Failed to upload and extract receipt.');
@@ -382,27 +386,31 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
     switch (status) {
       case 'POSTED':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-            <CheckCircle2 size={12} /> Posted
+          <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0 whitespace-nowrap">
+            <CheckCircle2 size={12} className="shrink-0" />
+            <span>Posted</span>
           </span>
         );
       case 'READY_TO_POST':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
-            <Sparkles size={12} /> Ready to Post
+          <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0 whitespace-nowrap">
+            <Sparkles size={12} className="shrink-0" />
+            <span>Ready to Post</span>
           </span>
         );
       case 'DUPLICATE_SUSPECTED':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
-            <ShieldAlert size={12} /> Duplicate Suspected
+          <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 shrink-0 whitespace-nowrap">
+            <ShieldAlert size={12} className="shrink-0" />
+            <span>Duplicate Suspected</span>
           </span>
         );
       case 'NEEDS_REVIEW':
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20">
-            <Clock size={12} /> Needs Review
+          <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0 whitespace-nowrap">
+            <Clock size={12} className="shrink-0" />
+            <span>Needs Review</span>
           </span>
         );
     }
@@ -495,19 +503,25 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
       </div>
 
       {/* Filter Tabs & Refresh */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {['ALL', 'NEEDS_REVIEW', 'READY_TO_POST', 'DUPLICATE_SUSPECTED', 'POSTED'].map((st) => (
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 max-w-full no-scrollbar">
+          {[
+            { key: 'ALL', label: 'All' },
+            { key: 'NEEDS_REVIEW', label: 'Needs Review' },
+            { key: 'READY_TO_POST', label: 'Ready to Post' },
+            { key: 'DUPLICATE_SUSPECTED', label: 'Duplicate' },
+            { key: 'POSTED', label: 'Posted' },
+          ].map((st) => (
             <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                statusFilter === st
+              key={st.key}
+              onClick={() => setStatusFilter(st.key)}
+              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
+                statusFilter === st.key
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
                   : 'bg-slate-900/60 text-gray-400 hover:text-white hover:bg-slate-800'
               }`}
             >
-              {st.replace(/_/g, ' ')}
+              <span>{st.label}</span>
             </button>
           ))}
         </div>
@@ -515,7 +529,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
         <button
           onClick={fetchReceipts}
           disabled={loading}
-          className="p-2 rounded-lg bg-slate-900/60 text-gray-400 hover:text-white transition-all flex items-center gap-1.5 text-xs"
+          className="self-end sm:self-auto px-3 py-1.5 rounded-lg bg-slate-900/60 text-gray-400 hover:text-white transition-all flex items-center gap-1.5 text-xs shrink-0"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           <span>Refresh</span>
@@ -550,28 +564,35 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
               <div
                 key={rcpt.receiptId}
                 onClick={() => openReview(rcpt)}
-                className="glass-card p-5 border border-white/10 rounded-2xl hover:border-blue-500/40 transition-all cursor-pointer space-y-4 group bg-slate-900/60 hover:bg-slate-900/90"
+                className="glass-card p-4 sm:p-5 border border-white/10 rounded-2xl hover:border-blue-500/40 transition-all cursor-pointer space-y-3 sm:space-y-4 group bg-slate-900/60 hover:bg-slate-900/90 overflow-hidden w-full max-w-full"
               >
                 {/* Header: ID, Gateway, Status */}
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    {getGatewayBadge(rcpt.gateway)}
-                    <span className="text-xs font-mono font-bold text-gray-300">{rcpt.receiptId}</span>
+                <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="shrink-0">{getGatewayBadge(rcpt.gateway)}</div>
+                    <span
+                      className="text-xs font-mono font-bold text-gray-300 truncate"
+                      title={rcpt.receiptId}
+                    >
+                      {rcpt.receiptId.length > 16 ? `...${rcpt.receiptId.slice(-8)}` : rcpt.receiptId}
+                    </span>
                   </div>
-                  {getStatusBadge(rcpt.status)}
+                  <div className="shrink-0 ml-auto">
+                    {getStatusBadge(rcpt.status)}
+                  </div>
                 </div>
 
                 {/* Amount & Date Card */}
-                <div className="bg-slate-950/60 p-3.5 rounded-xl border border-white/5 flex items-center justify-between">
-                  <div>
+                <div className="bg-slate-950/60 p-3 sm:p-3.5 rounded-xl border border-white/5 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
                     <span className="text-[11px] text-gray-400 uppercase tracking-wider block">Amount</span>
-                    <span className="text-lg font-black text-white">
+                    <span className="text-base sm:text-lg font-black text-white truncate block">
                       ৳ {rcpt.reviewedData?.amount || rcpt.extractedData?.amount || '0'}
                     </span>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right min-w-0">
                     <span className="text-[11px] text-gray-400 uppercase tracking-wider block">Date</span>
-                    <span className="text-xs font-medium text-gray-300">
+                    <span className="text-xs font-medium text-gray-300 truncate block">
                       {rcpt.reviewedData?.paymentDate
                         ? new Date(rcpt.reviewedData.paymentDate).toLocaleDateString()
                         : rcpt.extractedData?.date || 'N/A'}
@@ -583,32 +604,33 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
                 <div className="space-y-1">
                   <span className="text-[11px] text-gray-400 uppercase tracking-wider block">Candidate Member</span>
                   {matchedMember ? (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-bold">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-bold shrink-0">
                           {matchedMember.name[0]}
                         </div>
-                        <span className="text-xs font-bold text-white truncate max-w-[140px]">
+                        <span className="text-xs font-bold text-white truncate">
                           {matchedMember.name}
                         </span>
                       </div>
-                      <span className="text-[11px] text-blue-400 font-mono font-semibold">
+                      <span className="text-[11px] text-blue-400 font-mono font-semibold shrink-0">
                         {matchedMember.memberId}
                       </span>
                     </div>
                   ) : (
                     <span className="text-xs text-amber-400/80 italic flex items-center gap-1">
-                      <AlertTriangle size={12} /> Member Unassigned
+                      <AlertTriangle size={12} className="shrink-0" />
+                      <span>Member Unassigned</span>
                     </span>
                   )}
                 </div>
 
                 {/* TrxID / Ref */}
-                <div className="flex items-center justify-between text-xs pt-1 border-t border-white/5 text-gray-400">
-                  <span className="truncate max-w-[150px]">
+                <div className="flex items-center justify-between text-xs pt-1 border-t border-white/5 text-gray-400 gap-2">
+                  <span className="truncate flex-1 min-w-0">
                     TrxID: <strong className="text-gray-200">{rcpt.extractedData?.transactionId || 'None'}</strong>
                   </span>
-                  <span className="text-blue-400 font-bold group-hover:translate-x-1 transition-transform inline-flex items-center gap-1">
+                  <span className="text-blue-400 font-bold group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 shrink-0">
                     Review <ChevronRight size={14} />
                   </span>
                 </div>
@@ -623,17 +645,19 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
           <div className="glass-card w-full max-w-5xl max-h-[92vh] flex flex-col rounded-3xl border border-white/15 shadow-2xl overflow-hidden bg-slate-900">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between bg-slate-900/90">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400">
+            <div className="px-4 sm:px-6 py-4 border-b border-white/10 flex items-start sm:items-center justify-between gap-3 bg-slate-900/90">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 shrink-0">
                   <Sparkles size={20} />
                 </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-                    Review Payment Receipt
-                    <span className="text-xs font-mono text-gray-400 font-normal">({selectedReceipt.receiptId})</span>
+                <div className="min-w-0">
+                  <h3 className="text-sm sm:text-base md:text-lg font-bold text-white flex flex-wrap items-center gap-1.5">
+                    <span>Review Payment Receipt</span>
+                    <span className="text-xs font-mono text-gray-400 font-normal truncate max-w-[180px] sm:max-w-none">
+                      ({selectedReceipt.receiptId.length > 20 ? `...${selectedReceipt.receiptId.slice(-10)}` : selectedReceipt.receiptId})
+                    </span>
                   </h3>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-400 truncate sm:whitespace-normal">
                     Verify extracted metadata against the original receipt before posting.
                   </p>
                 </div>
@@ -641,7 +665,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
 
               <button
                 onClick={closeReview}
-                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all shrink-0"
               >
                 <X size={20} />
               </button>

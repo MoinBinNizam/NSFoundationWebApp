@@ -1,3 +1,4 @@
+import { createWorker } from 'tesseract.js';
 import { ExtractedReceiptData } from '../../../types/receipt.js';
 import { HeuristicRegexParser } from './heuristic-regex-parser.js';
 import { logger } from '../../../utils/logger.js';
@@ -7,41 +8,75 @@ export interface IOcrProvider {
 }
 
 export class DefaultOcrProvider implements IOcrProvider {
+  private static workerPromise: Promise<any> | null = null;
+
+  private static async getWorker() {
+    if (!this.workerPromise) {
+      this.workerPromise = createWorker(['eng', 'ben']).catch((err) => {
+        logger.warn('Failed to load eng+ben worker, falling back to eng:', err);
+        return createWorker('eng');
+      });
+    }
+    return this.workerPromise;
+  }
+
   /**
    * Processes an image or document buffer and extracts text.
-   * If a cloud OCR key is configured (e.g. GOOGLE_VISION_KEY), it invokes the cloud API;
-   * otherwise, it uses the deterministic local heuristic provider.
+   * If plain text is supplied (e.g. unit tests or text files), parses directly.
+   * For binary image buffers, uses Tesseract.js optical character recognition.
    */
   async extractText(
     buffer: Buffer,
-    _mimeType: string
+    mimeType: string
   ): Promise<{ rawText: string; confidence: number; provider: string }> {
-    // If a cloud provider is configured in environment, it would be dispatched here
-    const hasCloudOcr = Boolean(process.env.GOOGLE_VISION_KEY || process.env.AZURE_OCR_KEY);
-
-    if (hasCloudOcr) {
-      logger.info('Invoking external Cloud OCR provider...', { component: 'OcrProvider' });
-      // Pluggable cloud adapter path
-    }
-
-    // Default built-in extraction:
-    // Extract any ASCII/UTF-8 strings present in the buffer or sample payloads
-    let detectedText = '';
+    // 1. Fast-path: simulated text payloads / non-binary test files
     try {
       const bufferString = buffer.toString('utf-8');
-      // If the buffer contains printable text (e.g. text/plain or simulated sample)
-      if (/[a-zA-Z0-9\u0980-\u09FF]{4,}/.test(bufferString)) {
-        detectedText = bufferString;
+      const isBinary = /[\x00-\x08\x0E-\x1F]/.test(bufferString.slice(0, 50));
+      if (!isBinary && /[a-zA-Z0-9\u0980-\u09FF]{4,}/.test(bufferString)) {
+        return {
+          rawText: bufferString,
+          confidence: 85,
+          provider: 'LOCAL_HEURISTIC',
+        };
       }
     } catch {
-      // Binary image buffers might not be direct UTF-8 strings
+      // Binary stream
     }
 
-    return {
-      rawText: detectedText,
-      confidence: detectedText ? 85 : 50,
-      provider: hasCloudOcr ? 'CLOUD_VISION' : 'LOCAL_HEURISTIC',
-    };
+    // 2. Optical Character Recognition via Tesseract.js
+    try {
+      logger.info('Processing receipt image with Tesseract.js OCR...', {
+        component: 'DefaultOcrProvider',
+        mimeType,
+        byteSize: buffer.length,
+      });
+
+      const worker = await DefaultOcrProvider.getWorker();
+      const ret = await worker.recognize(buffer);
+      const rawText = ret.data?.text || '';
+      const confidence = Math.round(ret.data?.confidence || 60);
+
+      logger.info(`Tesseract OCR finished: ${rawText.length} characters extracted (confidence: ${confidence}%)`, {
+        component: 'DefaultOcrProvider',
+      });
+
+      return {
+        rawText,
+        confidence,
+        provider: 'TESSERACT_OCR',
+      };
+    } catch (err: any) {
+      logger.error(`Tesseract OCR execution error: ${err.message}`, {
+        component: 'DefaultOcrProvider',
+      });
+
+      return {
+        rawText: '',
+        confidence: 0,
+        provider: 'OCR_ERROR',
+      };
+    }
   }
 }
 

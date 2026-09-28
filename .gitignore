@@ -17,3 +17,4 @@ yarn-error.log*
 .docs/test-login credentials.md
 backend/output/
 output/
+*.traineddata
