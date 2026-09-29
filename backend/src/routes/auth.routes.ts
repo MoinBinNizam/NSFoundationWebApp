@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, getMe, register, listStaff, provisionStaff, offboardStaff, publicRegister, requestPasswordReset, resetPassword } from '../controllers/auth.controller.js';
+import { login, getMe, register, listStaff, provisionStaff, offboardStaff, publicRegister, requestPasswordReset, resetPassword, changePassword } from '../controllers/auth.controller.js';
 import { authenticate, requireRole } from '../middlewares/auth.js';
 import { UserRole } from '../types/models.js';
 import { loginRateLimit } from '../middlewares/security.js';
@@ -14,6 +14,7 @@ router.post('/reset-password', resetPassword);
 
 // Protected routes (Any authenticated active user)
 router.get('/me', authenticate, getMe);
+router.post('/change-password', authenticate, changePassword);
 
 // Admin-only route for creating new user accounts
 router.post(

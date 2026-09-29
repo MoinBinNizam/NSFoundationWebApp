@@ -83,6 +83,10 @@ export const MembersPage: React.FC = () => {
   const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [selectedMember, setSelectedMember] = useState<MemberData | null>(null);
+  const [showImport, setShowImport] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<{ token: string; summary: { total: number; valid: number; invalid: number }; rows: Array<{ memberId: string; name: string; phone: string; errors: string[] }> } | null>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState('');
 
   // Form states
   const [nextIdPreview, setNextIdPreview] = useState<string>('NSF001');
@@ -142,6 +146,16 @@ export const MembersPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const previewImport = async () => {
+    if (!importFile) return setFormError('Choose an approved CSV file first.');
+    setFormError(''); const form = new FormData(); form.append('file', importFile);
+    try { const response = await fetch('/api/members/import/preview', { method: 'POST', headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` }, body: form }); const body = await response.json(); if (!response.ok) throw new Error(body.message || 'Unable to preview CSV.'); setImportPreview(body.data); } catch (error) { setFormError((error as Error).message); }
+  };
+  const saveImport = async () => {
+    if (!importPreview) return; if (temporaryPassword.length < 12) return setFormError('Temporary password must contain at least 12 characters.');
+    setSubmitting(true); setFormError(''); try { await apiRequest('/members/import/save', { method: 'POST', body: JSON.stringify({ previewToken: importPreview.token, temporaryPassword }) }); setShowImport(false); setImportPreview(null); setImportFile(null); setTemporaryPassword(''); await fetchData(); } catch (error) { setFormError((error as Error).message); } finally { setSubmitting(false); }
+  };
 
   // Load next ID preview when opening Add Member modal
   const handleOpenAddModal = async () => {
@@ -319,6 +333,9 @@ export const MembersPage: React.FC = () => {
             <span>{t('Refresh')}</span>
           </button>
           {canEdit && (
+            <button onClick={() => { setShowImport(true); setImportPreview(null); setFormError(''); }} className="btn btn-secondary btn-sm text-xs font-bold uppercase tracking-wider">Import CSV</button>
+          )}
+          {canEdit && (
             <button
               onClick={handleOpenAddModal}
               className="btn btn-primary btn-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider shrink-0"
@@ -329,6 +346,8 @@ export const MembersPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {showImport && <div className="modal-overlay"><div className="modal-content max-w-3xl"><div className="p-5 border-b border-white/10 flex justify-between"><div><h3 className="font-bold text-white">Import approved 2024 member roster</h3><p className="text-xs text-gray-400 mt-1">1. Choose CSV · 2. Review validation · 3. Save once. The uploaded file is not retained after import.</p></div><button onClick={() => setShowImport(false)} className="text-gray-400"><X size={19} /></button></div><div className="p-5 space-y-4">{formError && <div className="alert alert-error">{formError}</div>}<input type="file" accept=".csv,text/csv" className="form-input" onChange={(event) => { setImportFile(event.target.files?.[0] || null); setImportPreview(null); }} />{!importPreview ? <button className="btn btn-primary" disabled={!importFile} onClick={previewImport}>Preview and validate</button> : <><div className={`rounded-xl p-3 text-sm ${importPreview.summary.invalid ? 'bg-rose-500/10 text-rose-200' : 'bg-emerald-500/10 text-emerald-200'}`}>{importPreview.summary.total} rows · {importPreview.summary.valid} valid · {importPreview.summary.invalid} invalid</div><div className="max-h-56 overflow-auto table-container"><table className="data-table"><thead><tr><th>Member ID</th><th>Name</th><th>Mobile</th><th>Validation</th></tr></thead><tbody>{importPreview.rows.map((row) => <tr key={row.memberId}><td>{row.memberId}</td><td>{row.name}</td><td>{row.phone}</td><td>{row.errors.length ? row.errors.join(' ') : 'Ready'}</td></tr>)}</tbody></table></div><label className="form-label">Temporary activation password (12+ characters; expires after 30 days)</label><input className="form-input" type="password" autoComplete="new-password" value={temporaryPassword} onChange={(event) => setTemporaryPassword(event.target.value)} />{!importPreview.summary.invalid && <button className="btn btn-primary" disabled={submitting} onClick={saveImport}>{submitting ? 'Saving…' : 'Confirm and save to database'}</button>}</>}</div></div></div>}
 
       {/* KPI Stats Cards - Standardized Dashboard Glass-Card Design */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5">

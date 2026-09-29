@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export const ProtectedRoute: React.FC<{ children: React.ReactNode; roles?: Array<'ADMIN' | 'ACCOUNTANT' | 'MEMBER' | 'SUPER_ADMIN'> }> = ({ children, roles }) => {
+export const ProtectedRoute: React.FC<{ children: React.ReactNode; roles?: Array<'ADMIN' | 'ACCOUNTANT' | 'MEMBER' | 'INVESTMENT_MANAGER' | 'SUPER_ADMIN'> }> = ({ children, roles }) => {
   const { isAuthenticated, loading, user } = useAuth();
   const location = useLocation();
 
@@ -19,6 +19,12 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode; roles?: Array
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // A temporary roster password can establish identity only. Do not render any
+  // application route until the Member creates their personal password.
+  if (user?.mustChangePassword && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
   }
 
   if (roles && (!user || !roles.includes(user.role))) {

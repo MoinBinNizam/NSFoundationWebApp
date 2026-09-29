@@ -1,0 +1,9 @@
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { apiRequest } from '../services/api';
+
+export const ChangePasswordPage: React.FC = () => {
+  const { user } = useAuth(); const [password, setPassword] = useState(''); const [confirm, setConfirm] = useState(''); const [error, setError] = useState(''); const [saving, setSaving] = useState(false);
+  const submit = async (event: React.FormEvent) => { event.preventDefault(); setError(''); if (password.length < 12) return setError('Use at least 12 characters.'); if (password !== confirm) return setError('Passwords do not match.'); setSaving(true); try { await apiRequest('/auth/change-password', { method: 'POST', body: JSON.stringify({ password }) }); const profile = await apiRequest('/auth/me'); localStorage.setItem('user', JSON.stringify(profile.data)); window.location.assign('/member-portal'); } catch (cause) { setError((cause as Error).message); } finally { setSaving(false); } };
+  return <div className="min-h-screen flex items-center justify-center p-4 bg-[#0B0F19]"><form onSubmit={submit} className="glass-card w-full max-w-md p-6 space-y-4"><h1 className="text-2xl font-bold text-white">Welcome, {user?.name}</h1><p className="text-sm text-gray-400">You signed in successfully. Create a personal password before viewing your member account.</p>{error && <div className="alert alert-error">{error}</div>}<input className="form-input" type="password" autoComplete="new-password" minLength={12} placeholder="New password (12+ characters)" value={password} onChange={(event) => setPassword(event.target.value)} required /><input className="form-input" type="password" autoComplete="new-password" minLength={12} placeholder="Confirm new password" value={confirm} onChange={(event) => setConfirm(event.target.value)} required /><button className="btn btn-primary w-full" disabled={saving}>{saving ? 'Saving…' : 'Activate my account'}</button></form></div>;
+};

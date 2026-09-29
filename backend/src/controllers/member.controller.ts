@@ -10,6 +10,7 @@ import {
   generateNextMemberId,
 } from '../services/member.service.js';
 import { createError } from '../middlewares/error.js';
+import { previewMemberCsv, saveMemberCsv } from '../services/member-import.service.js';
 
 /**
  * POST /api/members
@@ -20,29 +21,7 @@ export async function createMemberHandler(
   res: Response,
   next: NextFunction
 ): Promise<void> {
-  try {
-    if (!req.user) {
-      return next(createError('Authentication required.', 401));
-    }
-
-    const { name, phone, status, joinDate } = req.body;
-    if (!name || !phone || !status || !joinDate) {
-      return next(createError('Member name, phone number, status, and join date are required.', 400));
-    }
-
-    const member = await createMember(req.body, req.user, {
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
-
-    res.status(201).json({
-      success: true,
-      message: `Member ${member.memberId} registered successfully.`,
-      data: member,
-    });
-  } catch (error) {
-    next(error);
-  }
+  return next(createError('New member registration is closed. Import the approved 2024 roster CSV instead.', 403));
 }
 
 /**
@@ -192,4 +171,12 @@ export async function deleteMemberHandler(
   } catch (error) {
     next(error);
   }
+}
+
+export async function previewCsvImportHandler(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try { if (!req.file) return next(createError('Choose a CSV file to preview.', 400)); res.json({ success: true, data: previewMemberCsv(req.file.buffer) }); } catch (error) { next(error); }
+}
+
+export async function saveCsvImportHandler(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try { if (!req.user) return next(createError('Authentication required.', 401)); const data = await saveMemberCsv(String(req.body.previewToken || ''), String(req.body.temporaryPassword || ''), req.user); res.status(201).json({ success: true, message: `${data.count} approved members were imported and provisioned.`, data }); } catch (error) { next(error); }
 }

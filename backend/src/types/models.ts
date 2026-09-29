@@ -165,6 +165,11 @@ export interface IUser {
   sessionVersion?: number;
   passwordResetTokenHash?: string | null;
   passwordResetExpiresAt?: Date | null;
+  mustChangePassword?: boolean;
+  temporaryPasswordExpiresAt?: Date | null;
+  passwordChangedAt?: Date | null;
+  lastLoginAt?: Date | null;
+  emailVerifiedAt?: Date | null;
   offboardedAt?: Date | null;
   offboardedBy?: Types.ObjectId | null;
   status: UserStatus;

@@ -5,8 +5,8 @@ import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import { BrandLogo } from '../components/BrandLogo';
 
 export const LoginPage: React.FC = () => {
-  const [email, setEmail] = useState('admin@nsfoundation.org');
-  const [password, setPassword] = useState('Admin@123456');
+  const [email, setEmail] = useState(import.meta.env.DEV ? 'admin@nsfoundation.org' : '');
+  const [password, setPassword] = useState(import.meta.env.DEV ? 'Admin@123456' : '');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -23,7 +23,8 @@ export const LoginPage: React.FC = () => {
 
     try {
       await login(email, password);
-      navigate(from, { replace: true });
+      const stored = JSON.parse(localStorage.getItem('user') || '{}');
+      navigate(stored.mustChangePassword ? '/change-password' : (stored.role === 'MEMBER' ? '/member-portal' : from), { replace: true });
     } catch (err: unknown) {
       setError((err as Error).message || 'Invalid credentials');
     } finally {
@@ -75,7 +76,7 @@ export const LoginPage: React.FC = () => {
               Sign In
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Authorized staff and society administration credentials.
+              Approved members and authorized staff credentials.
             </p>
           </div>
 
@@ -89,7 +90,7 @@ export const LoginPage: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                Staff Email
+                Mobile number or email
               </label>
               <div className="relative">
                 <Mail
@@ -97,10 +98,11 @@ export const LoginPage: React.FC = () => {
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
                 />
                 <input
-                  type="email"
+                  type="text"
+                  autoComplete="username"
                   required
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-950/60 border border-slate-700/60 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                  placeholder="admin@nsfoundation.org"
+                  placeholder="01712345678 or name@example.org"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -117,7 +119,7 @@ export const LoginPage: React.FC = () => {
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
                 />
                 <input
-                  type="password"
+                  type="password" autoComplete="current-password"
                   required
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-950/60 border border-slate-700/60 rounded-xl text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                   placeholder="••••••••"
@@ -143,10 +145,10 @@ export const LoginPage: React.FC = () => {
             </button>
           </form>
 
-          <div className="mt-4 flex justify-between text-xs"><Link className="text-blue-300 hover:text-blue-200" to="/forgot-password">Forgot password?</Link><Link className="text-blue-300 hover:text-blue-200" to="/register">Create member account</Link></div>
+          <div className="mt-4 flex justify-between text-xs"><Link className="text-blue-300 hover:text-blue-200" to="/forgot-password">Forgot password?</Link><span className="text-slate-500">Member access is issued by Admin</span></div>
 
           {/* Quick Credential Helpers */}
-          <div className="mt-8 pt-5 border-t border-slate-800">
+          {import.meta.env.DEV && <div className="mt-8 pt-5 border-t border-slate-800">
             <p className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase mb-3 flex items-center gap-1.5">
               <span>⚡ One-Click Instant Sign-In:</span>
             </p>
@@ -170,7 +172,7 @@ export const LoginPage: React.FC = () => {
                 <span className="truncate">Assistant Acc.</span>
               </button>
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* Footer */}

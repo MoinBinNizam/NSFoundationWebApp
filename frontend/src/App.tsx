@@ -17,12 +17,12 @@ import { DistributionPage } from './pages/DistributionPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { PreferencesPage } from './pages/PreferencesPage';
 import { MigrationPage } from './pages/MigrationPage';
-import { RegisterPage } from './pages/RegisterPage';
 import { PasswordResetPage } from './pages/PasswordResetPage';
 import { GovernancePage } from './pages/GovernancePage';
 import { DocumentsPage } from './pages/DocumentsPage';
 import { AuditPage } from './pages/AuditPage';
 import { MemberPortalPage } from './pages/MemberPortalPage';
+import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { LocalizationLayer } from './components/LocalizationLayer';
 
 export const App: React.FC = () => {
@@ -34,8 +34,8 @@ export const App: React.FC = () => {
           <Routes>
           {/* Public Authentication Route */}
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<PasswordResetPage />} />
+          <Route path="/change-password" element={<ProtectedRoute><ChangePasswordPage /></ProtectedRoute>} />
 
           {/* Protected Application Routes */}
           <Route

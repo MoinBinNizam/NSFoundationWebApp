@@ -11,7 +11,7 @@ import { CustodyChannel } from '../types/models.js';
 import crypto from 'crypto';
 
 function validatePassword(password: unknown): string {
-  if (typeof password !== 'string' || password.length < 10) throw createError('Password must contain at least 10 characters.', 400);
+  if (typeof password !== 'string' || password.length < 12) throw createError('Password must contain at least 12 characters.', 400);
   return password;
 }
 
@@ -19,17 +19,9 @@ function hashResetToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-/** Public self-registration creates a least-privilege MEMBER account only. */
-export async function publicRegister(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const { name, email, password, phone } = req.body;
-    if (!name || !email) return next(createError('Name and email are required.', 400));
-    const safePassword = validatePassword(password);
-    const normalizedEmail = String(email).toLowerCase().trim();
-    if (await User.exists({ email: normalizedEmail })) return next(createError('An account with this email already exists.', 409));
-    const user = await User.create({ name: String(name).trim(), email: normalizedEmail, phone: normalizePhone(phone), passwordHash: await hashPassword(safePassword), role: UserRole.MEMBER, accountantType: null, status: UserStatus.ACTIVE });
-    res.status(201).json({ success: true, message: 'Registration successful. An administrator must grant operational access.', data: { id: user._id, name: user.name, email: user.email, role: user.role, status: user.status } });
-  } catch (error) { next(error); }
+/** Closed 2024 roster: public self-registration is intentionally disabled. */
+export async function publicRegister(_req: AuthRequest, _res: Response, next: NextFunction): Promise<void> {
+  return next(createError('Member self-registration is closed. NS Foundation accounts are provisioned by an administrator from the approved 2024 roster.', 403));
 }
 
 /** Starts password recovery without revealing whether an email is registered. */
@@ -73,7 +65,13 @@ export async function login(
     }
 
     // Must explicitly select passwordHash because select: false in schema
-    const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+passwordHash');
+    const loginId = String(email).trim();
+    let normalizedPhone: string | undefined;
+    try { normalizedPhone = normalizePhone(loginId); } catch { normalizedPhone = undefined; }
+    // Imported members receive a non-deliverable placeholder email until they add
+    // their own address. It must never become a second, guessable sign-in name.
+    const canUseEmail = !loginId.toLowerCase().endsWith('@member.local');
+    const user = await User.findOne({ $or: [...(canUseEmail ? [{ email: loginId.toLowerCase() }] : []), ...(normalizedPhone ? [{ phone: normalizedPhone }] : [])] }).select('+passwordHash');
     if (!user) {
       return next(createError('Invalid email or password.', 401));
     }
@@ -87,7 +85,7 @@ export async function login(
       return next(createError('Invalid email or password.', 401));
     }
 
-    // Generate JWT
+    user.lastLoginAt = new Date(); await user.save();
     const token = generateToken({
       userId: user._id.toString(),
       email: user.email,
@@ -122,12 +120,27 @@ export async function login(
           memberId: user.memberId || null,
           accountantType: user.accountantType,
           status: user.status,
+          mustChangePassword: Boolean(user.mustChangePassword),
         },
       },
     });
   } catch (error) {
     next(error);
   }
+}
+
+/** First-login activation: only available to the authenticated account itself. */
+export async function changePassword(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user) return next(createError('Authentication required.', 401));
+    const password = validatePassword(req.body.password);
+    if (req.user.temporaryPasswordExpiresAt && req.user.temporaryPasswordExpiresAt < new Date()) return next(createError('Your temporary activation password has expired. Please contact an administrator for recovery.', 403));
+    req.user.passwordHash = await hashPassword(password);
+    req.user.mustChangePassword = false; req.user.temporaryPasswordExpiresAt = null; req.user.passwordChangedAt = new Date();
+    await req.user.save();
+    await AuditLog.create({ performedBy: req.user._id, action: 'MEMBER_ACTIVATED_PASSWORD_CHANGED', entityName: 'User', entityId: req.user._id, reason: 'Temporary activation password replaced.', ipAddress: req.ip, userAgent: req.headers['user-agent'] });
+    res.json({ success: true, message: 'Password changed. Your member account is now active.' });
+  } catch (error) { next(error); }
 }
 
 /** Lists operational staff without exposing credentials or raw routing keys. */
@@ -147,7 +160,7 @@ export async function provisionStaff(req: AuthRequest, res: Response, next: Next
     const { name, email, password, phone, accountantType, linkedGatewayChannels = [] } = req.body;
     if (!name || !email || !password || !accountantType) return next(createError('Name, email, password, and staff type are required.', 400));
     if (!Object.values(AccountantType).includes(accountantType)) return next(createError('Staff type must be PRIMARY or ASSISTANT.', 400));
-    if (password.length < 10) return next(createError('Staff passwords must contain at least 10 characters.', 400));
+    if (password.length < 12) return next(createError('Staff passwords must contain at least 12 characters.', 400));
     if (!Array.isArray(linkedGatewayChannels) || linkedGatewayChannels.some((channel) => !Object.values(CustodyChannel).includes(channel))) return next(createError('One or more linked gateway channels are invalid.', 400));
     if (await User.exists({ email: email.toLowerCase() })) return next(createError('A user with this email address already exists.', 409));
     const rawGatewayKey = `NSF_${crypto.randomBytes(18).toString('base64url')}`;
@@ -198,6 +211,7 @@ export async function getMe(
         memberId: req.user.memberId || null,
         accountantType: req.user.accountantType,
         status: req.user.status,
+        mustChangePassword: Boolean(req.user.mustChangePassword),
       },
     });
   } catch (error) {

@@ -49,6 +49,10 @@ export async function authenticate(
       return next(createError('This session has been revoked. Please sign in again.', 401));
     }
 
+    if (user.mustChangePassword && !req.originalUrl.startsWith('/api/auth/change-password') && !req.originalUrl.startsWith('/api/auth/me')) {
+      return next(createError('Change your temporary password before accessing account data.', 403));
+    }
+
     req.user = user;
     next();
   } catch (error) {

@@ -56,6 +56,11 @@ const userSchema = new Schema<IUser>(
     sessionVersion: { type: Number, default: 0, min: 0 },
     passwordResetTokenHash: { type: String, select: false, default: null },
     passwordResetExpiresAt: { type: Date, select: false, default: null },
+    mustChangePassword: { type: Boolean, default: false, index: true },
+    temporaryPasswordExpiresAt: { type: Date, default: null },
+    passwordChangedAt: { type: Date, default: null },
+    lastLoginAt: { type: Date, default: null },
+    emailVerifiedAt: { type: Date, default: null },
     offboardedAt: { type: Date, default: null },
     offboardedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     status: {
@@ -69,6 +74,7 @@ const userSchema = new Schema<IUser>(
     timestamps: true,
   }
 );
+userSchema.index({ memberId: 1 }, { unique: true, sparse: true });
 
 export const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);
 export default User;

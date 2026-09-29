@@ -15,11 +15,12 @@ export interface UserProfile {
   name: string;
   email: string;
   phone?: string;
-  role: 'ADMIN' | 'ACCOUNTANT' | 'MEMBER' | 'SUPER_ADMIN';
+  role: 'ADMIN' | 'ACCOUNTANT' | 'MEMBER' | 'INVESTMENT_MANAGER' | 'SUPER_ADMIN';
   designation?: MemberDesignation | null;
   memberId?: string | null;
   accountantType?: 'PRIMARY' | 'ASSISTANT' | null;
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  mustChangePassword?: boolean;
 }
 
 interface AuthContextType {

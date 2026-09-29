@@ -10,12 +10,17 @@ import {
 } from '../controllers/member.controller.js';
 import { authenticate, requireRole, requireModuleAccess } from '../middlewares/auth.js';
 import { UserRole } from '../types/models.js';
+import multer from 'multer';
+import { previewCsvImportHandler, saveCsvImportHandler } from '../controllers/member.controller.js';
 
 const router = Router();
+const csvUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 }, fileFilter: (_req, file, callback) => callback(null, file.mimetype.includes('csv') || file.originalname.toLowerCase().endsWith('.csv')) });
 
 // Stats and sequence helper (defined before /:id parameterized routes)
 router.get('/stats', authenticate, getMemberStatsHandler);
 router.get('/next-id', authenticate, getNextIdHandler);
+router.post('/import/preview', authenticate, requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), requireModuleAccess('MEMBERS', 'edit'), csvUpload.single('file'), previewCsvImportHandler);
+router.post('/import/save', authenticate, requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), requireModuleAccess('MEMBERS', 'edit'), saveCsvImportHandler);
 
 // CRUD routes
 router.get('/', authenticate, requireModuleAccess('MEMBERS', 'view'), getMembersHandler);
