@@ -127,9 +127,10 @@ interface FundTransferItem {
 }
 
 export const CustodyPage: React.FC = () => {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-  const isAccountant = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
+  const { user, canAccess } = useAuth();
+  const canEdit = canAccess('CUSTODY', 'edit');
+  const isAdmin = (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && canEdit;
+  const isAccountant = (user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT') && canEdit;
 
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<'accounts' | 'movements' | 'transfers'>('accounts');
@@ -474,6 +475,21 @@ export const CustodyPage: React.FC = () => {
           <button onClick={() => setErrorMessage(null)} className="ml-auto text-gray-400 hover:text-white">
             <X className="w-4 h-4" />
           </button>
+        </div>
+      )}
+
+      {!canEdit && (
+        <div className="glass-card px-4 py-3 bg-amber-500/10 border-amber-500/30 text-amber-200 text-xs flex items-center justify-between rounded-xl">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="font-bold uppercase tracking-wider">Read-Only Access:</span>
+            <span>You have viewing permissions for Accountant Custody Ledger. Fund transfers, account reconciliations, and account creations are restricted.</span>
+          </div>
+          {user?.designation && (
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 border border-amber-500/30 text-amber-300 uppercase">
+              {user.designation}
+            </span>
+          )}
         </div>
       )}
 

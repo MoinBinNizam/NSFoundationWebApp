@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import { IUser, UserRole, AccountantType, UserStatus, CustodyChannel } from '../types/models.js';
+import { IUser, UserRole, MemberDesignation, AccountantType, UserStatus, CustodyChannel } from '../types/models.js';
 
 const userSchema = new Schema<IUser>(
   {
@@ -30,6 +30,18 @@ const userSchema = new Schema<IUser>(
       enum: Object.values(UserRole),
       default: UserRole.MEMBER,
       required: true,
+      index: true,
+    },
+    designation: {
+      type: String,
+      enum: [...Object.values(MemberDesignation), null],
+      default: null,
+      index: true,
+    },
+    memberId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Member',
+      default: null,
       index: true,
     },
     accountantType: {

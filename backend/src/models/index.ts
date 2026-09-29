@@ -30,3 +30,4 @@ export * from './AnnualClosing.js';
 export * from './MemberExitSettlement.js';
 export * from './JobRecord.js';
 export * from './PaymentReceipt.js';
+export * from './ModulePermission.js';

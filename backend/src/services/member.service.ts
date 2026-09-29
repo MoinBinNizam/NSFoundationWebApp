@@ -1,7 +1,8 @@
 import { Member } from '../models/Member.js';
+import { User } from '../models/User.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { ShareHistory } from '../models/ShareHistory.js';
-import { IMember, MemberStatus, IUser, ShareEventType } from '../types/models.js';
+import { IMember, MemberStatus, IUser, ShareEventType, MemberDesignation } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 import { HydratedDocument, Types } from 'mongoose';
 import { getMonthlyShareValue } from './settings.service.js';
@@ -12,6 +13,7 @@ export interface CreateMemberInput {
   phone: string;
   email?: string;
   memberId?: string;
+  designation?: MemberDesignation;
   status: MemberStatus;
   joinDate: Date | string;
   address?: string;
@@ -22,6 +24,7 @@ export interface UpdateMemberInput {
   name?: string;
   phone?: string;
   email?: string;
+  designation?: MemberDesignation;
   status?: MemberStatus;
   joinDate?: Date | string;
   address?: string;
@@ -85,11 +88,17 @@ export async function createMember(
     }
   }
 
+  const designation =
+    input.designation && Object.values(MemberDesignation).includes(input.designation)
+      ? input.designation
+      : MemberDesignation.GENERAL_MEMBER;
+
   const member = await Member.create({
     memberId,
     name: input.name.trim(),
     phone,
     email: input.email?.trim().toLowerCase(),
+    designation,
     status: input.status,
     joinDate: new Date(input.joinDate),
     address: input.address?.trim(),
@@ -233,10 +242,24 @@ export async function updateMember(
 
   if (input.name) member.name = input.name.trim();
   if (input.email !== undefined) member.email = input.email?.trim().toLowerCase();
+  if (input.designation !== undefined && Object.values(MemberDesignation).includes(input.designation)) {
+    member.designation = input.designation;
+  }
   if (input.status) member.status = input.status;
   if (input.joinDate) member.joinDate = new Date(input.joinDate);
   if (input.address !== undefined) member.address = input.address?.trim();
   await member.save();
+
+  // Synchronize designation with linked User account if present
+  await User.findOneAndUpdate(
+    {
+      $or: [
+        { memberId: member._id },
+        ...(member.email ? [{ email: member.email }] : []),
+      ],
+    },
+    { designation: member.designation }
+  );
 
   await AuditLog.create({
     performedBy: actingUser._id,

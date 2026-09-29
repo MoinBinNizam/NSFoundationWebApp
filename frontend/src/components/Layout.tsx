@@ -29,7 +29,7 @@ import { usePreferences } from '../context/PreferencesContext';
 import { BackgroundJobsDrawer } from './BackgroundJobsDrawer';
 
 export const Layout: React.FC = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, canAccess } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -73,20 +73,21 @@ export const Layout: React.FC = () => {
     : 'Member Management';
 
   const navItems = [
-    { label: 'Dashboard & Reports', path: '/dashboard', icon: BarChart3, issue: '#11' },
-    { label: 'Statements & Reports', path: '/documents', icon: FileText, issue: '#20' },
-    { label: 'Member Management', path: '/members', icon: Users, issue: '#4' },
-    { label: 'Shares & Annual Account', path: '/shares', icon: PieChart, issue: '#5' },
-    { label: 'Contributions & Payments', path: '/payments', icon: CreditCard, issue: '#6' },
-    { label: 'Accountant Custody', path: '/custody', icon: Wallet, issue: '#7' },
-    ...(user?.accountantType === 'PRIMARY' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN' ? [{ label: 'Investments', path: '/investments', icon: TrendingUp, issue: '#8' }, { label: 'Project Wallets', path: '/reinvestments', icon: Repeat2, issue: '#9' }] : []),
-    { label: 'Expenses', path: '/expenses', icon: Receipt, issue: '#10' },
+    ...(canAccess('REPORTS', 'view') ? [{ label: 'Dashboard & Reports', path: '/dashboard', icon: BarChart3, issue: '#11' }] : []),
+    ...(canAccess('REPORTS', 'view') ? [{ label: 'Statements & Reports', path: '/documents', icon: FileText, issue: '#20' }] : []),
+    ...(canAccess('MEMBERS', 'view') ? [{ label: 'Member Management', path: '/members', icon: Users, issue: '#4' }] : []),
+    ...(canAccess('SHARES', 'view') ? [{ label: 'Shares & Annual Account', path: '/shares', icon: PieChart, issue: '#5' }] : []),
+    ...(canAccess('PAYMENTS', 'view') ? [{ label: 'Contributions & Payments', path: '/payments', icon: CreditCard, issue: '#6' }] : []),
+    ...(canAccess('CUSTODY', 'view') ? [{ label: 'Accountant Custody', path: '/custody', icon: Wallet, issue: '#7' }] : []),
+    ...(canAccess('INVESTMENTS', 'view') ? [{ label: 'Investments', path: '/investments', icon: TrendingUp, issue: '#8' }] : []),
+    ...(canAccess('PROJECT_WALLETS', 'view') ? [{ label: 'Project Wallets', path: '/reinvestments', icon: Repeat2, issue: '#9' }] : []),
+    ...(canAccess('EXPENSES', 'view') ? [{ label: 'Expenses', path: '/expenses', icon: Receipt, issue: '#10' }] : []),
     { label: 'Language & Appearance', path: '/preferences', icon: Languages, badge: 'Settings', issue: '#16' },
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Organization Settings', path: '/settings', icon: Settings2, badge: 'Admin', issue: '#15' }] : []),
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Annual Governance', path: '/governance', icon: Scale, badge: 'Admin', issue: '#19' }] : []),
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' ? [{ label: 'Audit & Security', path: '/audit', icon: Shield, badge: 'Admin', issue: '#13' }] : []),
-    ...(user?.role === 'SUPER_ADMIN' || (user?.role === 'ADMIN' && user?.accountantType === 'PRIMARY') ? [{ label: 'Historical Migration', path: '/migrations', icon: Database, badge: 'Admin', issue: '#17' }] : []),
-    ...(user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT' ? [{ label: 'Final Distribution', path: '/distribution', icon: PieChart, issue: '#12' }] : []),
+    ...(canAccess('SETTINGS', 'view') ? [{ label: 'Organization Settings', path: '/settings', icon: Settings2, badge: 'Admin', issue: '#15' }] : []),
+    ...(canAccess('GOVERNANCE', 'view') ? [{ label: 'Annual Governance', path: '/governance', icon: Scale, badge: 'Admin', issue: '#19' }] : []),
+    ...(canAccess('AUDIT', 'view') ? [{ label: 'Audit & Security', path: '/audit', icon: Shield, badge: 'Admin', issue: '#13' }] : []),
+    ...(canAccess('MIGRATIONS', 'view') ? [{ label: 'Historical Migration', path: '/migrations', icon: Database, badge: 'Admin', issue: '#17' }] : []),
+    ...(canAccess('DISTRIBUTION', 'view') ? [{ label: 'Final Distribution', path: '/distribution', icon: PieChart, issue: '#12' }] : []),
   ];
 
   return (
@@ -184,7 +185,11 @@ export const Layout: React.FC = () => {
                 <div className="flex items-center gap-1 mt-0.5">
                   <Shield size={12} className="text-blue-400 shrink-0" />
                   <span className="text-[10px] text-blue-400 font-semibold tracking-wide">
-                    {user?.accountantType ? `${user.accountantType} ACC` : user?.role}
+                    {user?.designation && user.designation !== 'GENERAL_MEMBER'
+                      ? user.designation
+                      : user?.accountantType
+                      ? `${user.accountantType} ACC`
+                      : user?.role}
                   </span>
                 </div>
               </div>

@@ -188,8 +188,9 @@ const paymentMethodForChannel = (channel?: string) =>
   channel === 'BANK' ? 'BANK_TRANSFER' : channel === 'NAGAD' ? 'NAGAD' : channel === 'CASH' ? 'CASH' : 'BKASH';
 
 export const PaymentsPage: React.FC = () => {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  const { user, canAccess } = useAuth();
+  const canEdit = canAccess('PAYMENTS', 'edit');
+  const isAdmin = (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && canEdit;
 
   // Active Top-level Tab
   const [activeTab, setActiveTab] = useState<'analytics' | 'ledger' | 'rules' | 'ocr'>('analytics');
@@ -579,6 +580,21 @@ export const PaymentsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {!canEdit && (
+        <div className="glass-card px-4 py-3 bg-amber-500/10 border-amber-500/30 text-amber-200 text-xs flex items-center justify-between rounded-xl">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="font-bold uppercase tracking-wider">Read-Only Access:</span>
+            <span>You have viewing permissions for Contributions & Payments. Collecting payments, modifying penalty rules, and uploading receipts are restricted.</span>
+          </div>
+          {user?.designation && (
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 border border-amber-500/30 text-amber-300 uppercase">
+              {user.designation}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Header & Primary Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -590,42 +606,44 @@ export const PaymentsPage: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={() => setActiveTab('ocr')}
-            className={`btn shrink-0 self-start sm:self-auto border transition-all flex items-center gap-2 ${
-              activeTab === 'ocr'
-                ? 'bg-blue-600/20 border-blue-500 text-blue-400'
-                : 'btn-secondary border-blue-500/30 text-blue-400 hover:bg-blue-500/10'
-            }`}
-          >
-            <Sparkles size={18} />
-            <span>Upload Receipt (OCR)</span>
-          </button>
+        {canEdit && (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setActiveTab('ocr')}
+              className={`btn shrink-0 self-start sm:self-auto border transition-all flex items-center gap-2 ${
+                activeTab === 'ocr'
+                  ? 'bg-blue-600/20 border-blue-500 text-blue-400'
+                  : 'btn-secondary border-blue-500/30 text-blue-400 hover:bg-blue-500/10'
+              }`}
+            >
+              <Sparkles size={18} />
+              <span>Upload Receipt (OCR)</span>
+            </button>
 
-          <button
-            onClick={() => {
-              setCollectError(null);
-              setAllocationPreview(null);
-              setFormData({
-                memberId: membersList[0]?._id || '',
-                custodyAccountId: custodyAccounts[0]?._id || '',
-                receiverId: user?.id || '',
-                paymentDate: new Date().toISOString().split('T')[0],
-                totalAmount: '',
-                paymentMethod: 'BKASH',
-                cashoutChargePaid: '0',
-                transactionReference: '',
-                notes: '',
-              });
-              setShowCollectModal(true);
-            }}
-            className="btn btn-primary shrink-0 self-start sm:self-auto shadow-lg shadow-blue-500/20"
-          >
-            <Plus size={18} />
-            <span>Collect Payment</span>
-          </button>
-        </div>
+            <button
+              onClick={() => {
+                setCollectError(null);
+                setAllocationPreview(null);
+                setFormData({
+                  memberId: membersList[0]?._id || '',
+                  custodyAccountId: custodyAccounts[0]?._id || '',
+                  receiverId: user?.id || '',
+                  paymentDate: new Date().toISOString().split('T')[0],
+                  totalAmount: '',
+                  paymentMethod: 'BKASH',
+                  cashoutChargePaid: '0',
+                  transactionReference: '',
+                  notes: '',
+                });
+                setShowCollectModal(true);
+              }}
+              className="btn btn-primary shrink-0 self-start sm:self-auto shadow-lg shadow-blue-500/20"
+            >
+              <Plus size={18} />
+              <span>Collect Payment</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Navigation Tabs */}

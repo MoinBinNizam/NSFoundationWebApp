@@ -1,5 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
+
+export type MemberDesignation =
+  | 'DIRECTOR'
+  | 'PRESIDENT'
+  | 'ACCOUNTANT'
+  | 'ASSISTANT_ACCOUNTANT'
+  | 'GENERAL_SECRETARY'
+  | 'CONVENER'
+  | 'GENERAL_MEMBER';
 
 export interface UserProfile {
   id: string;
@@ -7,6 +16,8 @@ export interface UserProfile {
   email: string;
   phone?: string;
   role: 'ADMIN' | 'ACCOUNTANT' | 'MEMBER' | 'SUPER_ADMIN';
+  designation?: MemberDesignation | null;
+  memberId?: string | null;
   accountantType?: 'PRIMARY' | 'ASSISTANT' | null;
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 }
@@ -16,6 +27,9 @@ interface AuthContextType {
   token: string | null;
   loading: boolean;
   isAuthenticated: boolean;
+  permissions: Record<string, { canView: boolean; canEdit: boolean }>;
+  canAccess: (moduleKey: string, action?: 'view' | 'edit') => boolean;
+  refreshPermissions: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -28,7 +42,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return saved ? JSON.parse(saved) : null;
   });
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
+  const [permissions, setPermissions] = useState<Record<string, { canView: boolean; canEdit: boolean }>>({});
   const [loading, setLoading] = useState<boolean>(true);
+
+  const fetchPermissions = useCallback(async () => {
+    try {
+      const res = await apiRequest<{ modules: Record<string, { canView: boolean; canEdit: boolean }> }>('/settings/permissions/me');
+      if (res.data?.modules) {
+        setPermissions(res.data.modules);
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+  }, []);
 
   useEffect(() => {
     async function verifyAuth() {
@@ -37,6 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const res = await apiRequest<UserProfile>('/auth/me');
           setUser(res.data);
           localStorage.setItem('user', JSON.stringify(res.data));
+          await fetchPermissions();
         } catch {
           logout();
         }
@@ -49,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const handleUnauthorized = () => logout();
     window.addEventListener('auth:unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
-  }, [token]);
+  }, [token, fetchPermissions]);
 
   const login = async (email: string, password: string) => {
     const res = await apiRequest<{ token: string; user: UserProfile }>('/auth/login', {
@@ -62,14 +89,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(newUser);
     localStorage.setItem('token', newToken);
     localStorage.setItem('user', JSON.stringify(newUser));
+    await fetchPermissions();
   };
 
   const logout = () => {
     setToken(null);
     setUser(null);
+    setPermissions({});
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   };
+
+  const canAccess = useCallback((moduleKey: string, action: 'view' | 'edit' = 'view'): boolean => {
+    if (!user) return false;
+    if (user.role === 'SUPER_ADMIN') return true;
+
+    const mod = permissions[moduleKey];
+    if (mod) {
+      return action === 'edit' ? mod.canEdit : mod.canView;
+    }
+
+    // Default fallbacks
+    if (user.role === 'ADMIN') return true;
+    if (user.role === 'ACCOUNTANT') {
+      return ['PAYMENTS', 'CUSTODY', 'MEMBERS', 'REPORTS'].includes(moduleKey);
+    }
+    return moduleKey === 'MEMBERS' && action === 'view';
+  }, [user, permissions]);
 
   return (
     <AuthContext.Provider
@@ -78,6 +124,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         loading,
         isAuthenticated: !!token && !!user,
+        permissions,
+        canAccess,
+        refreshPermissions: fetchPermissions,
         login,
         logout,
       }}

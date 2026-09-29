@@ -9,23 +9,24 @@ import {
   reconcileYearAccountHandler,
   getYearAccountsHandler,
 } from '../controllers/share.controller.js';
-import { authenticate, requireRole } from '../middlewares/auth.js';
+import { authenticate, requireRole, requireModuleAccess } from '../middlewares/auth.js';
 import { UserRole } from '../types/models.js';
 
 const router = Router();
 
 // Stats and queries
-router.get('/stats', authenticate, getShareStatsHandler);
-router.get('/history', authenticate, getShareHistoryHandler);
-router.get('/members-shares', authenticate, getMembersWithSharesHandler);
-router.get('/annual-accounts', authenticate, getYearAccountsHandler);
-router.get('/member/:memberId', authenticate, getMemberShareDetailHandler);
+router.get('/stats', authenticate, requireModuleAccess('SHARES', 'view'), getShareStatsHandler);
+router.get('/history', authenticate, requireModuleAccess('SHARES', 'view'), getShareHistoryHandler);
+router.get('/members-shares', authenticate, requireModuleAccess('SHARES', 'view'), getMembersWithSharesHandler);
+router.get('/annual-accounts', authenticate, requireModuleAccess('SHARES', 'view'), getYearAccountsHandler);
+router.get('/member/:memberId', authenticate, requireModuleAccess('SHARES', 'view'), getMemberShareDetailHandler);
 
 // Modifications & Actions (Admin & Accountant)
 router.post(
   '/change',
   authenticate,
   requireRole(UserRole.ADMIN, UserRole.ACCOUNTANT, UserRole.SUPER_ADMIN),
+  requireModuleAccess('SHARES', 'edit'),
   recordShareChangeHandler
 );
 
@@ -33,6 +34,7 @@ router.post(
   '/transfer',
   authenticate,
   requireRole(UserRole.ADMIN, UserRole.ACCOUNTANT, UserRole.SUPER_ADMIN),
+  requireModuleAccess('SHARES', 'edit'),
   recordShareTransferHandler
 );
 
@@ -40,6 +42,7 @@ router.post(
   '/reconcile-year',
   authenticate,
   requireRole(UserRole.ADMIN, UserRole.ACCOUNTANT, UserRole.SUPER_ADMIN),
+  requireModuleAccess('SHARES', 'edit'),
   reconcileYearAccountHandler
 );
 

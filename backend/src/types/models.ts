@@ -11,6 +11,16 @@ export enum UserRole {
   SUPER_ADMIN = 'SUPER_ADMIN',
 }
 
+export enum MemberDesignation {
+  DIRECTOR = 'DIRECTOR',
+  PRESIDENT = 'PRESIDENT',
+  ACCOUNTANT = 'ACCOUNTANT',
+  ASSISTANT_ACCOUNTANT = 'ASSISTANT_ACCOUNTANT',
+  GENERAL_SECRETARY = 'GENERAL_SECRETARY',
+  CONVENER = 'CONVENER',
+  GENERAL_MEMBER = 'GENERAL_MEMBER',
+}
+
 export enum AccountantType {
   PRIMARY = 'PRIMARY',     // Moin - primary custody & authority
   ASSISTANT = 'ASSISTANT', // Samrat - assistant custody
@@ -145,6 +155,8 @@ export interface IUser {
   phone?: string;
   passwordHash: string;
   role: UserRole;
+  designation?: MemberDesignation | null;
+  memberId?: Types.ObjectId | null;
   accountantType?: AccountantType | null;
   linkedGatewayChannels?: CustodyChannel[];
   gatewayAccessKeyHash?: string | null;
@@ -175,16 +187,31 @@ export interface IAuditLog {
 
 // 3. Member
 export interface IMember {
-  memberId: string; // e.g. "NS-001"
+  memberId: string; // e.g. "NSF001"
   name: string;
   phone: string;
   email?: string;
+  designation: MemberDesignation;
   status: MemberStatus;
   joinDate: Date;
   address?: string;
   cashoutDue?: number; // Outstanding cash out charges from unpaid gateway fees
   createdAt: Date;
   updatedAt: Date;
+}
+
+// 3.1 Dynamic Module Permissions
+export interface IModulePermission {
+  roleOrDesignation: string; // Role or MemberDesignation key
+  modules: {
+    [moduleKey: string]: {
+      canView: boolean;
+      canEdit: boolean;
+    };
+  };
+  updatedBy?: Types.ObjectId | null;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 // 4. ShareHistory

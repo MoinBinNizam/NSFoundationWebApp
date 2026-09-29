@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Landmark, Plus, Save, Settings2, ShieldCheck, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Landmark, Plus, Save, Settings2, ShieldCheck, X, Shield, Lock, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
 
@@ -39,11 +39,37 @@ interface GatewayRate {
 
 interface StaffMember { _id: string; name: string; email: string; accountantType: 'PRIMARY' | 'ASSISTANT'; linkedGatewayChannels?: string[]; gatewayAccessKeyPrefix?: string; status: string; }
 
+export interface RoleModulePermissions {
+  roleOrDesignation: string;
+  modules: Record<string, { canView: boolean; canEdit: boolean }>;
+  isCustomized: boolean;
+  updatedAt: string | null;
+}
+
+export const MODULE_DEFINITIONS = [
+  { key: 'DASHBOARD', label: 'Dashboard & Reports', desc: 'Organization dashboard, financial overview, and report summaries' },
+  { key: 'DOCUMENTS', label: 'Statements & Reports', desc: 'Member statements, reports, and downloadable audit documents' },
+  { key: 'MEMBERS', label: 'Member Management', desc: 'Member registry, share allocations, profiles' },
+  { key: 'SHARES', label: 'Shares & Annual Account', desc: 'Share positions, transfers, and annual account reconciliation' },
+  { key: 'PAYMENTS', label: 'Contributions & Payments', desc: 'Payment recording, preview, penalty waivers, OCR receipts' },
+  { key: 'CUSTODY', label: 'Accountant Custody Ledger', desc: 'Bank/cash accounts, inter-custodian transfers, reconciliation' },
+  { key: 'INVESTMENTS', label: 'Investment Management', desc: 'Capital investments, project tracking, return distributions' },
+  { key: 'PROJECT_WALLETS', label: 'Project Wallets & Reinvestment', desc: 'Project wallet balances, reinvestment chains, and capital lineage' },
+  { key: 'EXPENSES', label: 'Expense Management', desc: 'Operational expenses and payment-account reporting' },
+  { key: 'REPORTS', label: 'Financial Reports & Distribution', desc: 'Annual closing, dividend calculations, audit statements' },
+  { key: 'GOVERNANCE', label: 'Annual Governance', desc: 'Resolutions, annual general meetings, official minutes' },
+  { key: 'SETTINGS', label: 'System Settings', desc: 'Share rates, gateway rules, operational end year, RBAC matrix' },
+  { key: 'AUDIT', label: 'Audit & Security', desc: 'Audit trails, access history, and security monitoring' },
+  { key: 'MIGRATIONS', label: 'Historical Migration', desc: 'Staged historical data import and reconciliation review' },
+  { key: 'DISTRIBUTION', label: 'Final Distribution', desc: 'Final member distribution and annual settlement workflow' },
+];
+
 const money = new Intl.NumberFormat('en-BD', { style: 'currency', currency: 'BDT', maximumFractionDigits: 0 });
 
 export const SettingsPage: React.FC = () => {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  const { user, canAccess } = useAuth();
+  const isAdmin = canAccess('SETTINGS', 'view');
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const [setting, setSetting] = useState<ShareSetting>({ value: 500, description: '', updatedAt: null, isDefault: true });
   const [shareAmount, setShareAmount] = useState('500');
   const [rules, setRules] = useState<PenaltyRule[]>([]);
@@ -51,6 +77,9 @@ export const SettingsPage: React.FC = () => {
   const [gatewayRates, setGatewayRates] = useState<GatewayRate[]>([]);
   const [operationalEndYear, setOperationalEndYear] = useState('2028');
   const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [permissionsList, setPermissionsList] = useState<RoleModulePermissions[]>([]);
+  const [selectedRoleKey, setSelectedRoleKey] = useState<string>('DIRECTOR');
+  const [savingPermissions, setSavingPermissions] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,13 +96,14 @@ export const SettingsPage: React.FC = () => {
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const [shareRes, ruleRes, waiverRes, gatewayRes, endYearRes, staffRes] = await Promise.all([
+      const [shareRes, ruleRes, waiverRes, gatewayRes, endYearRes, staffRes, permRes] = await Promise.all([
         apiRequest<ShareSetting>('/settings/share-amount'),
         apiRequest<PenaltyRule[]>('/settings/penalty-rules'),
         apiRequest<PenaltyWaiver[]>('/settings/penalty-waivers'),
         apiRequest<GatewayRate[]>('/settings/gateway-rates'),
         apiRequest<{ value: number }>('/settings/operational-end-year'),
         apiRequest<StaffMember[]>('/auth/staff'),
+        apiRequest<RoleModulePermissions[]>('/settings/permissions').catch(() => ({ data: [] })),
       ]);
       const loadedSetting = shareRes.data;
       setSetting(loadedSetting);
@@ -83,6 +113,7 @@ export const SettingsPage: React.FC = () => {
       setGatewayRates(gatewayRes.data || []);
       setOperationalEndYear(String(endYearRes.data?.value || 2028));
       setStaff(staffRes.data || []);
+      setPermissionsList(permRes.data || []);
     } catch (requestError) {
       setError((requestError as Error).message);
     } finally {
@@ -147,7 +178,7 @@ export const SettingsPage: React.FC = () => {
     setError(null); setSaving(true);
     try {
       await apiRequest('/settings/gateway-rates', {
-        method: 'POST',
+        method: 'PUT',
         body: JSON.stringify({
           channel: editingGateway.channel,
           cashoutRatePercentage: Number(editingGateway.cashoutRatePercentage),
@@ -158,6 +189,51 @@ export const SettingsPage: React.FC = () => {
       });
       setEditingGateway(null); setNotice(`${editingGateway.channel} cash-out rule saved.`); await loadSettings();
     } catch (requestError) { setError((requestError as Error).message); } finally { setSaving(false); }
+  };
+
+  const handleTogglePerm = (moduleKey: string, field: 'canView' | 'canEdit') => {
+    if (!isSuperAdmin) return;
+    setPermissionsList((prev) =>
+      prev.map((item) => {
+        if (item.roleOrDesignation !== selectedRoleKey) return item;
+        const currentMod = item.modules[moduleKey] || { canView: false, canEdit: false };
+        const updatedMod = { ...currentMod, [field]: !currentMod[field] };
+        if (field === 'canView' && !updatedMod.canView) updatedMod.canEdit = false;
+        if (field === 'canEdit' && updatedMod.canEdit) updatedMod.canView = true;
+        return {
+          ...item,
+          modules: { ...item.modules, [moduleKey]: updatedMod },
+        };
+      })
+    );
+  };
+
+  const handleSaveRolePermissions = async () => {
+    if (!isSuperAdmin) return;
+    if (selectedRoleKey === 'SUPER_ADMIN') {
+      setNotice('Super Admin access is permanently unrestricted and does not require saving.');
+      return;
+    }
+    const current = permissionsList.find((p) => p.roleOrDesignation === selectedRoleKey);
+    if (!current) return;
+    setSavingPermissions(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await apiRequest('/settings/permissions', {
+        method: 'POST',
+        body: JSON.stringify({
+          roleOrDesignation: selectedRoleKey,
+          modules: current.modules,
+        }),
+      });
+      setNotice(`Dynamic module permissions updated for '${selectedRoleKey}'.`);
+      await loadSettings();
+    } catch (err: unknown) {
+      setError((err as Error).message);
+    } finally {
+      setSavingPermissions(false);
+    }
   };
 
   if (!isAdmin) {
@@ -182,6 +258,150 @@ export const SettingsPage: React.FC = () => {
           <button className="btn btn-primary min-h-11" disabled={saving || loading} type="submit"><Save size={16} />{saving ? 'Saving...' : 'Save amount'}</button>
         </form>
         <p className="text-xs text-gray-500 mt-3">Recorded ledger entries remain unchanged; this live rule is used by new member and payment calculations. {setting.updatedAt ? `Last updated ${new Date(setting.updatedAt).toLocaleString()}.` : 'Using the default BDT 500 until saved.'}</p>
+      </section>
+
+      {/* Dynamic Module RBAC Permissions Section (Issue #29) */}
+      <section className="glass-card p-5 sm:p-6 border-l-4 border-l-indigo-500">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl bg-indigo-500/10 border border-indigo-500/20 p-2.5 text-indigo-300">
+              <Shield size={20} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-white text-base">Module Access & RBAC Permissions Matrix</h2>
+                {isSuperAdmin ? (
+                  <span className="badge badge-active text-[10px] py-0.5">Super Admin Control</span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">View Only</span>
+                )}
+              </div>
+              <p className="text-sm text-gray-400 mt-1">
+                Dynamically view and configure module visibility and editorial accessibility per Board designation or system role.
+              </p>
+            </div>
+          </div>
+
+          {isSuperAdmin && (
+            <button
+              onClick={handleSaveRolePermissions}
+              disabled={savingPermissions || loading || selectedRoleKey === 'SUPER_ADMIN'}
+              className="btn btn-primary self-start sm:self-auto shrink-0 flex items-center gap-1.5"
+            >
+              <Save size={16} />
+              {savingPermissions ? 'Saving...' : `Save ${selectedRoleKey.replace(/_/g, ' ')} Permissions`}
+            </button>
+          )}
+        </div>
+
+        {/* Role / Designation Selector Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pt-4 pb-2 border-b border-white/5 mt-3">
+          {[
+            'SUPER_ADMIN',
+            'DIRECTOR',
+            'PRESIDENT',
+            'ACCOUNTANT',
+            'ASSISTANT_ACCOUNTANT',
+            'GENERAL_SECRETARY',
+            'CONVENER',
+            'GENERAL_MEMBER',
+            'ADMIN',
+            'MEMBER',
+          ].map((key) => {
+            const isSelected = selectedRoleKey === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setSelectedRoleKey(key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
+                  isSelected
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25 border border-indigo-400/30'
+                    : 'bg-slate-900/60 text-gray-400 hover:text-white border border-white/5'
+                }`}
+              >
+                {key.replace(/_/g, ' ')}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Permissions Table for Selected Role */}
+        <div className="table-container mt-4">
+          <table className="data-table min-w-[700px]">
+            <thead>
+              <tr>
+                <th className="w-1/4">Module Name</th>
+                <th className="w-1/2">Module Description</th>
+                <th className="w-1/8 text-center">Can View</th>
+                <th className="w-1/8 text-center">Can Edit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(() => {
+                const currentRecord = permissionsList.find((p) => p.roleOrDesignation === selectedRoleKey);
+                const modules = currentRecord?.modules || {};
+
+                return MODULE_DEFINITIONS.map((def) => {
+                  const mod = modules[def.key] || { canView: false, canEdit: false };
+                  const isSuperAdminRow = selectedRoleKey === 'SUPER_ADMIN';
+
+                  return (
+                    <tr key={def.key} className="hover:bg-white/[0.02] transition-colors">
+                      <td>
+                        <span className="font-semibold text-white text-sm">{def.label}</span>
+                        <code className="block text-[10px] text-gray-500 mt-0.5">{def.key}</code>
+                      </td>
+                      <td>
+                        <span className="text-xs text-gray-400">{def.desc}</span>
+                        {isSuperAdminRow && (
+                          <span className="block text-[11px] text-amber-400/90 font-medium mt-0.5">
+                            * Super Admin access is permanently unrestricted.
+                          </span>
+                        )}
+                      </td>
+                      <td className="text-center">
+                        <button
+                          type="button"
+                          disabled={!isSuperAdmin || isSuperAdminRow}
+                          onClick={() => handleTogglePerm(def.key, 'canView')}
+                          className={`p-1.5 rounded-lg transition-all ${
+                            mod.canView
+                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/30'
+                              : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20'
+                          } ${!isSuperAdmin || isSuperAdminRow ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                          title={mod.canView ? 'Allowed to view module' : 'Denied view access'}
+                        >
+                          {mod.canView ? <Check size={16} /> : <X size={16} />}
+                        </button>
+                      </td>
+                      <td className="text-center">
+                        <button
+                          type="button"
+                          disabled={!isSuperAdmin || isSuperAdminRow}
+                          onClick={() => handleTogglePerm(def.key, 'canEdit')}
+                          className={`p-1.5 rounded-lg transition-all ${
+                            mod.canEdit
+                              ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30 hover:bg-blue-500/30'
+                              : 'bg-gray-800 text-gray-500 border border-gray-700 hover:bg-gray-700'
+                          } ${!isSuperAdmin || isSuperAdminRow ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+                          title={mod.canEdit ? 'Allowed to perform editorial actions' : 'Read-only / No edit access'}
+                        >
+                          {mod.canEdit ? <Check size={16} /> : <Lock size={16} />}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                });
+              })()}
+            </tbody>
+          </table>
+        </div>
+        <p className="text-xs text-gray-500 mt-3">
+          {isSuperAdmin
+            ? 'Super Admin (Moin) has universal editorial access to all modules and can toggle permissions above and click Save.'
+            : 'You are viewing active role permissions in read-only mode. Only Super Admin can change access configurations.'}
+        </p>
       </section>
 
       <section className="glass-card p-5 sm:p-6">

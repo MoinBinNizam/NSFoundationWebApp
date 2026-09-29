@@ -8,7 +8,7 @@ import {
   getMemberStatsHandler,
   getNextIdHandler,
 } from '../controllers/member.controller.js';
-import { authenticate, requireRole } from '../middlewares/auth.js';
+import { authenticate, requireRole, requireModuleAccess } from '../middlewares/auth.js';
 import { UserRole } from '../types/models.js';
 
 const router = Router();
@@ -18,13 +18,14 @@ router.get('/stats', authenticate, getMemberStatsHandler);
 router.get('/next-id', authenticate, getNextIdHandler);
 
 // CRUD routes
-router.get('/', authenticate, getMembersHandler);
-router.get('/:id', authenticate, getMemberByIdHandler);
+router.get('/', authenticate, requireModuleAccess('MEMBERS', 'view'), getMembersHandler);
+router.get('/:id', authenticate, requireModuleAccess('MEMBERS', 'view'), getMemberByIdHandler);
 
 router.post(
   '/',
   authenticate,
   requireRole(UserRole.ADMIN, UserRole.ACCOUNTANT, UserRole.SUPER_ADMIN),
+  requireModuleAccess('MEMBERS', 'edit'),
   createMemberHandler
 );
 
@@ -32,6 +33,7 @@ router.put(
   '/:id',
   authenticate,
   requireRole(UserRole.ADMIN, UserRole.ACCOUNTANT, UserRole.SUPER_ADMIN),
+  requireModuleAccess('MEMBERS', 'edit'),
   updateMemberHandler
 );
 
@@ -39,6 +41,7 @@ router.delete(
   '/:id',
   authenticate,
   requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  requireModuleAccess('MEMBERS', 'edit'),
   deleteMemberHandler
 );
 

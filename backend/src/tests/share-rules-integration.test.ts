@@ -3,8 +3,7 @@ import request from 'supertest';
 import mongoose from 'mongoose';
 import app from '../app.js';
 import { createTestUser, createTestMember, TestAuthContext } from './setup/fixtures.js';
-import { UserRole, AccountantType, ShareEventType } from '../types/models.js';
-import { Member } from '../models/Member.js';
+import { UserRole, ShareEventType } from '../types/models.js';
 import { ShareHistory } from '../models/ShareHistory.js';
 import { AuditLog } from '../models/AuditLog.js';
 

@@ -4,6 +4,7 @@ import {
   authenticate,
   requireAccountant,
   requireRole,
+  requireModuleAccess,
 } from '../middlewares/auth.js';
 import { financialIdempotency } from '../middlewares/security.js';
 import { UserRole, AccountantType } from '../types/models.js';
@@ -19,24 +20,26 @@ router.get('/custody-accounts', PaymentController.getCustodyAccounts);
 router.get('/gateway-rates', PaymentController.getGatewayRates);
 router.get('/penalty-rules', PaymentController.getPenaltyRules);
 router.get('/penalty-waivers', PaymentController.getPenaltyWaivers);
-router.get('/', PaymentController.listPayments);
-router.get('/:id', PaymentController.getPaymentDetails);
+router.get('/', requireModuleAccess('PAYMENTS', 'view'), PaymentController.listPayments);
+router.get('/:id', requireModuleAccess('PAYMENTS', 'view'), PaymentController.getPaymentDetails);
 
 // Accountant collection routes (Accessible by both Primary and Assistant Accountants)
 router.post(
   '/preview',
   requireAccountant(AccountantType.PRIMARY, AccountantType.ASSISTANT),
+  requireModuleAccess('PAYMENTS', 'edit'),
   PaymentController.previewPayment
 );
 router.post(
   '/',
   requireAccountant(AccountantType.PRIMARY, AccountantType.ASSISTANT),
+  requireModuleAccess('PAYMENTS', 'edit'),
   financialIdempotency('PAYMENT_CREATE'),
   PaymentController.createPayment
 );
 
 // Admin-only penalty rules & waiver configurations
-router.post('/penalty-rules', requireRole(UserRole.ADMIN), PaymentController.savePenaltyRule);
-router.post('/penalty-waivers', requireRole(UserRole.ADMIN), PaymentController.createPenaltyWaiver);
+router.post('/penalty-rules', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), requireModuleAccess('PAYMENTS', 'edit'), PaymentController.savePenaltyRule);
+router.post('/penalty-waivers', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), requireModuleAccess('PAYMENTS', 'edit'), PaymentController.createPenaltyWaiver);
 
 export default router;

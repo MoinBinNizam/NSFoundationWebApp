@@ -13,6 +13,8 @@ router.get('/penalty-rules', SettingsController.getPenaltyRules);
 router.get('/penalty-waivers', SettingsController.getPenaltyWaivers);
 router.get('/gateway-rates', SettingsController.getGatewayRates);
 router.get('/operational-end-year', SettingsController.getOperationalEndYear);
+router.get('/permissions/me', SettingsController.getMyPermissions);
+router.get('/permissions', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.getPermissions);
 
 // Rule changes are deliberately restricted to administrators and are audit logged.
 router.post('/share-amount', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.saveShareAmount);
@@ -20,5 +22,8 @@ router.post('/penalty-rules', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN),
 router.post('/penalty-waivers', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.createPenaltyWaiver);
 router.post('/gateway-rates', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.saveGatewayRate);
 router.post('/operational-end-year', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.saveOperationalEndYear);
+router.put('/permissions', requireRole(UserRole.SUPER_ADMIN), SettingsController.savePermissions);
+// Retained temporarily for older browser sessions that still submit POST.
+router.post('/permissions', requireRole(UserRole.SUPER_ADMIN), SettingsController.savePermissions);
 
 export default router;

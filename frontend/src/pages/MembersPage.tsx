@@ -21,12 +21,23 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
+export const DESIGNATION_CONFIG: Record<string, { label: string; badgeClass: string }> = {
+  DIRECTOR: { label: 'Director', badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/30' },
+  PRESIDENT: { label: 'President', badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+  ACCOUNTANT: { label: 'Accountant', badgeClass: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
+  ASSISTANT_ACCOUNTANT: { label: 'Assistant Accountant', badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' },
+  GENERAL_SECRETARY: { label: 'General Secretary', badgeClass: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30' },
+  CONVENER: { label: 'Convener', badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+  GENERAL_MEMBER: { label: 'General Member', badgeClass: 'bg-gray-500/15 text-gray-300 border-gray-500/20' },
+};
+
 interface MemberData {
   _id: string;
   memberId: string;
   name: string;
   phone: string;
   email?: string;
+  designation?: string;
   status: 'ACTIVE' | 'INACTIVE' | 'DROPPED';
   joinDate: string;
   address?: string;
@@ -52,7 +63,7 @@ interface PaginationMeta {
 }
 
 export const MembersPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const { t, formatNumber, formatDate } = usePreferences();
   const [members, setMembers] = useState<MemberData[]>([]);
   const [stats, setStats] = useState<MemberStats>({ total: 0, active: 0, inactive: 0, dropped: 0 });
@@ -79,6 +90,7 @@ export const MembersPage: React.FC = () => {
     name: '',
     phone: '',
     email: '',
+    designation: 'GENERAL_MEMBER',
     status: 'ACTIVE',
     joinDate: new Date().toISOString().split('T')[0],
     address: '',
@@ -137,6 +149,7 @@ export const MembersPage: React.FC = () => {
       name: '',
       phone: '',
       email: '',
+      designation: 'GENERAL_MEMBER',
       status: 'ACTIVE',
       joinDate: new Date().toISOString().split('T')[0],
       address: '',
@@ -160,6 +173,7 @@ export const MembersPage: React.FC = () => {
       name: m.name,
       phone: m.phone,
       email: m.email || '',
+      designation: m.designation || 'GENERAL_MEMBER',
       status: m.status,
       joinDate: m.joinDate ? m.joinDate.split('T')[0] : '',
       address: m.address || '',
@@ -260,11 +274,26 @@ export const MembersPage: React.FC = () => {
     }
   };
 
-  const canEdit = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT' || user?.role === 'SUPER_ADMIN';
-  const canDelete = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+  const canEdit = canAccess('MEMBERS', 'edit');
+  const canDelete = canAccess('MEMBERS', 'edit') && (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN');
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto pb-10">
+      {!canEdit && (
+        <div className="glass-card px-4 py-3 bg-amber-500/10 border-amber-500/30 text-amber-200 text-xs flex items-center justify-between rounded-xl">
+          <div className="flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="font-bold uppercase tracking-wider">{t('Read-Only Access')}:</span>
+            <span>{t('You have viewing permission for Member Management. Profile updates, additions, and deletions are restricted.')}</span>
+          </div>
+          {user?.designation && (
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 border border-amber-500/30 text-amber-300 uppercase">
+              {user.designation}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Header & Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -481,7 +510,14 @@ export const MembersPage: React.FC = () => {
                     </td>
                     <td>
                       <div>
-                        <p className="font-semibold text-white text-sm whitespace-nowrap">{m.name}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-white text-sm whitespace-nowrap">{m.name}</p>
+                          {m.designation && m.designation !== 'GENERAL_MEMBER' && (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${DESIGNATION_CONFIG[m.designation]?.badgeClass || 'bg-blue-500/15 text-blue-300 border-blue-500/30'}`}>
+                              {DESIGNATION_CONFIG[m.designation]?.label || m.designation}
+                            </span>
+                          )}
+                        </div>
                         {m.address && (
                           <p className="text-xs text-gray-400 truncate max-w-[180px] mt-1">
                             {m.address}
@@ -651,6 +687,23 @@ export const MembersPage: React.FC = () => {
                 </div>
               </div>
 
+              <div className="form-group mb-0">
+                <label className="form-label">{t('Board Designation / Role')}</label>
+                <select
+                  className="form-select"
+                  value={formData.designation}
+                  onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                >
+                  <option value="GENERAL_MEMBER">{t('General Member (Default)')}</option>
+                  <option value="DIRECTOR">{t('Director')}</option>
+                  <option value="PRESIDENT">{t('President')}</option>
+                  <option value="ACCOUNTANT">{t('Accountant')}</option>
+                  <option value="ASSISTANT_ACCOUNTANT">{t('Assistant Accountant')}</option>
+                  <option value="GENERAL_SECRETARY">{t('General Secretary')}</option>
+                  <option value="CONVENER">{t('Convener')}</option>
+                </select>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="form-group mb-0">
                   <label className="form-label">Status *</label>
@@ -789,6 +842,23 @@ export const MembersPage: React.FC = () => {
                 </div>
               </div>
 
+              <div className="form-group mb-0">
+                <label className="form-label">{t('Board Designation / Role')}</label>
+                <select
+                  className="form-select"
+                  value={formData.designation}
+                  onChange={(e) => setFormData({ ...formData, designation: e.target.value })}
+                >
+                  <option value="GENERAL_MEMBER">{t('General Member (Default)')}</option>
+                  <option value="DIRECTOR">{t('Director')}</option>
+                  <option value="PRESIDENT">{t('President')}</option>
+                  <option value="ACCOUNTANT">{t('Accountant')}</option>
+                  <option value="ASSISTANT_ACCOUNTANT">{t('Assistant Accountant')}</option>
+                  <option value="GENERAL_SECRETARY">{t('General Secretary')}</option>
+                  <option value="CONVENER">{t('Convener')}</option>
+                </select>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="form-group mb-0">
                   <label className="form-label">Status *</label>
@@ -883,6 +953,13 @@ export const MembersPage: React.FC = () => {
             </div>
 
             <div className="space-y-2.5 mt-4 text-xs">
+              <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
+                <span className="text-gray-400 font-medium">Board Designation:</span>
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${DESIGNATION_CONFIG[selectedMember.designation || 'GENERAL_MEMBER']?.badgeClass || 'bg-gray-500/20 text-gray-300'}`}>
+                  {DESIGNATION_CONFIG[selectedMember.designation || 'GENERAL_MEMBER']?.label || selectedMember.designation || 'General Member'}
+                </span>
+              </div>
+
               <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
                 <span className="text-gray-400 font-medium">Membership Status:</span>
                 <span className={`badge ${selectedMember.status === 'ACTIVE' ? 'badge-active' : selectedMember.status === 'INACTIVE' ? 'badge-inactive' : 'badge-dropped'}`}>

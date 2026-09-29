@@ -1,10 +1,11 @@
 import { SystemConfig } from '../models/SystemConfig.js';
 import { AuditLog } from '../models/AuditLog.js';
-import { IUser } from '../types/models.js';
+import { IUser, UserRole, MemberDesignation } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 import { HydratedDocument } from 'mongoose';
 import { GatewayRate } from '../models/GatewayRate.js';
 import { CustodyChannel } from '../types/models.js';
+import { ModulePermission } from '../models/ModulePermission.js';
 
 export const MONTHLY_SHARE_VALUE_KEY = 'MONTHLY_SHARE_VALUE';
 export const DEFAULT_MONTHLY_SHARE_VALUE = 500;
@@ -138,4 +139,248 @@ export async function saveOperationalEndYear(value: number, actingUser: Hydrated
   const config = await SystemConfig.findOneAndUpdate({ key: 'OPERATIONAL_END_YEAR' }, { value, description: 'Voter-approved operational end year for final disbursement calculations.', updatedBy: actingUser._id }, { upsert: true, new: true, setDefaultsOnInsert: true });
   await AuditLog.create({ performedBy: actingUser._id, action: 'UPDATE_OPERATIONAL_END_YEAR', entityName: 'SystemConfig', entityId: config._id, beforeState: before || null, afterState: config.toObject(), reason: `Operational end year set to ${value}.`, ipAddress: meta?.ip, userAgent: meta?.userAgent });
   return config;
+}
+
+export const APP_MODULES = [
+  { key: 'DASHBOARD', label: 'Dashboard & Reports', description: 'Organization dashboard, financial overview, and report summaries' },
+  { key: 'DOCUMENTS', label: 'Statements & Reports', description: 'Member statements, reports, and downloadable audit documents' },
+  { key: 'MEMBERS', label: 'Member Management', description: 'Register, edit, and manage member profiles & shares' },
+  { key: 'SHARES', label: 'Shares & Annual Account', description: 'Share positions, transfers, and annual account reconciliation' },
+  { key: 'PAYMENTS', label: 'Contributions & Payments', description: 'Record, preview, verify, and track monthly member share payments' },
+  { key: 'CUSTODY', label: 'Accountant Custody Ledger', description: 'Double-entry cash, bank, and mobile gateway accounts & transfers' },
+  { key: 'INVESTMENTS', label: 'Investment Management', description: 'Capital deployment, profit tracking, and project monitoring' },
+  { key: 'PROJECT_WALLETS', label: 'Project Wallets & Reinvestment', description: 'Project wallet balances, reinvestment chains, and capital lineage' },
+  { key: 'EXPENSES', label: 'Expense Management', description: 'Operational expenses and payment-account reporting' },
+  { key: 'REPORTS', label: 'Financial Reports & Distribution', description: 'Annual closing, dividend calculations, and balance sheets' },
+  { key: 'GOVERNANCE', label: 'Governance & AGM', description: 'Resolutions, meetings, voting, and regulatory minutes' },
+  { key: 'SETTINGS', label: 'System Settings', description: 'Share rates, cashout percentages, and operational parameters' },
+  { key: 'AUDIT', label: 'Audit & Security', description: 'Audit trails, access history, and security monitoring' },
+  { key: 'MIGRATIONS', label: 'Historical Migration', description: 'Staged historical data import and reconciliation review' },
+  { key: 'DISTRIBUTION', label: 'Final Distribution', description: 'Final member distribution and annual settlement workflow' },
+] as const;
+
+export const DEFAULT_DESIGNATION_PERMISSIONS: Record<string, Record<string, { canView: boolean; canEdit: boolean }>> = {
+  [MemberDesignation.DIRECTOR]: {
+    MEMBERS: { canView: true, canEdit: false },
+    PAYMENTS: { canView: true, canEdit: false },
+    CUSTODY: { canView: true, canEdit: false },
+    INVESTMENTS: { canView: true, canEdit: true },
+    REPORTS: { canView: true, canEdit: true },
+    GOVERNANCE: { canView: true, canEdit: true },
+    SETTINGS: { canView: true, canEdit: true },
+  },
+  [MemberDesignation.PRESIDENT]: {
+    MEMBERS: { canView: true, canEdit: true },
+    PAYMENTS: { canView: true, canEdit: true },
+    CUSTODY: { canView: true, canEdit: true },
+    INVESTMENTS: { canView: true, canEdit: true },
+    REPORTS: { canView: true, canEdit: true },
+    GOVERNANCE: { canView: true, canEdit: true },
+    SETTINGS: { canView: true, canEdit: true },
+  },
+  [MemberDesignation.ACCOUNTANT]: {
+    MEMBERS: { canView: true, canEdit: true },
+    PAYMENTS: { canView: true, canEdit: true },
+    CUSTODY: { canView: true, canEdit: true },
+    INVESTMENTS: { canView: true, canEdit: true },
+    REPORTS: { canView: true, canEdit: true },
+    GOVERNANCE: { canView: true, canEdit: false },
+    SETTINGS: { canView: true, canEdit: false },
+  },
+  [MemberDesignation.ASSISTANT_ACCOUNTANT]: {
+    MEMBERS: { canView: true, canEdit: false },
+    PAYMENTS: { canView: true, canEdit: true },
+    CUSTODY: { canView: true, canEdit: true },
+    INVESTMENTS: { canView: false, canEdit: false },
+    REPORTS: { canView: true, canEdit: false },
+    GOVERNANCE: { canView: false, canEdit: false },
+    SETTINGS: { canView: false, canEdit: false },
+  },
+  [MemberDesignation.GENERAL_SECRETARY]: {
+    MEMBERS: { canView: true, canEdit: true },
+    PAYMENTS: { canView: true, canEdit: false },
+    CUSTODY: { canView: true, canEdit: false },
+    INVESTMENTS: { canView: true, canEdit: true },
+    REPORTS: { canView: true, canEdit: true },
+    GOVERNANCE: { canView: true, canEdit: true },
+    SETTINGS: { canView: true, canEdit: false },
+  },
+  [MemberDesignation.CONVENER]: {
+    MEMBERS: { canView: true, canEdit: false },
+    PAYMENTS: { canView: true, canEdit: false },
+    CUSTODY: { canView: true, canEdit: false },
+    INVESTMENTS: { canView: true, canEdit: false },
+    REPORTS: { canView: true, canEdit: false },
+    GOVERNANCE: { canView: true, canEdit: true },
+    SETTINGS: { canView: false, canEdit: false },
+  },
+  [MemberDesignation.GENERAL_MEMBER]: {
+    MEMBERS: { canView: true, canEdit: false },
+    PAYMENTS: { canView: true, canEdit: false },
+    CUSTODY: { canView: false, canEdit: false },
+    INVESTMENTS: { canView: false, canEdit: false },
+    REPORTS: { canView: false, canEdit: false },
+    GOVERNANCE: { canView: false, canEdit: false },
+    SETTINGS: { canView: false, canEdit: false },
+  },
+};
+
+/**
+ * Returns list of all defined roles/designations with their active module permission settings.
+ */
+export async function getModulePermissions() {
+  const saved = await ModulePermission.find().lean();
+  const savedMap = new Map<string, (typeof saved)[number]>();
+  for (const doc of saved) {
+    savedMap.set(doc.roleOrDesignation, doc);
+  }
+
+  const allRolesOrDesignations = [
+    UserRole.SUPER_ADMIN,
+    ...Object.values(MemberDesignation),
+    UserRole.ADMIN,
+    UserRole.ACCOUNTANT,
+    UserRole.MEMBER,
+  ];
+
+  return allRolesOrDesignations.map((key) => {
+    const existing = savedMap.get(key);
+    const defaultModules = key === UserRole.SUPER_ADMIN
+      ? Object.fromEntries(APP_MODULES.map((module) => [module.key, { canView: true, canEdit: true }]))
+      : DEFAULT_DESIGNATION_PERMISSIONS[key] || {
+      MEMBERS: { canView: true, canEdit: key === UserRole.ADMIN },
+      PAYMENTS: { canView: true, canEdit: key === UserRole.ADMIN || key === UserRole.ACCOUNTANT },
+      CUSTODY: { canView: true, canEdit: key === UserRole.ADMIN || key === UserRole.ACCOUNTANT },
+      INVESTMENTS: { canView: key !== UserRole.MEMBER, canEdit: key === UserRole.ADMIN },
+      REPORTS: { canView: key !== UserRole.MEMBER, canEdit: key === UserRole.ADMIN },
+      GOVERNANCE: { canView: key !== UserRole.MEMBER, canEdit: key === UserRole.ADMIN },
+      SETTINGS: { canView: key === UserRole.ADMIN, canEdit: key === UserRole.ADMIN },
+    };
+
+    return {
+      roleOrDesignation: key,
+      modules: existing ? { ...defaultModules, ...existing.modules } : defaultModules,
+      updatedAt: existing?.updatedAt || null,
+      isCustomized: !!existing,
+    };
+  });
+}
+
+/**
+ * Super Admin updates dynamic module permissions for a given role or designation.
+ */
+export async function saveModulePermissions(
+  roleOrDesignation: string,
+  modules: Record<string, { canView: boolean; canEdit: boolean }>,
+  actingUser: HydratedDocument<IUser>,
+  meta?: { ip?: string; userAgent?: string }
+) {
+  const allowedKeys = new Set([...Object.values(MemberDesignation), ...Object.values(UserRole)]);
+  if (!roleOrDesignation || typeof roleOrDesignation !== 'string' || !allowedKeys.has(roleOrDesignation as UserRole | MemberDesignation)) {
+    throw createError('Valid role or designation key is required.', 400);
+  }
+  if (roleOrDesignation === UserRole.SUPER_ADMIN) {
+    throw createError('Super Admin permissions are always unrestricted and cannot be changed.', 400);
+  }
+  if (!modules || typeof modules !== 'object' || Array.isArray(modules)) {
+    throw createError('A valid module permission matrix is required.', 400);
+  }
+  const allowedModuleKeys = new Set<string>(APP_MODULES.map((module) => module.key));
+  const normalizedModules: Record<string, { canView: boolean; canEdit: boolean }> = {};
+  for (const [moduleKey, permission] of Object.entries(modules)) {
+    if (!allowedModuleKeys.has(moduleKey)) throw createError(`Unknown module key '${moduleKey}'.`, 400);
+    if (!permission || typeof permission.canView !== 'boolean' || typeof permission.canEdit !== 'boolean') {
+      throw createError(`Module '${moduleKey}' must define boolean canView and canEdit values.`, 400);
+    }
+    normalizedModules[moduleKey] = {
+      canView: permission.canView || permission.canEdit,
+      canEdit: permission.canEdit,
+    };
+  }
+
+  const before = await ModulePermission.findOne({ roleOrDesignation }).lean();
+  const record = await ModulePermission.findOneAndUpdate(
+    { roleOrDesignation },
+    {
+      roleOrDesignation,
+      modules: normalizedModules,
+      updatedBy: actingUser._id,
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  await AuditLog.create({
+    performedBy: actingUser._id,
+    action: 'UPDATE_MODULE_PERMISSIONS',
+    entityName: 'ModulePermission',
+    entityId: record._id,
+    beforeState: before || null,
+    afterState: record.toObject(),
+    reason: `Updated dynamic module permissions for '${roleOrDesignation}'.`,
+    ipAddress: meta?.ip,
+    userAgent: meta?.userAgent,
+  });
+
+  return record;
+}
+
+/**
+ * Resolves the effective module permissions for a logged in user.
+ * Super Admin gets universal access.
+ */
+export async function getUserEffectivePermissions(user: HydratedDocument<IUser>) {
+  if (user.role === UserRole.SUPER_ADMIN) {
+    const fullAccess: Record<string, { canView: boolean; canEdit: boolean }> = {};
+    for (const mod of APP_MODULES) {
+      fullAccess[mod.key] = { canView: true, canEdit: true };
+    }
+    return {
+      roleOrDesignation: 'SUPER_ADMIN',
+      modules: fullAccess,
+      isSuperAdmin: true,
+    };
+  }
+
+  const designation = user.designation;
+  const role = user.role;
+
+  const permDoc =
+    (designation ? await ModulePermission.findOne({ roleOrDesignation: designation }).lean() : null) ||
+    (await ModulePermission.findOne({ roleOrDesignation: role }).lean());
+
+  const defaultMods =
+    (designation && DEFAULT_DESIGNATION_PERMISSIONS[designation]) ||
+    (DEFAULT_DESIGNATION_PERMISSIONS[role] || {
+      MEMBERS: { canView: true, canEdit: role === UserRole.ADMIN },
+      PAYMENTS: { canView: true, canEdit: role === UserRole.ADMIN || role === UserRole.ACCOUNTANT },
+      CUSTODY: { canView: true, canEdit: role === UserRole.ADMIN || role === UserRole.ACCOUNTANT },
+      INVESTMENTS: { canView: role !== UserRole.MEMBER, canEdit: role === UserRole.ADMIN },
+      REPORTS: { canView: role !== UserRole.MEMBER, canEdit: role === UserRole.ADMIN },
+      GOVERNANCE: { canView: role !== UserRole.MEMBER, canEdit: role === UserRole.ADMIN },
+      SETTINGS: { canView: role === UserRole.ADMIN, canEdit: role === UserRole.ADMIN },
+    });
+
+  const resolvedModules: Record<string, { canView: boolean; canEdit: boolean }> = {};
+  for (const mod of APP_MODULES) {
+    const defaultVal = defaultMods[mod.key] || { canView: false, canEdit: false };
+    const savedVal = permDoc?.modules?.[mod.key];
+    resolvedModules[mod.key] = {
+      canView: typeof savedVal?.canView === 'boolean' ? savedVal.canView : defaultVal.canView,
+      canEdit: typeof savedVal?.canEdit === 'boolean' ? savedVal.canEdit : defaultVal.canEdit,
+    };
+  }
+
+  // Safety hard lock: If designation is DIRECTOR, enforce read-only on PAYMENTS, MEMBERS, CUSTODY
+  // unless explicitly customized by Super Admin
+  if (designation === MemberDesignation.DIRECTOR && !permDoc?.modules?.['PAYMENTS']) {
+    resolvedModules['PAYMENTS'] = { canView: true, canEdit: false };
+    resolvedModules['MEMBERS'] = { canView: true, canEdit: false };
+    resolvedModules['CUSTODY'] = { canView: true, canEdit: false };
+  }
+
+  return {
+    roleOrDesignation: designation || role,
+    modules: resolvedModules,
+    isSuperAdmin: false,
+  };
 }

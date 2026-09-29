@@ -2,8 +2,18 @@ import { NextFunction, Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.js';
 import { createError } from '../middlewares/error.js';
 import { PaymentService } from '../services/payment.service.js';
-import { getGatewayRateSettings, getMonthlyShareSetting, getOperationalEndYear, saveGatewayRate, saveMonthlyShareValue, saveOperationalEndYear } from '../services/settings.service.js';
-import { CustodyChannel } from '../types/models.js';
+import {
+  getGatewayRateSettings,
+  getMonthlyShareSetting,
+  getOperationalEndYear,
+  saveGatewayRate,
+  saveMonthlyShareValue,
+  saveOperationalEndYear,
+  getModulePermissions,
+  saveModulePermissions,
+  getUserEffectivePermissions,
+} from '../services/settings.service.js';
+import { CustodyChannel, UserRole } from '../types/models.js';
 
 export class SettingsController {
   static async getShareAmount(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
@@ -101,5 +111,45 @@ export class SettingsController {
       const config = await saveOperationalEndYear(Number(req.body.value), req.user, { ip: req.ip, userAgent: req.headers['user-agent'] });
       res.status(200).json({ success: true, message: 'Operational end year updated.', data: config });
     } catch (error) { next(error); }
+  }
+
+  static async getPermissions(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await getModulePermissions();
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async savePermissions(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      if (req.user.role !== UserRole.SUPER_ADMIN) {
+        return next(createError('Only Super Admin can dynamically update module permissions.', 403));
+      }
+      const { roleOrDesignation, modules } = req.body;
+      const updated = await saveModulePermissions(roleOrDesignation, modules, req.user, {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      });
+      res.status(200).json({
+        success: true,
+        message: `Permissions updated for ${roleOrDesignation}.`,
+        data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getMyPermissions(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const permissions = await getUserEffectivePermissions(req.user);
+      res.status(200).json({ success: true, data: permissions });
+    } catch (error) {
+      next(error);
+    }
   }
 }

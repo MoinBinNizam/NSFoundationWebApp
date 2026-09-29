@@ -1,11 +1,11 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import { IMember, MemberStatus } from '../types/models.js';
+import { IMember, MemberStatus, MemberDesignation } from '../types/models.js';
 
 const memberSchema = new Schema<IMember>(
   {
     memberId: {
       type: String,
-      required: [true, 'Member ID is required (e.g. NS-001)'],
+      required: [true, 'Member ID is required (e.g. NSF001)'],
       unique: true,
       trim: true,
       uppercase: true,
@@ -15,6 +15,12 @@ const memberSchema = new Schema<IMember>(
       type: String,
       required: [true, 'Member name is required'],
       trim: true,
+      index: true,
+    },
+    designation: {
+      type: String,
+      enum: Object.values(MemberDesignation),
+      default: MemberDesignation.GENERAL_MEMBER,
       index: true,
     },
     phone: {

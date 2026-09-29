@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyToken, TokenPayload } from '../utils/jwt.js';
 import { User } from '../models/User.js';
+import { ModulePermission } from '../models/ModulePermission.js';
 import { IUser, UserRole, AccountantType, UserStatus } from '../types/models.js';
 import { createError } from './error.js';
 import { HydratedDocument } from 'mongoose';
@@ -125,4 +126,48 @@ export function requireMigrationAccess(req: AuthRequest, _res: Response, next: N
     (req.user.role === UserRole.ADMIN && req.user.accountantType === AccountantType.PRIMARY);
   if (!allowed) return next(createError('Historical migration access is restricted to Super Admins and the Primary Admin Accountant.', 403));
   next();
+}
+
+/**
+ * Dynamic Module RBAC Middleware:
+ * Checks whether the authenticated user has permission to 'view' or 'edit' a given module.
+ * 1. Super Admin has unconditional bypass.
+ * 2. Checks dynamic permissions configured in ModulePermission collection.
+ * 3. Enforces Director read-only restrictions on CONTRIBUTIONS/PAYMENTS, MEMBER MANAGEMENT, and CUSTODY.
+ */
+export function requireModuleAccess(moduleKey: string, action: 'view' | 'edit' = 'view') {
+  return async (req: AuthRequest, _res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.user) {
+        return next(createError('Authentication required.', 401));
+      }
+
+      // Super Admin has unconditional editorial and view access
+      if (req.user.role === UserRole.SUPER_ADMIN) {
+        return next();
+      }
+
+      const designation = req.user.designation;
+      const role = req.user.role;
+
+      // Check dynamic ModulePermission in database
+      const permDoc =
+        (designation ? await ModulePermission.findOne({ roleOrDesignation: designation }).lean() : null) ||
+        (await ModulePermission.findOne({ roleOrDesignation: role }).lean());
+
+      if (permDoc && permDoc.modules && permDoc.modules[moduleKey]) {
+        const mod = permDoc.modules[moduleKey];
+        if (action === 'view' && mod.canView === false) {
+          return next(createError(`Forbidden: Access denied to view ${moduleKey} module.`, 403));
+        }
+        if (action === 'edit' && mod.canEdit === false) {
+          return next(createError(`Forbidden: Editorial permission denied for ${moduleKey} module.`, 403));
+        }
+      }
+
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
 }

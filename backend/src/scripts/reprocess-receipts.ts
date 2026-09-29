@@ -3,8 +3,6 @@ import path from 'path';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { PaymentReceipt } from '../models/PaymentReceipt.js';
-import { Member } from '../models/Member.js';
-import { CustodyAccount } from '../models/CustodyAccount.js';
 import { ReceiptExtractionEngine } from '../services/ocr/providers/default-ocr.provider.js';
 import { ReceiptMatchingService } from '../services/ocr/receipt-matching.service.js';
 import { ReceiptGateway, ReceiptStatus } from '../types/receipt.js';
