@@ -460,20 +460,19 @@ export const SharesPage: React.FC = () => {
                 <th>Monthly Obligation</th>
                 <th>Effective Month</th>
                 <th>2024 Reconciliation Status</th>
-                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loadingPositions ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-gray-400">
+                  <td colSpan={5} className="text-center py-12 text-gray-400">
                     <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
                     <span>Loading share positions...</span>
                   </td>
                 </tr>
               ) : membersShares.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-gray-400">
+                  <td colSpan={5} className="text-center py-12 text-gray-400">
                     No members registered yet.
                   </td>
                 </tr>
@@ -529,35 +528,6 @@ export const SharesPage: React.FC = () => {
                             Not Reconciled
                           </span>
                         )}
-                      </td>
-                      <td className="text-right">
-                        <div className="inline-flex gap-1.5">
-                          {canModify && (
-                            <>
-                              <button
-                                onClick={() => handleOpenAdjust(m)}
-                                className="btn btn-secondary btn-sm text-xs py-1 px-2.5"
-                                title="Adjust Shares"
-                              >
-                                Adjust
-                              </button>
-                              <button
-                                onClick={() => handleOpenTransfer(m)}
-                                className="btn btn-secondary btn-sm text-xs py-1 px-2.5"
-                                title="Transfer Shares"
-                              >
-                                Transfer
-                              </button>
-                              <button
-                                onClick={() => handleOpenReconcile(m)}
-                                className="btn btn-secondary btn-sm text-xs py-1 px-2.5"
-                                title="Reconcile Year Account"
-                              >
-                                Reconcile
-                              </button>
-                            </>
-                          )}
-                        </div>
                       </td>
                     </tr>
                   );

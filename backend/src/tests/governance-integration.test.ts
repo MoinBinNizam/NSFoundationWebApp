@@ -1,10 +1,13 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
 import mongoose from 'mongoose';
 import app from '../app.js';
 import { createTestUser, createTestMember, TestAuthContext } from './setup/fixtures.js';
 import { UserRole } from '../types/models.js';
 import { AnnualClosing } from '../models/AnnualClosing.js';
+import { Member } from '../models/Member.js';
+import { ShareHistory } from '../models/ShareHistory.js';
+import { User } from '../models/User.js';
 
 describe('Annual Closing & Exit Governance Integration Tests', () => {
   const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ns-foundation';
@@ -116,5 +119,13 @@ describe('Annual Closing & Exit Governance Integration Tests', () => {
       .set('Idempotency-Key', `idemp_lock_${Date.now()}`);
     expect(lockRes.status).toBe(200);
     expect(lockRes.body.data.status).toBe('LOCKED');
+  });
+
+  afterAll(async () => {
+    const fixtures = await Member.find({ memberId: { $in: ['NS-GOV-JUNIOR', 'NS-GOV-VETERAN'] } }).select('_id').lean();
+    await ShareHistory.deleteMany({ memberId: { $in: fixtures.map((member) => member._id) } });
+    await Member.deleteMany({ _id: { $in: fixtures.map((member) => member._id) } });
+    await AnnualClosing.deleteMany({ year: 2025 });
+    await User.deleteMany({ email: { $in: ['superadmin.gov@nsfoundation.org', 'admin.gov@nsfoundation.org'] } });
   });
 });

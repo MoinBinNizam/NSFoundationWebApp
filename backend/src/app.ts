@@ -25,6 +25,7 @@ import governanceRoutes from './routes/governance.routes.js';
 import documentRoutes from './routes/document.routes.js';
 import auditRoutes from './routes/audit.routes.js';
 import jobRoutes from './routes/job.routes.js';
+import memberPortalRoutes from './routes/member-portal.routes.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -116,6 +117,7 @@ app.get('/api/ready', async (_req: Request, res: Response) => {
 
 // ─── DOMAIN API ROUTES ───────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
+app.use('/api/member-portal', memberPortalRoutes);
 app.use('/api/members', memberRoutes);
 app.use('/api/shares', shareRoutes);
 app.use('/api/payments/receipts', receiptRoutes);

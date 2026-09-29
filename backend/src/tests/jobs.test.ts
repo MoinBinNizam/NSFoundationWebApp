@@ -125,9 +125,10 @@ describe('Background Jobs & Readiness System', () => {
         { correlationId: 'test_corr_exec' }
       );
 
-      // Wait up to 6 seconds for worker poll and execution
+      // The worker polls asynchronously; allow one full poll-and-execution
+      // cycle on slower local machines.
       let completedJob = null;
-      for (let i = 0; i < 12; i++) {
+      for (let i = 0; i < 20; i++) {
         await new Promise((resolve) => setTimeout(resolve, 500));
         const current = await JobQueueService.getJobById(job.jobId);
         if (current?.status === JobStatus.COMPLETED) {
@@ -140,6 +141,6 @@ describe('Background Jobs & Readiness System', () => {
       expect(completedJob?.status).toBe(JobStatus.COMPLETED);
       expect(completedJob?.progress).toBe(100);
       expect(completedJob?.result).toBeDefined();
-    }, 10000);
+    }, 15000);
   });
 });

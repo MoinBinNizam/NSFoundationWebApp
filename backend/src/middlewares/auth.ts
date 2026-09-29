@@ -112,7 +112,7 @@ export function requireInvestmentAccess(req: AuthRequest, _res: Response, next: 
   if (!req.user) {
     return next(createError('Authentication required.', 401));
   }
-  const isAdministrator = req.user.role === UserRole.ADMIN || req.user.role === UserRole.SUPER_ADMIN;
+  const isAdministrator = req.user.role === UserRole.ADMIN || req.user.role === UserRole.SUPER_ADMIN || req.user.role === UserRole.INVESTMENT_MANAGER;
   if (!isAdministrator && req.user.accountantType !== AccountantType.PRIMARY) {
     return next(createError('Investment access is restricted to administrators and the primary accountant.', 403));
   }

@@ -12,6 +12,8 @@ import {
   getModulePermissions,
   saveModulePermissions,
   getUserEffectivePermissions,
+  getMemberTransparencySettings,
+  saveMemberTransparencySettings,
 } from '../services/settings.service.js';
 import { CustodyChannel, UserRole } from '../types/models.js';
 
@@ -151,5 +153,17 @@ export class SettingsController {
     } catch (error) {
       next(error);
     }
+  }
+
+  static async getMemberTransparency(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try { res.status(200).json({ success: true, data: await getMemberTransparencySettings() }); } catch (error) { next(error); }
+  }
+
+  static async saveMemberTransparency(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const settings = await saveMemberTransparencySettings(req.body, req.user, { ip: req.ip, userAgent: req.headers['user-agent'] });
+      res.status(200).json({ success: true, message: 'Member transparency settings updated.', data: settings });
+    } catch (error) { next(error); }
   }
 }

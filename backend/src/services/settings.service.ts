@@ -10,6 +10,23 @@ import { ModulePermission } from '../models/ModulePermission.js';
 export const MONTHLY_SHARE_VALUE_KEY = 'MONTHLY_SHARE_VALUE';
 export const DEFAULT_MONTHLY_SHARE_VALUE = 500;
 export const DEFAULT_OPERATIONAL_END_YEAR = 2028;
+export const MEMBER_TRANSPARENCY_KEY = 'MEMBER_TRANSPARENCY';
+export type MemberTransparencySettings = {
+  showCollections: boolean;
+  showExpenses: boolean;
+  showInvestmentProjects: boolean;
+  showRealizedProfit: boolean;
+  showExpectedProfit: boolean;
+  allowAnnualProfitLossDownload: boolean;
+};
+export const DEFAULT_MEMBER_TRANSPARENCY: MemberTransparencySettings = {
+  showCollections: true,
+  showExpenses: true,
+  showInvestmentProjects: true,
+  showRealizedProfit: true,
+  showExpectedProfit: true,
+  allowAnnualProfitLossDownload: true,
+};
 const DEFAULT_GATEWAY_RATES = [
   { channel: CustodyChannel.BKASH, cashoutRatePercentage: 1.85, fixedFee: 0, roundingIncrement: 0, description: 'Standard bKash agent cash-out rate; exact calculated charge without rounding.' },
   { channel: CustodyChannel.NAGAD, cashoutRatePercentage: 1.49, fixedFee: 0, roundingIncrement: 0, description: 'Nagad app cash-out rate; exact calculated charge without rounding.' },
@@ -133,6 +150,42 @@ export async function getOperationalEndYear() {
   return { value, updatedAt: config?.updatedAt || null, isDefault: !config };
 }
 
+/** Public-to-members financial disclosure rules. Values are aggregates only. */
+export async function getMemberTransparencySettings(): Promise<MemberTransparencySettings> {
+  const config = await SystemConfig.findOne({ key: MEMBER_TRANSPARENCY_KEY }).lean();
+  const stored = config?.value && typeof config.value === 'object' ? config.value as Partial<MemberTransparencySettings> : {};
+  return { ...DEFAULT_MEMBER_TRANSPARENCY, ...stored };
+}
+
+export async function saveMemberTransparencySettings(
+  input: MemberTransparencySettings,
+  actingUser: HydratedDocument<IUser>,
+  meta?: { ip?: string; userAgent?: string }
+) {
+  const keys = Object.keys(DEFAULT_MEMBER_TRANSPARENCY) as Array<keyof MemberTransparencySettings>;
+  if (!input || keys.some((key) => typeof input[key] !== 'boolean')) {
+    throw createError('Every member transparency option must be set to true or false.', 400);
+  }
+  const before = await SystemConfig.findOne({ key: MEMBER_TRANSPARENCY_KEY }).lean();
+  const config = await SystemConfig.findOneAndUpdate(
+    { key: MEMBER_TRANSPARENCY_KEY },
+    { value: input, description: 'Controls organization-level financial information disclosed to member accounts.', updatedBy: actingUser._id },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  await AuditLog.create({
+    performedBy: actingUser._id,
+    action: 'UPDATE_MEMBER_TRANSPARENCY_SETTINGS',
+    entityName: 'SystemConfig',
+    entityId: config._id,
+    beforeState: before || null,
+    afterState: config.toObject(),
+    reason: 'Updated member-facing organization transparency settings.',
+    ipAddress: meta?.ip,
+    userAgent: meta?.userAgent,
+  });
+  return getMemberTransparencySettings();
+}
+
 export async function saveOperationalEndYear(value: number, actingUser: HydratedDocument<IUser>, meta?: { ip?: string; userAgent?: string }) {
   if (!Number.isInteger(value) || value < DEFAULT_OPERATIONAL_END_YEAR || value > 2100) throw createError('Operational end year must be a whole year from 2028 through 2100.', 400);
   const before = await SystemConfig.findOne({ key: 'OPERATIONAL_END_YEAR' }).lean();
@@ -222,6 +275,11 @@ export const DEFAULT_DESIGNATION_PERMISSIONS: Record<string, Record<string, { ca
     REPORTS: { canView: false, canEdit: false },
     GOVERNANCE: { canView: false, canEdit: false },
     SETTINGS: { canView: false, canEdit: false },
+  },
+  [UserRole.INVESTMENT_MANAGER]: {
+    MEMBERS: { canView: false, canEdit: false }, PAYMENTS: { canView: false, canEdit: false }, CUSTODY: { canView: false, canEdit: false },
+    INVESTMENTS: { canView: true, canEdit: true }, PROJECT_WALLETS: { canView: true, canEdit: true }, REPORTS: { canView: true, canEdit: false },
+    GOVERNANCE: { canView: false, canEdit: false }, SETTINGS: { canView: false, canEdit: false },
   },
 };
 

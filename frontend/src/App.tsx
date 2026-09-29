@@ -22,6 +22,7 @@ import { PasswordResetPage } from './pages/PasswordResetPage';
 import { GovernancePage } from './pages/GovernancePage';
 import { DocumentsPage } from './pages/DocumentsPage';
 import { AuditPage } from './pages/AuditPage';
+import { MemberPortalPage } from './pages/MemberPortalPage';
 import { LocalizationLayer } from './components/LocalizationLayer';
 
 export const App: React.FC = () => {
@@ -46,6 +47,7 @@ export const App: React.FC = () => {
             }
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="member-portal" element={<MemberPortalPage />} />
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="reports" element={<Navigate to="/dashboard" replace />} />
             <Route path="members" element={<MembersPage />} />

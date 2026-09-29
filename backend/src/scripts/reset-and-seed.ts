@@ -499,6 +499,13 @@ export async function resetAndSeedDatabase(): Promise<void> {
         []
       ),
     },
+    {
+      roleOrDesignation: 'INVESTMENT_MANAGER',
+      modules: buildModulesConfig(
+        ['DASHBOARD', 'DOCUMENTS', 'INVESTMENTS', 'PROJECT_WALLETS', 'REPORTS'],
+        ['INVESTMENTS', 'PROJECT_WALLETS']
+      ),
+    },
   ];
 
   for (const perm of defaultRolePermissions) {

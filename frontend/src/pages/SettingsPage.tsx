@@ -38,6 +38,7 @@ interface GatewayRate {
 }
 
 interface StaffMember { _id: string; name: string; email: string; accountantType: 'PRIMARY' | 'ASSISTANT'; linkedGatewayChannels?: string[]; gatewayAccessKeyPrefix?: string; status: string; }
+interface MemberTransparency { showCollections: boolean; showExpenses: boolean; showInvestmentProjects: boolean; showRealizedProfit: boolean; showExpectedProfit: boolean; allowAnnualProfitLossDownload: boolean; }
 
 export interface RoleModulePermissions {
   roleOrDesignation: string;
@@ -70,6 +71,7 @@ export const SettingsPage: React.FC = () => {
   const { user, canAccess } = useAuth();
   const isAdmin = canAccess('SETTINGS', 'view');
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
+  const canManageMemberTransparency = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
   const [setting, setSetting] = useState<ShareSetting>({ value: 500, description: '', updatedAt: null, isDefault: true });
   const [shareAmount, setShareAmount] = useState('500');
   const [rules, setRules] = useState<PenaltyRule[]>([]);
@@ -78,6 +80,7 @@ export const SettingsPage: React.FC = () => {
   const [operationalEndYear, setOperationalEndYear] = useState('2028');
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [permissionsList, setPermissionsList] = useState<RoleModulePermissions[]>([]);
+  const [memberTransparency, setMemberTransparency] = useState<MemberTransparency>({ showCollections: true, showExpenses: true, showInvestmentProjects: true, showRealizedProfit: true, showExpectedProfit: true, allowAnnualProfitLossDownload: true });
   const [selectedRoleKey, setSelectedRoleKey] = useState<string>('DIRECTOR');
   const [savingPermissions, setSavingPermissions] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -96,7 +99,7 @@ export const SettingsPage: React.FC = () => {
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const [shareRes, ruleRes, waiverRes, gatewayRes, endYearRes, staffRes, permRes] = await Promise.all([
+      const [shareRes, ruleRes, waiverRes, gatewayRes, endYearRes, staffRes, permRes, transparencyRes] = await Promise.all([
         apiRequest<ShareSetting>('/settings/share-amount'),
         apiRequest<PenaltyRule[]>('/settings/penalty-rules'),
         apiRequest<PenaltyWaiver[]>('/settings/penalty-waivers'),
@@ -104,6 +107,7 @@ export const SettingsPage: React.FC = () => {
         apiRequest<{ value: number }>('/settings/operational-end-year'),
         apiRequest<StaffMember[]>('/auth/staff'),
         apiRequest<RoleModulePermissions[]>('/settings/permissions').catch(() => ({ data: [] })),
+        apiRequest<MemberTransparency>('/settings/member-transparency'),
       ]);
       const loadedSetting = shareRes.data;
       setSetting(loadedSetting);
@@ -114,6 +118,7 @@ export const SettingsPage: React.FC = () => {
       setOperationalEndYear(String(endYearRes.data?.value || 2028));
       setStaff(staffRes.data || []);
       setPermissionsList(permRes.data || []);
+      setMemberTransparency(transparencyRes.data);
     } catch (requestError) {
       setError((requestError as Error).message);
     } finally {
@@ -139,6 +144,15 @@ export const SettingsPage: React.FC = () => {
     event.preventDefault(); setSaving(true); setError(null);
     try { await apiRequest('/settings/operational-end-year', { method: 'POST', body: JSON.stringify({ value: Number(operationalEndYear) }) }); setNotice('Operational end year saved.'); await loadSettings(); }
     catch (requestError) { setError((requestError as Error).message); } finally { setSaving(false); }
+  };
+
+  const saveMemberTransparency = async () => {
+    setSaving(true); setError(null); setNotice(null);
+    try {
+      await apiRequest('/settings/member-transparency', { method: 'PUT', body: JSON.stringify(memberTransparency) });
+      setNotice('Member organization-information permissions updated.');
+      await loadSettings();
+    } catch (requestError) { setError((requestError as Error).message); } finally { setSaving(false); }
   };
 
   const provisionStaff = async (event: React.FormEvent) => {
@@ -402,6 +416,21 @@ export const SettingsPage: React.FC = () => {
             ? 'Super Admin (Moin) has universal editorial access to all modules and can toggle permissions above and click Save.'
             : 'You are viewing active role permissions in read-only mode. Only Super Admin can change access configurations.'}
         </p>
+      </section>
+
+      <section className="glass-card p-5 sm:p-6 border-l-4 border-l-emerald-500">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3"><div><h2 className="font-bold text-white">Member organization-information access</h2><p className="text-sm text-gray-400 mt-1">Choose the organization-level financial information Members can see in their own portal. Individual members, custody accounts, funding sources, and audit records are never disclosed here.</p></div>{canManageMemberTransparency && <button className="btn btn-primary shrink-0" onClick={saveMemberTransparency} disabled={saving || loading}><Save size={16} />Save visibility</button>}</div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          {([
+            ['showCollections', 'Organization collections', 'Total member collections received by the foundation.'],
+            ['showExpenses', 'Organization expenses', 'Total recorded operational expenses.'],
+            ['showInvestmentProjects', 'Investment projects', 'Current and matured project names, status, dates, funding total and expected ROI.'],
+            ['showRealizedProfit', 'Profit realized to date', 'Recorded investment profit, loss, and net realized result.'],
+            ['showExpectedProfit', 'Expected profit from active projects', 'Projection calculated from active funding × expected ROI; it is not guaranteed profit.'],
+            ['allowAnnualProfitLossDownload', 'Annual profit & loss PDF', 'Allows download only for locked annual reports; audit packs remain restricted.'],
+          ] as Array<[keyof MemberTransparency, string, string]>).map(([key, title, description]) => <label key={key} className={`rounded-xl border p-4 flex gap-3 ${memberTransparency[key] ? 'border-emerald-500/35 bg-emerald-500/5' : 'border-white/10 bg-slate-900/45'} ${canManageMemberTransparency ? 'cursor-pointer' : 'opacity-75'}`}><input type="checkbox" className="mt-1" checked={memberTransparency[key]} disabled={!canManageMemberTransparency} onChange={(event) => setMemberTransparency({ ...memberTransparency, [key]: event.target.checked })} /><span><span className="block font-semibold text-white text-sm">{title}</span><span className="block text-xs text-gray-400 mt-1 leading-relaxed">{description}</span></span></label>)}
+        </div>
+        {!canManageMemberTransparency && <p className="text-xs text-gray-500 mt-4">Only an administrator can change these organization disclosure permissions.</p>}
       </section>
 
       <section className="glass-card p-5 sm:p-6">

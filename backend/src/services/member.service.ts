@@ -309,12 +309,19 @@ export async function deleteMember(
  * Aggregates membership metrics (total, active, inactive, dropped).
  */
 export async function getMemberStats() {
-  const [total, active, inactive, dropped] = await Promise.all([
+  const [total, active, inactive, dropped, shareTotals, membersWithHistory] = await Promise.all([
     Member.countDocuments(),
     Member.countDocuments({ status: MemberStatus.ACTIVE }),
     Member.countDocuments({ status: MemberStatus.INACTIVE }),
     Member.countDocuments({ status: MemberStatus.DROPPED }),
+    ShareHistory.aggregate([
+      { $sort: { effectiveMonth: -1, createdAt: -1 } },
+      { $group: { _id: '$memberId', shareCount: { $first: '$shareCount' } } },
+      { $group: { _id: null, totalShares: { $sum: '$shareCount' } } },
+    ]),
+    ShareHistory.distinct('memberId'),
   ]);
 
-  return { total, active, inactive, dropped };
+  const totalShares = Number(shareTotals[0]?.totalShares || 0) + Math.max(0, total - membersWithHistory.length);
+  return { total, active, inactive, dropped, totalShares };
 }

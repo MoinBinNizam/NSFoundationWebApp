@@ -199,6 +199,6 @@ describe('Payment & Allocation Engine Integration Tests', () => {
       .send(payload);
 
     expect(duplicate.status).toBe(409);
-    expect(duplicate.body.message).toMatch(/Conflict|already being processed/i);
+    expect(duplicate.body.message).toMatch(/already submitted/i);
   });
 });

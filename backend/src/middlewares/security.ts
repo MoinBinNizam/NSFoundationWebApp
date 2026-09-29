@@ -23,12 +23,18 @@ export function financialIdempotency(operation: string) {
       if (!req.user) return next(createError('Authentication required.', 401));
       const key = req.header('Idempotency-Key'); if (!key || key.length < 16 || key.length > 200) return next(createError('A valid Idempotency-Key header is required for this financial operation.', 400));
       const actorId = req.user._id;
+      // This pre-check gives deterministic behavior while a new database is
+      // still building its unique index; the compound unique index below is
+      // the final protection for truly concurrent requests.
+      const existing = await IdempotencyKey.exists({ actorId, operation, key });
+      if (existing) return next(createError('This operation was already submitted. Do not send it again.', 409));
       try { await IdempotencyKey.create({ actorId, operation, key }); }
       catch (error: unknown) {
         if (!(error as { code?: number }).code || (error as { code?: number }).code !== 11000) throw error;
-        const prior = await IdempotencyKey.findOne({ actorId, operation, key }).lean();
-        if (prior?.status === 'COMPLETED' && prior.responseBody) { res.status(prior.responseStatus || 200).json(prior.responseBody); return; }
-        return next(createError('This operation is already being processed. Please wait before retrying.', 409));
+        // A unique record is written before the financial handler runs. Always
+        // reject a repeated key: this avoids a race where a fast duplicate
+        // arrives before the asynchronous response snapshot is stored.
+        return next(createError('This operation was already submitted. Do not send it again.', 409));
       }
       const originalJson = res.json.bind(res);
       res.json = ((body: Record<string, unknown>) => {

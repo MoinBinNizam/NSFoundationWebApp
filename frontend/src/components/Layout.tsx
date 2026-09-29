@@ -73,7 +73,8 @@ export const Layout: React.FC = () => {
     : 'Member Management';
 
   const navItems = [
-    ...(canAccess('REPORTS', 'view') ? [{ label: 'Dashboard & Reports', path: '/dashboard', icon: BarChart3, issue: '#11' }] : []),
+    ...(user?.role === 'MEMBER' ? [{ label: 'My Member Account', path: '/member-portal', icon: Users, issue: '#24' }] : []),
+    ...(user?.role !== 'MEMBER' && canAccess('REPORTS', 'view') ? [{ label: 'Dashboard & Reports', path: '/dashboard', icon: BarChart3, issue: '#11' }] : []),
     ...(canAccess('REPORTS', 'view') ? [{ label: 'Statements & Reports', path: '/documents', icon: FileText, issue: '#20' }] : []),
     ...(canAccess('MEMBERS', 'view') ? [{ label: 'Member Management', path: '/members', icon: Users, issue: '#4' }] : []),
     ...(canAccess('SHARES', 'view') ? [{ label: 'Shares & Annual Account', path: '/shares', icon: PieChart, issue: '#5' }] : []),

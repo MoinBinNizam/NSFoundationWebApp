@@ -53,6 +53,7 @@ interface MemberStats {
   active: number;
   inactive: number;
   dropped: number;
+  totalShares: number;
 }
 
 interface PaginationMeta {
@@ -66,7 +67,7 @@ export const MembersPage: React.FC = () => {
   const { user, canAccess } = useAuth();
   const { t, formatNumber, formatDate } = usePreferences();
   const [members, setMembers] = useState<MemberData[]>([]);
-  const [stats, setStats] = useState<MemberStats>({ total: 0, active: 0, inactive: 0, dropped: 0 });
+  const [stats, setStats] = useState<MemberStats>({ total: 0, active: 0, inactive: 0, dropped: 0, totalShares: 0 });
   const [pagination, setPagination] = useState<PaginationMeta>({ total: 0, page: 1, limit: 10, totalPages: 1 });
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -129,7 +130,7 @@ export const MembersPage: React.FC = () => {
       if (membersRes.pagination) {
         setPagination(membersRes.pagination);
       }
-      setStats(statsRes.data || { total: 0, active: 0, inactive: 0, dropped: 0 });
+      setStats(statsRes.data || { total: 0, active: 0, inactive: 0, dropped: 0, totalShares: 0 });
       setShareAmount(Number(shareSettingRes.data?.value) || 500);
     } catch (err) {
       console.error('Error loading members:', err);
@@ -330,7 +331,7 @@ export const MembersPage: React.FC = () => {
       </div>
 
       {/* KPI Stats Cards - Standardized Dashboard Glass-Card Design */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5">
         {/* Card 1: Total Registered */}
         <div className="glass-card p-5 border-l-4 border-l-blue-500 hover:border-blue-500/50 transition-all">
           <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
@@ -346,6 +347,12 @@ export const MembersPage: React.FC = () => {
             <span>{t('Society registry')}</span>
             <span className="text-blue-400 font-semibold">{t('100% recorded')}</span>
           </div>
+        </div>
+
+        <div className="glass-card p-5 border-l-4 border-l-violet-500 hover:border-violet-500/50 transition-all">
+          <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider"><span>{t('Total Society Shares')}</span><div className="p-2 rounded-xl bg-violet-500/10 text-violet-300 border border-violet-500/20"><Users size={18} /></div></div>
+          <p className="text-2xl sm:text-3xl font-extrabold text-white mt-3 tracking-tight">{formatNumber(stats.totalShares)}</p>
+          <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5"><span>{t('Current allocated shares')}</span><span className="text-violet-300 font-semibold">{t('Live total')}</span></div>
         </div>
 
         {/* Card 2: Active Members */}
