@@ -10,14 +10,14 @@
 
 ## First production deployment
 
-1. Copy `backend/.env.production.example` to `backend/.env.production` on the host and fill in the real HTTPS origin and a unique 32+ character JWT secret.
-2. Set `HTTP_PORT` in the host environment, then run `docker compose -f docker-compose.prod.yml up -d --build`.
+1. Copy `.env.production.example` to `.env.production` and `backend/.env.production.example` to `backend/.env.production` on the host. Fill in long random, URL-safe MongoDB/JWT secrets, real GHCR image names, and the HTTPS origin. Docker Compose creates the authenticated MongoDB URI; do not duplicate it in the backend environment file.
+2. For staging source builds, run `docker compose --env-file .env.production -f docker-compose.prod.yml -f docker-compose.staging.yml up -d --build`. Production deploys immutable images with `scripts/deploy-production.sh`; it does not rebuild source on the host.
 3. Place an HTTPS TLS reverse proxy/load balancer in front of the exposed frontend port. The included Nginx is an application edge proxy; certificate management remains host/infrastructure owned.
 4. Confirm `/api/health` and `/api/ready` return HTTP 200 after MongoDB completes replica-set initialization.
 
 ## CI/CD secrets
 
-Configure the GitHub `production` environment with `PRODUCTION_HOST`, `PRODUCTION_USER`, `PRODUCTION_SSH_KEY`, and `PRODUCTION_APP_DIR`. The deploy job runs only for a release tag or manual dispatch and is protected by that environment approval.
+Configure the GitHub `production` environment with `PRODUCTION_HOST`, `PRODUCTION_USER`, `PRODUCTION_SSH_KEY`, and `PRODUCTION_APP_DIR`. The host must be logged into GHCR with a read-only package token before its first deployment. The deploy job runs only for a release tag or manual dispatch and is protected by that environment approval.
 
 ## Backup drill
 
@@ -27,9 +27,8 @@ Set `MONGODB_URI`, `BACKUP_ENCRYPTION_PASSWORD`, `S3_BUCKET`, AWS/R2 credentials
 0 2 * * * /opt/nsfoundation/scripts/backup-mongodb.sh
 ```
 
-Restore only into an isolated database and run the authenticated financial-integrity endpoint before reopening writes.
+Restore only into an isolated database: supply `RESTORE_CONFIRM=RESTORE_ISOLATED_DATABASE` when running `scripts/restore-mongodb.sh`. Run the authenticated financial-integrity endpoint before reopening writes. Configure a bucket lifecycle rule separately to retain encrypted offsite backups for the approved period.
 
 ## Local verification
 
-`npx tsc -b --pretty false` in `frontend/` passed. Docker CLI is not installed in this workstation session, so `docker compose config` and container startup must be verified on a Docker-enabled machine before release.
-
+`npx tsc -b --pretty false` in `frontend/` passed. Docker CLI is not installed in this workstation session, so `docker compose config`, the authenticated Mongo replica set, and container startup must be verified on a Docker-enabled staging machine before release.

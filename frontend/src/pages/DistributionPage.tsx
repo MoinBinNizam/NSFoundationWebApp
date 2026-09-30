@@ -482,7 +482,7 @@ export const DistributionPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Calendar size={14} className="text-blue-400" />
-                  <span>Operational End Year:</span>
+                  <span>{t('Operational End Year:')}</span>
                 </span>
                 <select
                   value={targetYear}
@@ -491,7 +491,7 @@ export const DistributionPage: React.FC = () => {
                 >
                   {Array.from({ length: Math.max(1, operationalEndYear - 2028 + 1) }, (_, index) => 2028 + index).map((yr) => (
                     <option key={yr} value={yr}>
-                      Through {yr}
+                      {t(`Through ${yr}`)}
                     </option>
                   ))}
                 </select>
@@ -501,7 +501,7 @@ export const DistributionPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                   <ShieldCheck size={14} className="text-amber-400" />
-                  <span>Retained Reserve (BDT ):</span>
+                  <span>{t('Retained Reserve (৳):')}</span>
                 </span>
                 <input
                   type="number"
@@ -521,7 +521,7 @@ export const DistributionPage: React.FC = () => {
               className="btn btn-secondary btn-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
             >
               <RefreshCw size={13} className={loadingPreview ? 'animate-spin text-blue-400' : ''} />
-              <span>Recalculate</span>
+              <span>{t('Recalculate')}</span>
             </button>
           </div>
 
@@ -529,8 +529,8 @@ export const DistributionPage: React.FC = () => {
             <div className="glass-card p-5 border-l-4 border-l-rose-500 flex items-center gap-3 text-rose-300">
               <AlertTriangle size={20} className="shrink-0 text-rose-400" />
               <div>
-                <p className="text-sm font-bold">Calculation Notice</p>
-                <p className="text-xs text-rose-300/90 mt-0.5">{previewError}</p>
+                <p className="text-sm font-bold">{t('Calculation Notice')}</p>
+                <p className="text-xs text-rose-300/90 mt-0.5">{t(previewError)}</p>
               </div>
             </div>
           )}
@@ -972,9 +972,9 @@ export const DistributionPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                   <Layers size={16} className="text-blue-400" />
-                  <span>Historical Settlement Batches</span>
+                  <span>{t('Historical Settlement Batches')}</span>
                 </h2>
-                <span className="text-xs text-gray-400">{batches.length} batches recorded</span>
+                <span className="text-xs text-gray-400">{t(`${batches.length} batches recorded`)}</span>
               </div>
 
               {loadingBatches ? (
@@ -984,9 +984,9 @@ export const DistributionPage: React.FC = () => {
                 </div>
               ) : batches.length === 0 ? (
                 <div className="glass-card p-12 text-center text-sm text-gray-400 space-y-2">
-                  <p className="font-semibold text-white">No Distribution Batches Yet</p>
+                  <p className="font-semibold text-white">{t('No Distribution Batches Yet')}</p>
                   <p className="text-xs text-gray-500">
-                    Switch to the workspace tab to calculate and generate a new year-end distribution batch.
+                    {t('Switch to the workspace tab to calculate and generate a new year-end distribution batch.')}
                   </p>
                 </div>
               ) : (

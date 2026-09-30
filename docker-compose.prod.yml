@@ -3,11 +3,14 @@ services:
     image: mongo:8.0
     command: ["mongod", "--replSet", "rs0", "--bind_ip_all"]
     restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:?set MONGO_ROOT_USERNAME in .env.production}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:?set MONGO_ROOT_PASSWORD in .env.production}
     volumes:
       - mongo_data:/data/db
       - ./infra/mongo-init-replica.js:/docker-entrypoint-initdb.d/mongo-init-replica.js:ro
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\" | grep 1"]
+      test: ["CMD-SHELL", "mongosh --quiet --username \"$$MONGO_INITDB_ROOT_USERNAME\" --password \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval \"db.hello().isWritablePrimary\" | grep true"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -25,14 +28,16 @@ services:
       retries: 12
 
   backend:
-    build: ./backend
+    image: ${BACKEND_IMAGE:?set BACKEND_IMAGE in .env.production}
     restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
     env_file: ./backend/.env.production
     environment:
       NODE_ENV: production
       PORT: 5000
-      MONGODB_URI: mongodb://mongo:27017/ns-foundation?replicaSet=rs0
-      REDIS_URL: redis://redis:6379
+      MONGODB_URI: mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/ns-foundation?replicaSet=rs0&authSource=admin
     depends_on:
       mongo:
         condition: service_healthy
@@ -45,15 +50,21 @@ services:
       retries: 5
 
   frontend:
-    build: ./frontend
+    image: ${FRONTEND_IMAGE:?set FRONTEND_IMAGE in .env.production}
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "${HTTP_PORT:-8080}:80"
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost/ >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
 
 volumes:
   mongo_data:
   redis_data:
-

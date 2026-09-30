@@ -4,6 +4,11 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to deploy
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -14,6 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # A manual deployment must build the exact approved release tag,
+          # rather than whichever revision happens to be the default branch.
+          ref: ${{ github.event.inputs.release_tag || github.ref }}
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -23,12 +32,12 @@ jobs:
         with:
           context: ./backend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/nsfoundation-backend:${{ github.ref_name }}
+          tags: ghcr.io/${{ github.repository_owner }}/nsfoundation-backend:${{ github.event.inputs.release_tag || github.ref_name }}
       - uses: docker/build-push-action@v6
         with:
           context: ./frontend
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/nsfoundation-frontend:${{ github.ref_name }}
+          tags: ghcr.io/${{ github.repository_owner }}/nsfoundation-frontend:${{ github.event.inputs.release_tag || github.ref_name }}
 
   deploy:
     needs: images
@@ -44,7 +53,8 @@ jobs:
           script: |
             cd ${{ secrets.PRODUCTION_APP_DIR }}
             git fetch --tags origin
-            git checkout ${{ github.ref_name }}
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
-
+            git checkout ${{ github.event.inputs.release_tag || github.ref_name }}
+            export BACKEND_IMAGE=ghcr.io/${{ github.repository_owner }}/nsfoundation-backend:${{ github.event.inputs.release_tag || github.ref_name }}
+            export FRONTEND_IMAGE=ghcr.io/${{ github.repository_owner }}/nsfoundation-frontend:${{ github.event.inputs.release_tag || github.ref_name }}
+            chmod 700 scripts/deploy-production.sh
+            ./scripts/deploy-production.sh

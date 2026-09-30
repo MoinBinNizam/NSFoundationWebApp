@@ -11,11 +11,11 @@ Containerize the full NS Foundation application, orchestrate a production-ready 
 - Multi-stage Docker builds for backend (Node.js 22 LTS Alpine) and frontend (Vite build served by Nginx Alpine).
 - Production `docker-compose.prod.yml` coordinating:
   - Backend API container with non-root security.
-  - Frontend Nginx container acting as an edge reverse proxy with SSL termination, gzip/brotli compression, and security headers.
+  - Frontend Nginx container acting as an application edge proxy with gzip compression and security headers; the host/load balancer terminates TLS.
   - MongoDB 8 service initialized with a single-node replica set (`rs0`) to enable MongoDB transactions in production.
-  - Redis service for background job queueing.
+  - Redis service provisioned for a future queue-provider migration; the current authoritative worker uses MongoDB job records.
 - GitHub Actions CI/CD workflows:
-  - `.github/workflows/ci.yml`: Automated quality gate (typecheck, lint, Vitest test suite) on pull requests and pushes to `main`.
+  - `.github/workflows/ci.yml`: Automated quality gate (backend typecheck, frontend production build, Vitest suite, and Docker image build) on pull requests and pushes to `main`.
   - `.github/workflows/deploy.yml`: Automated Docker image building and deployment to production server via SSH/Docker registry.
 - Disaster Recovery & Backup Automation:
   - `scripts/backup-mongodb.sh`: Daily cron script taking `mongodump`, compressing with date tag, encrypting with OpenSSL, and uploading to cloud storage (Cloudflare R2 or AWS S3).
@@ -31,7 +31,7 @@ Containerize the full NS Foundation application, orchestrate a production-ready 
                    ▼
 ┌──────────────────────────────────────┐
 │        Nginx Reverse Proxy           │
-│ - SSL / TLS Termination              │
+│ - Static assets and /api proxy       │
 │ - Serves static frontend assets      │
 │ - Proxies /api/* to Express Backend  │
 └──────────────────────────────────────┘
@@ -46,7 +46,7 @@ Containerize the full NS Foundation application, orchestrate a production-ready 
          ▼                   ▼
 ┌──────────────────┐  ┌──────────────────┐
 │  MongoDB 8 (rs0) │  │      Redis       │
-│  - Replica Set   │  │  - Queue storage │
+│  - Replica Set   │  │  - Future queue  │
 │  - Persistent vol│  │  - Persistent vol│
 └──────────────────┘  └──────────────────┘
 ```
@@ -65,7 +65,7 @@ Containerize the full NS Foundation application, orchestrate a production-ready 
   - `nginx.conf`: Configure client routing (`try_files $uri $uri/ /index.html;`), proxy pass for `/api/` to backend service, gzip compression, and security headers (`X-Frame-Options`, `Content-Security-Policy`).
 - **`docker-compose.prod.yml`:**
   - Coordinates `frontend`, `backend`, `mongo`, `redis`.
-  - Configures health checks, auto-restart policies, memory limits, and named volumes for database persistence.
+  - Configures authenticated database startup, health checks, auto-restart policies, non-root backend execution, and named volumes for database persistence.
   - Automatically runs `rs.initiate()` on the MongoDB instance so transactions work out of the box.
 
 ### 2. GitHub Actions CI/CD Pipelines
@@ -87,7 +87,7 @@ Containerize the full NS Foundation application, orchestrate a production-ready 
         - run: npm test --prefix backend
   ```
 - **Deployment Pipeline (`.github/workflows/deploy.yml`):**
-  - Triggers only on tagged releases or pushes to `main`.
+  - Triggers only on tagged releases or a manual dispatch that names an existing release tag.
   - Builds and pushes images to GitHub Container Registry (GHCR) or Docker Hub.
   - Executes deployment on the production host via SSH.
 
@@ -96,16 +96,16 @@ Containerize the full NS Foundation application, orchestrate a production-ready 
   - Runs `mongodump` with `--gzip --archive`.
   - Encrypts archive using AES-256-CBC with encryption key stored in environment.
   - Uploads encrypted archive to an S3-compatible bucket (e.g. Cloudflare R2, AWS S3).
-  - Enforces 30-day backup retention policy.
+  - Removes local encrypted archives older than 30 days; the offsite bucket lifecycle rule is configured by the infrastructure owner.
 - **Restore & Verification Drill (`scripts/restore-mongodb.sh`):**
-  - Downloads encrypted archive, decrypts, and restores into an isolated staging MongoDB database.
-  - Invokes the backend integrity scan (`AuditService.runFinancialIntegrityScan()`) to verify custody movements, payments, and member shares match with 0 variance before giving go-ahead.
+  - Decrypts and restores a supplied archive into an isolated staging MongoDB database only after an explicit confirmation value is supplied.
+  - Requires an operator to invoke the authenticated financial-integrity endpoint after restore and confirm custody movements, payments, and member shares have zero variance before giving go-ahead.
 
 ---
 
 ## Acceptance Criteria
 
-- `docker-compose -f docker-compose.prod.yml up` builds and starts all services cleanly.
+- The staging Compose override builds and starts all services cleanly; the production Compose file pulls the approved immutable images defined in `.env.production`.
 - MongoDB transactions function properly in the containerized environment.
 - GitHub Actions CI successfully runs on push and blocks merge if any test or typecheck fails.
 - The automated backup script produces an encrypted archive and uploads to cloud storage.

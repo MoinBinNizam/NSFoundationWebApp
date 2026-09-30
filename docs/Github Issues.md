@@ -30,5 +30,5 @@ Github Issues serially-----------------
 | 27 | Frontend Bundle Optimization & Precision Hardening | Next | [Plan](<Implementation Plan- Issue #27 — Frontend Bundle Optimization & Precision Hardening (Full-Stack).md>) |
 | 28 | Executive Business Decisions & 2024 Reconciliation Sign-off | Next | [Plan](<Implementation Plan- Issue #28 — Executive Business Decisions & 2024 Reconciliation Sign-off.md>) |
 
-*Detailed specifications and acceptance criteria for each next issue can be found in [PROJECT-STATUS-AND-NEXT-ISSUES.md](file:///c:/TechVelly/NSFoundationWebApp/docs/PROJECT-STATUS-AND-NEXT-ISSUES.md).*
+*Detailed specifications and acceptance criteria for each next issue can be found in [PROJECT-STATUS-AND-NEXT-ISSUES.md](file:///c:/TechVelly/NSFoundationWebApp/docs/PROJECT-STATUS-AND-NEXT-ISSUES.md). Production gates and rollout order are documented in [Production Readiness & Rollout Plan.md](<Production Readiness & Rollout Plan.md>).*
 

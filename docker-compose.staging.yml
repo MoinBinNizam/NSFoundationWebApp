@@ -1,0 +1,10 @@
+# Local/staging build override. Production uses immutable GHCR images via
+# docker-compose.prod.yml and .env.production instead.
+services:
+  backend:
+    build: ./backend
+    image: nsfoundation-backend:staging
+  frontend:
+    build: ./frontend
+    image: nsfoundation-frontend:staging
+

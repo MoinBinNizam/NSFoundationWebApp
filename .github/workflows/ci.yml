@@ -45,4 +45,7 @@ jobs:
         run: npm run build --prefix frontend
       - name: Backend regression tests
         run: npm test --prefix backend
-
+      - name: Verify production images build
+        run: |
+          docker build --tag nsfoundation-backend:ci ./backend
+          docker build --tag nsfoundation-frontend:ci ./frontend
