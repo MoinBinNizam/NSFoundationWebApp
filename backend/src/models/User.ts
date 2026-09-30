@@ -42,7 +42,6 @@ const userSchema = new Schema<IUser>(
       type: Schema.Types.ObjectId,
       ref: 'Member',
       default: null,
-      index: true,
     },
     accountantType: {
       type: String,

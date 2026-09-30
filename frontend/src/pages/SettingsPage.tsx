@@ -259,7 +259,7 @@ export const SettingsPage: React.FC = () => {
   return (
     <div className="space-y-6 sm:space-y-8 max-w-6xl mx-auto pb-10">
       <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-        <div><div className="flex items-center gap-2 text-blue-400"><Settings2 size={18} /><span className="text-xs font-bold uppercase tracking-wider">Administration · Rulebook</span></div><h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white">Organization Settings</h1><p className="mt-1 text-sm text-gray-400">Set the live financial rules used across NS Foundation.</p></div>
+        <div><div className="flex items-center gap-2 text-blue-400"><Settings2 size={18} /><span className="text-xs font-bold uppercase tracking-wider">{t('Administration · Rulebook')}</span></div><h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white">{t('Organization Settings')}</h1><p className="mt-1 text-sm text-gray-400">{t('Set the live financial rules used across NS Foundation.')}</p></div>
         <span className="badge badge-active self-start sm:self-auto"><ShieldCheck size={13} /> Admin only</span>
       </header>
 

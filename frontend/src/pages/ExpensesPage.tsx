@@ -291,7 +291,7 @@ export const ExpensesPage: React.FC = () => {
             className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg"
           >
             <div className="flex items-start justify-between">
-              <p className="text-xs font-medium text-gray-400">{label}</p>
+              <p className="text-xs font-medium text-gray-400">{t(label)}</p>
               <Icon size={20} className={color} />
             </div>
             <p
@@ -303,10 +303,10 @@ export const ExpensesPage: React.FC = () => {
             <p className="mt-1 text-xs text-gray-500">
               {caption ||
                 (label === "Expense transactions"
-                  ? "Immutable ledger events"
+                  ? t('Immutable ledger events')
                   : label === "Largest category"
-                    ? "No expense in selected period"
-                    : "Filtered live total")}
+                    ? t('No expense in selected period')
+                    : t('Filtered live total'))}
             </p>
           </div>
         ))}
@@ -391,10 +391,10 @@ export const ExpensesPage: React.FC = () => {
           <table className="w-full min-w-[850px] text-left text-xs">
             <thead className="bg-white/[0.025] text-gray-500">
               <tr>
-                <th className="px-5 py-3 font-semibold">Expense</th>
-                <th className="px-4 py-3 font-semibold">Date</th>
-                <th className="px-4 py-3 font-semibold">Category</th>
-                <th className="px-4 py-3 font-semibold">Source account</th>
+                <th className="px-5 py-3 font-semibold">{t('Expense')}</th>
+                <th className="px-4 py-3 font-semibold">{t('Date')}</th>
+                <th className="px-4 py-3 font-semibold">{t('Category')}</th>
+                <th className="px-4 py-3 font-semibold">{t('Source account')}</th>
                 <th className="px-4 py-3 text-right font-semibold">Amount</th>
                 <th className="px-5 py-3 text-right font-semibold">Action</th>
               </tr>

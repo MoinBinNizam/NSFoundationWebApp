@@ -1,7 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/auth.js';
 import {
-  createMember,
   getMembers,
   getMemberById,
   updateMember,
@@ -17,8 +16,8 @@ import { previewMemberCsv, saveMemberCsv } from '../services/member-import.servi
  * Creates a new member. Requires ADMIN or ACCOUNTANT role.
  */
 export async function createMemberHandler(
-  req: AuthRequest,
-  res: Response,
+  _req: AuthRequest,
+  _res: Response,
   next: NextFunction
 ): Promise<void> {
   return next(createError('New member registration is closed. Import the approved 2024 roster CSV instead.', 403));

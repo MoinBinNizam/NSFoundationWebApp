@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
 import { ArrowRight, BanknoteArrowDown, CircleDollarSign, Eye, Landmark, RefreshCw, Repeat2, WalletCards, X } from 'lucide-react';
 
 interface Wallet {
@@ -69,6 +70,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export const ReinvestmentsPage: React.FC = () => {
   const { user } = useAuth();
+  const { t } = usePreferences();
   const canOperate = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
   const [tab, setTab] = useState<'wallets' | 'chains' | 'audit'>('wallets');
   const [stats, setStats] = useState<Stats | null>(null);
@@ -207,7 +209,7 @@ export const ReinvestmentsPage: React.FC = () => {
   return <div className="space-y-6">
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <div className="flex items-center gap-2 text-emerald-400"><Repeat2 size={20} /><span className="text-xs font-bold uppercase tracking-wider">Reinvestment Operations</span></div>
+        <div className="flex items-center gap-2 text-emerald-400"><Repeat2 size={20} /><span className="text-xs font-bold uppercase tracking-wider">{t('Reinvestment Operations')}</span></div>
         <h2 className="mt-1 text-2xl font-bold text-white">Project Wallets & Reinvestment</h2>
         <p className="mt-1 text-sm text-gray-400">Keep external partner proceeds separate, trace their lineage, and reinvest or liquidate them with a complete ledger trail.</p>
       </div>
@@ -219,7 +221,7 @@ export const ReinvestmentsPage: React.FC = () => {
 
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {statCards.map(({ label, value, icon: Icon, color, count }) => <div key={label} className="rounded-2xl border border-white/10 bg-[#111827] p-5 shadow-lg">
-        <div className="flex items-start justify-between"><p className="text-xs font-medium text-gray-400">{label}</p><Icon size={20} className={color} /></div>
+        <div className="flex items-start justify-between"><p className="text-xs font-medium text-gray-400">{t(label)}</p><Icon size={20} className={color} /></div>
         <p className="mt-3 text-2xl font-bold text-white">{count ? (value ?? 0) : money(Number(value))}</p>
       </div>)}
     </div>
