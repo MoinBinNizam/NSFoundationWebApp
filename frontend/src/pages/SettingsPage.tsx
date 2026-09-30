@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Landmark, Plus, Save, Settings2, ShieldCheck, X, Shield, Lock, Check } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { apiRequest } from '../services/api';
+import { usePreferences } from '../context/PreferencesContext';
 
 interface ShareSetting {
   value: number;
@@ -68,6 +69,7 @@ export const MODULE_DEFINITIONS = [
 const money = new Intl.NumberFormat('en-BD', { style: 'currency', currency: 'BDT', maximumFractionDigits: 0 });
 
 export const SettingsPage: React.FC = () => {
+  const { t } = usePreferences();
   const { user, canAccess } = useAuth();
   const isAdmin = canAccess('SETTINGS', 'view');
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
@@ -265,13 +267,13 @@ export const SettingsPage: React.FC = () => {
       {notice && <div className="rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200 flex gap-2"><CheckCircle2 size={17} className="shrink-0 mt-0.5" />{notice}</div>}
 
       <section className="glass-card p-5 sm:p-6">
-        <div className="flex items-start gap-3"><div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-2.5 text-blue-300"><Landmark size={20} /></div><div><h2 className="font-bold text-white">Monthly share amount</h2><p className="text-sm text-gray-400 mt-1">The amount payable each month for one organization share.</p></div></div>
+        <div className="flex items-start gap-3"><div className="rounded-xl bg-blue-500/10 border border-blue-500/20 p-2.5 text-blue-300"><Landmark size={20} /></div><div><h2 className="font-bold text-white">{t('Monthly share amount')}</h2><p className="text-sm text-gray-400 mt-1">{t('The amount payable each month for one organization share.')}</p></div></div>
         <form onSubmit={saveShareAmount} className="mt-5 grid grid-cols-1 sm:grid-cols-[minmax(0,260px)_1fr_auto] gap-3 sm:items-end">
           <div className="form-group mb-0"><label className="form-label">Amount per share (BDT)</label><input className="form-input" type="number" min="1" max="1000000" step="1" required value={shareAmount} onChange={(e) => setShareAmount(e.target.value)} /></div>
           <div className="rounded-xl bg-slate-900/65 border border-white/10 px-4 py-3 text-sm"><span className="text-gray-400">Preview:</span><strong className="text-emerald-300 ml-2">1 share = {money.format(Number(shareAmount) || 0)} / month</strong></div>
           <button className="btn btn-primary min-h-11" disabled={saving || loading} type="submit"><Save size={16} />{saving ? 'Saving...' : 'Save amount'}</button>
         </form>
-        <p className="text-xs text-gray-500 mt-3">Recorded ledger entries remain unchanged; this live rule is used by new member and payment calculations. {setting.updatedAt ? `Last updated ${new Date(setting.updatedAt).toLocaleString()}.` : 'Using the default BDT 500 until saved.'}</p>
+        <p className="text-xs text-gray-500 mt-3">{t('Recorded ledger entries remain unchanged; this live rule is used by new member and payment calculations.')} {setting.updatedAt ? `${t('Last updated')} ${new Date(setting.updatedAt).toLocaleString()}.` : t('Using the default BDT 500 until saved.')}</p>
       </section>
 
       {/* Dynamic Module RBAC Permissions Section (Issue #29) */}
@@ -283,7 +285,7 @@ export const SettingsPage: React.FC = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="font-bold text-white text-base">Module Access & RBAC Permissions Matrix</h2>
+                <h2 className="font-bold text-white text-base">{t('Module Access & RBAC Permissions Matrix')}</h2>
                 {isSuperAdmin ? (
                   <span className="badge badge-active text-[10px] py-0.5">Super Admin Control</span>
                 ) : (
@@ -291,7 +293,7 @@ export const SettingsPage: React.FC = () => {
                 )}
               </div>
               <p className="text-sm text-gray-400 mt-1">
-                Dynamically view and configure module visibility and editorial accessibility per Board designation or system role.
+                {t('Dynamically view and configure module visibility and editorial accessibility per Board designation or system role.')}
               </p>
             </div>
           </div>
@@ -413,13 +415,13 @@ export const SettingsPage: React.FC = () => {
         </div>
         <p className="text-xs text-gray-500 mt-3">
           {isSuperAdmin
-            ? 'Super Admin (Moin) has universal editorial access to all modules and can toggle permissions above and click Save.'
-            : 'You are viewing active role permissions in read-only mode. Only Super Admin can change access configurations.'}
+            ? t('Super Admin (Moin) has universal editorial access to all modules and can toggle permissions above and click Save.')
+            : t('You are viewing active role permissions in read-only mode. Only Super Admin can change access configurations.')}
         </p>
       </section>
 
       <section className="glass-card p-5 sm:p-6 border-l-4 border-l-emerald-500">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3"><div><h2 className="font-bold text-white">Member organization-information access</h2><p className="text-sm text-gray-400 mt-1">Choose the organization-level financial information Members can see in their own portal. Individual members, custody accounts, funding sources, and audit records are never disclosed here.</p></div>{canManageMemberTransparency && <button className="btn btn-primary shrink-0" onClick={saveMemberTransparency} disabled={saving || loading}><Save size={16} />Save visibility</button>}</div>
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3"><div><h2 className="font-bold text-white">{t('Member organization-information access')}</h2><p className="text-sm text-gray-400 mt-1">{t('Choose the organization-level financial information Members can see in their own portal. Individual members, custody accounts, funding sources, and audit records are never disclosed here.')}</p></div>{canManageMemberTransparency && <button className="btn btn-primary shrink-0" onClick={saveMemberTransparency} disabled={saving || loading}><Save size={16} />{t('Save visibility')}</button>}</div>
         <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {([
             ['showCollections', 'Organization collections', 'Total member collections received by the foundation.'],
@@ -428,7 +430,7 @@ export const SettingsPage: React.FC = () => {
             ['showRealizedProfit', 'Profit realized to date', 'Recorded investment profit, loss, and net realized result.'],
             ['showExpectedProfit', 'Expected profit from active projects', 'Projection calculated from active funding × expected ROI; it is not guaranteed profit.'],
             ['allowAnnualProfitLossDownload', 'Annual profit & loss PDF', 'Allows download only for locked annual reports; audit packs remain restricted.'],
-          ] as Array<[keyof MemberTransparency, string, string]>).map(([key, title, description]) => <label key={key} className={`rounded-xl border p-4 flex gap-3 ${memberTransparency[key] ? 'border-emerald-500/35 bg-emerald-500/5' : 'border-white/10 bg-slate-900/45'} ${canManageMemberTransparency ? 'cursor-pointer' : 'opacity-75'}`}><input type="checkbox" className="mt-1" checked={memberTransparency[key]} disabled={!canManageMemberTransparency} onChange={(event) => setMemberTransparency({ ...memberTransparency, [key]: event.target.checked })} /><span><span className="block font-semibold text-white text-sm">{title}</span><span className="block text-xs text-gray-400 mt-1 leading-relaxed">{description}</span></span></label>)}
+          ] as Array<[keyof MemberTransparency, string, string]>).map(([key, title, description]) => <label key={key} className={`rounded-xl border p-4 flex gap-3 ${memberTransparency[key] ? 'border-emerald-500/35 bg-emerald-500/5' : 'border-white/10 bg-slate-900/45'} ${canManageMemberTransparency ? 'cursor-pointer' : 'opacity-75'}`}><input type="checkbox" className="mt-1" checked={memberTransparency[key]} disabled={!canManageMemberTransparency} onChange={(event) => setMemberTransparency({ ...memberTransparency, [key]: event.target.checked })} /><span><span className="block font-semibold text-white text-sm">{t(title)}</span><span className="block text-xs text-gray-400 mt-1 leading-relaxed">{t(description)}</span></span></label>)}
         </div>
         {!canManageMemberTransparency && <p className="text-xs text-gray-500 mt-4">Only an administrator can change these organization disclosure permissions.</p>}
       </section>
@@ -447,9 +449,9 @@ export const SettingsPage: React.FC = () => {
       <section className="glass-card p-5 sm:p-6">
         <div><h2 className="font-bold text-white">Gateway Cash-out Rules</h2><p className="text-sm text-gray-400 mt-1">Configure the charge applied when a member pays into each receiving channel. The payment screen rounds the calculated charge upward using this rule.</p></div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
-          {gatewayRates.map((rate) => <article key={rate.channel} className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-wider font-bold text-blue-300">{rate.channel === 'BKASH' ? 'bKash' : rate.channel === 'NAGAD' ? 'Nagad' : rate.channel === 'BANK' ? 'Bank / CellFin' : 'Physical Cash'}</p><p className="text-xl font-extrabold text-white mt-1">{rate.cashoutRatePercentage}%</p><p className="text-xs text-gray-400 mt-1">+ {money.format(rate.fixedFee)} fixed · {rate.roundingIncrement > 0 ? `round up to BDT ${rate.roundingIncrement}` : 'no rounding'}</p></div><button className="btn btn-secondary btn-sm" onClick={() => setEditingGateway({ ...rate })}>Edit</button></div><p className="text-xs leading-relaxed text-gray-400 mt-4 border-t border-white/5 pt-3">{rate.description || 'No description provided.'}</p></article>)}
+          {gatewayRates.map((rate) => <article key={rate.channel} className="rounded-2xl border border-white/10 bg-slate-900/55 p-4 sm:p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-xs uppercase tracking-wider font-bold text-blue-300">{rate.channel === 'BKASH' ? 'bKash' : rate.channel === 'NAGAD' ? 'Nagad' : rate.channel === 'BANK' ? 'Bank / CellFin' : 'Physical Cash'}</p><p className="text-xl font-extrabold text-white mt-1">{rate.cashoutRatePercentage}%</p><p className="text-xs text-gray-400 mt-1">+ {money.format(rate.fixedFee)} {t(rate.roundingIncrement > 0 ? `round up to BDT ${rate.roundingIncrement}` : 'fixed · no rounding')}</p></div><button className="btn btn-secondary btn-sm" onClick={() => setEditingGateway({ ...rate })}>{t('Edit')}</button></div><p className="text-xs leading-relaxed text-gray-400 mt-4 border-t border-white/5 pt-3">{t(rate.description || 'No description provided.')}</p></article>)}
         </div>
-        <p className="text-xs text-gray-500 mt-4">Default rules: bKash 1.85%, Nagad app 1.49%, and free incoming Islami Bank / CellFin or cash. A rounding value of 0 keeps the exact calculated fee. Choose 1.70% in the Nagad rule when the member uses USSD.</p>
+        <p className="text-xs text-gray-500 mt-4">{t('Default rules: bKash 1.85%, Nagad app 1.49%, and free incoming Islami Bank / CellFin or cash. A rounding value of 0 keeps the exact calculated fee. Choose 1.70% in the Nagad rule when the member uses USSD.')}</p>
       </section>
 
       <section className="glass-card p-5 sm:p-6">

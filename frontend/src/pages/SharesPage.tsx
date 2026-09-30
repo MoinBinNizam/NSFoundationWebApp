@@ -729,12 +729,12 @@ export const SharesPage: React.FC = () => {
               <thead>
                 <tr>
                   <th>Member</th>
-                  <th>Final Shares ({selectedYear})</th>
-                  <th>Annual Obligation</th>
-                  <th>Principal Paid</th>
-                  <th>Shortfall Due</th>
-                  <th>Advance Credit (Next Year)</th>
-                  <th>Settlement Status</th>
+                  <th>{t(`Final Shares (${selectedYear})`)}</th>
+                  <th>{t('Annual Obligation')}</th>
+                  <th>{t('Principal Paid')}</th>
+                  <th>{t('Shortfall Due')}</th>
+                  <th>{t('Advance Credit (Next Year)')}</th>
+                  <th>{t('Settlement Status')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -954,7 +954,7 @@ export const SharesPage: React.FC = () => {
             <div className="p-3 bg-blue-500/10 border border-blue-500/25 rounded-lg text-blue-400 text-xs mb-4 flex gap-2">
               <Info size={18} className="shrink-0 text-blue-400" />
               <span>
-                <strong>Authoritative Note:</strong> Share transfers are formally supported after December 2024. Buyer's future distribution entitlement on transferred shares remains pending policy finalization.
+                <strong>{t('Authoritative Note:')}</strong> {t("Share transfers are formally supported after December 2024. Buyer's future distribution entitlement on transferred shares remains pending policy finalization.")}
               </span>
             </div>
 

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { apiRequest } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { usePreferences } from "../context/PreferencesContext";
 import {
   ChevronLeft,
   ChevronRight,
@@ -74,6 +75,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 export const ExpensesPage: React.FC = () => {
   const { user } = useAuth();
+  const { t } = usePreferences();
   const canCreate = user?.role === "ADMIN" || user?.role === "ACCOUNTANT";
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -260,15 +262,14 @@ export const ExpensesPage: React.FC = () => {
           <div className="flex items-center gap-2 text-rose-400">
             <ReceiptText size={20} />
             <span className="text-xs font-bold uppercase tracking-wider">
-              Operational Finance
+              {t('Operational Finance')}
             </span>
           </div>
           <h2 className="mt-1 text-2xl font-bold text-white">
-            Expense Management
+            {t('Expense Management')}
           </h2>
           <p className="mt-1 text-sm text-gray-400">
-            Record and review operational cash-out events without mixing them
-            with investments, transfers, or member contributions.
+            {t('Record and review operational cash-out events without mixing them with investments, transfers, or member contributions.')}
           </p>
         </div>
         {canCreate && (

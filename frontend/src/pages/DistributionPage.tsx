@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   PieChart,
   Calendar,
@@ -106,6 +107,7 @@ const money = (amount: unknown) =>
 
 export const DistributionPage: React.FC = () => {
   const { user } = useAuth();
+  const { t } = usePreferences();
   const isSuperAdmin = user?.role === 'SUPER_ADMIN';
   const isAuthorizedStaff =
     user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
@@ -389,14 +391,14 @@ export const DistributionPage: React.FC = () => {
           <div className="flex items-center gap-2 text-blue-400">
             <PieChart size={18} />
             <span className="text-xs font-bold uppercase tracking-wider">
-              Governance & Settlement
+              {t('Governance & Settlement')}
             </span>
           </div>
           <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Final Distribution & Annual Settlement
+            {t('Final Distribution & Annual Settlement')}
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-gray-400">
-            2024-to-end-year payout using the January 2025 final share baseline, member principal paid, expenses, and service charges.
+            {t('2024-to-end-year payout using the January 2025 final share baseline, member principal paid, expenses, and service charges.')}
           </p>
         </div>
 

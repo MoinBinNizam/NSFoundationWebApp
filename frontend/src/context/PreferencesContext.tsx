@@ -23,13 +23,16 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
   useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark'); document.documentElement.lang = language === 'bn' ? 'bn' : 'en'; localStorage.setItem('theme', theme); }, [theme, language]);
   useEffect(() => { localStorage.setItem('language', language); }, [language]);
   const locale = language === 'bn' ? 'bn-BD' : 'en-BD';
+  // Financial and reference numbers remain in Latin digits in every language
+  // so member IDs, totals, and statements are unambiguous.
+  const numericLocale = 'en-BD';
   const value = useMemo(() => ({
     theme, setTheme, language, setLanguage,
     t: (english: string) => translateText(english, language),
-    formatAmount: (amount: number, options: Intl.NumberFormatOptions = {}) => new Intl.NumberFormat(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2, ...options }).format(Number(amount || 0)),
-    formatNumber: (number: number, options: Intl.NumberFormatOptions = {}) => new Intl.NumberFormat(locale, options).format(Number(number || 0)),
+    formatAmount: (amount: number, options: Intl.NumberFormatOptions = {}) => new Intl.NumberFormat(numericLocale, { minimumFractionDigits: 0, maximumFractionDigits: 2, ...options }).format(Number(amount || 0)),
+    formatNumber: (number: number, options: Intl.NumberFormatOptions = {}) => new Intl.NumberFormat(numericLocale, options).format(Number(number || 0)),
     formatDate: (date: string | number | Date, options: Intl.DateTimeFormatOptions = {}) => new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'short', day: 'numeric', ...options }).format(new Date(date)),
-  }), [theme, language, locale]);
+  }), [theme, language, locale, numericLocale]);
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
 };
 
