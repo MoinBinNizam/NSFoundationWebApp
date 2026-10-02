@@ -611,8 +611,10 @@ export class PaymentService {
 
     matchQuery.paymentDate = { $gte: startDate, $lte: endDate };
 
-    // 1. Overall Aggregations
-    const overall = await Payment.aggregate([
+    // 1. Live receipt aggregations. These are queried after every posted
+    // payment; no analytics value is cached in the application process.
+    const [overall, byMethod, byAccountant, dueLedgers, cashoutDues] = await Promise.all([
+      Payment.aggregate([
       { $match: matchQuery },
       {
         $group: {
@@ -626,10 +628,10 @@ export class PaymentService {
           count: { $sum: 1 },
         },
       },
-    ]);
+      ]),
 
-    // 2. Breakdown by Payment Method (bKash, Nagad, Cash, Bank)
-    const byMethod = await Payment.aggregate([
+      // 2. Breakdown by Payment Method (bKash, Nagad, Cash, Bank)
+      Payment.aggregate([
       { $match: matchQuery },
       {
         $group: {
@@ -638,10 +640,10 @@ export class PaymentService {
           count: { $sum: 1 },
         },
       },
-    ]);
+      ]),
 
-    // 3. Breakdown by Accountant (Moin vs Samrat) for Admin oversight
-    const byAccountant = await Payment.aggregate([
+      // 3. Breakdown by Accountant (Moin vs Samrat) for Admin oversight
+      Payment.aggregate([
       { $match: matchQuery },
       {
         $group: {
@@ -682,7 +684,26 @@ export class PaymentService {
           count: 1,
         },
       },
+      ]),
+
+      // Outstanding ledger parts are kept separate so accountants can see
+      // exactly whether principal, penalty, or gateway charges need action.
+      MonthlyLedger.find({}).select('principalDue penaltyDue principalPaid penaltyPaid').lean(),
+      Member.aggregate([
+        { $match: { cashoutDue: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: '$cashoutDue' }, count: { $sum: 1 } } },
+      ]),
     ]);
+
+    const dueSummary = dueLedgers.reduce(
+      (summary, ledger) => {
+        summary.principal += Math.max(0, Number(ledger.principalDue || 0) - Number(ledger.principalPaid || 0));
+        summary.penalty += Math.max(0, Number(ledger.penaltyDue || 0) - Number(ledger.penaltyPaid || 0));
+        return summary;
+      },
+      { principal: 0, penalty: 0 }
+    );
+    const cashout = Number(cashoutDues[0]?.total || 0);
 
     return {
       timeframe,
@@ -695,6 +716,13 @@ export class PaymentService {
         totalCashoutCharge: 0,
         totalUnpaidCashout: 0,
         count: 0,
+      },
+      dueSummary: {
+        principal: currency(dueSummary.principal),
+        penalty: currency(dueSummary.penalty),
+        cashout,
+        total: currency(dueSummary.principal + dueSummary.penalty + cashout),
+        cashoutMemberCount: Number(cashoutDues[0]?.count || 0),
       },
       byMethod: byMethod.reduce<Record<string, { total: number; count: number }>>((acc, item) => {
         acc[item._id] = { total: item.total, count: item.count };

@@ -35,7 +35,7 @@ interface Dashboard {
   metrics: {
     collection: { total: number; count: number; principal: number; penalty: number };
     expenses: { total: number; count: number };
-    dues: { total: number; count: number };
+    dues: { total: number; count: number; principal: number; penalty: number; cashout: number; cashoutMemberCount: number };
     custody: number;
     activeMembers: number;
     investments?: {
@@ -483,9 +483,14 @@ export const DashboardPage: React.FC = () => {
                 <p className="text-2xl sm:text-3xl font-extrabold text-white mt-3 tracking-tight">
                   {money(dashboard?.metrics.dues.total)}
                 </p>
-                <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
+                <div className="mt-3 grid grid-cols-3 gap-1.5 border-t border-white/5 pt-2.5 text-[10px] text-gray-400">
+                  <span>{t('Principal')}: <b className="text-blue-300">{money(dashboard?.metrics.dues.principal)}</b></span>
+                  <span>{t('Penalty')}: <b className="text-rose-300">{money(dashboard?.metrics.dues.penalty)}</b></span>
+                  <span>{t('Cash-out')}: <b className="text-amber-300">{money(dashboard?.metrics.dues.cashout)}</b></span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-gray-400 mt-2">
                   <span>{dashboard?.metrics.dues.count || 0} {t('outstanding ledger months')}</span>
-                  <span className="text-amber-400 font-semibold">{t('January 2024–present')}</span>
+                  <span className="text-amber-400 font-semibold">{dashboard?.metrics.dues.cashoutMemberCount || 0} {t('cash-out cases')}</span>
                 </div>
                 <MetricDelta metric={dashboard?.comparisons.dues} label="vs prior month" inverse />
               </button>

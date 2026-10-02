@@ -19,7 +19,16 @@ The command removes all documents from the configured development database and t
 - Removes Board suffixes from display names and stores their designation separately.
 - Creates one initial share-history event per member using the CSV share count.
 - Seeds the live `MONTHLY_SHARE_VALUE` configuration at 500.
-- Creates the seven documented staff/demo accounts, four custody accounts and opening ledger movements.
+- Creates the seven documented staff/demo accounts and four active custody accounts at ৳0.00. It never creates opening balances, payments, or any other financial movements.
+
+If an older local development database contains the former known demo receipts (`RCP-202401-0001` or `RCP-202401-0002`) and opening adjustments, remove only those records with:
+
+```powershell
+$env:REMOVE_DEMO_FINANCIAL_DATA='YES'
+npm run remove-demo-financial-data --prefix backend
+```
+
+The command recalculates custody balances after removal. It will not run without the explicit confirmation variable.
 
 ## Board designations
 
@@ -54,6 +63,7 @@ After the final seed, database verification confirmed:
 - 7 board/staff/demo users
 - 10 default permission documents
 - `MONTHLY_SHARE_VALUE` configured to 500
+- four active custody accounts at ৳0.00 with no financial movements
 
 The following checks passed:
 
@@ -81,7 +91,7 @@ feat(rbac): seed board designations and enforce dynamic module access
 - replace hard-coded Director restrictions with seeded defaults that the Super
   Admin can intentionally update through the RBAC matrix
 - add a repeatable reset-and-seed command that imports the 33-member CSV,
-  creates initial share history, board/demo accounts, custody openings,
+  creates initial share history, board/demo accounts, zero-balance custody accounts,
   financial defaults, and permission matrices
 - use the live MONTHLY_SHARE_VALUE configuration key during seeding
 - verify backend type-checking, full regression tests, frontend production

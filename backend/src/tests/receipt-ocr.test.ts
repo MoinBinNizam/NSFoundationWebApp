@@ -325,4 +325,26 @@ describe('Payment Receipt OCR & Auto-Extraction Test Suite', () => {
       expect(postedPayment?.memberId.toString()).toBe(testMemberId);
     });
   });
+
+  describe('5. OCR Draft Removal', () => {
+    it('permanently removes an unposted receipt file and draft, but protects posted evidence', async () => {
+      const draft = await ReceiptService.uploadReceipt(
+        Buffer.from(`bKash draft receipt ${Date.now()}`, 'utf-8'),
+        'removable-draft.pdf',
+        'application/pdf',
+        testUserId
+      );
+
+      await ReceiptService.removeReceipt(draft.receiptId, { _id: testUserId } as any);
+
+      expect(await PaymentReceipt.findOne({ receiptId: draft.receiptId })).toBeNull();
+      await expect(ReceiptStorageService.getStream(draft.storageKey)).rejects.toThrow();
+
+      const posted = await PaymentReceipt.findOne({ status: ReceiptStatus.POSTED, uploadedBy: testUserId });
+      expect(posted).not.toBeNull();
+      await expect(
+        ReceiptService.removeReceipt(posted!.receiptId, { _id: testUserId } as any)
+      ).rejects.toThrow('financial evidence');
+    });
+  });
 });

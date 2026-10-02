@@ -9,7 +9,6 @@ import {
   Member,
   ShareHistory,
   CustodyAccount,
-  CustodyMovement,
   PenaltyRule,
   GatewayRate,
   SystemConfig,
@@ -23,8 +22,6 @@ import {
   MemberStatus,
   CustodyChannel,
   AccountType,
-  MovementType,
-  MovementSourceType,
   ShareEventType,
 } from '../types/models.js';
 
@@ -285,70 +282,51 @@ export async function resetAndSeedDatabase(): Promise<void> {
   console.log(` - Convener: ${hannanUser.email} (Abdul Hannan Khan)`);
   console.log(` - Member Demo: ${memberDemoUser.email} (Bayzid Hasan)`);
 
-  // 5. Seed Custody Accounts with double-entry balance
-  console.log('Seeding authoritative custody accounts...');
+  // 5. Seed custody account structure only. Financial balances must begin at
+  // zero and may change only through an authorized financial transaction.
+  console.log('Seeding zero-balance custody accounts...');
 
-  const moinBank = await CustodyAccount.create({
+  await CustodyAccount.create({
     name: 'Islami Bank Bangladesh Ltd (IBBL)',
     accountType: AccountType.ACCOUNTANT_CUSTODY,
     channel: CustodyChannel.BANK,
     accountNumber: 'IBBL-2050-1920-8841',
-    cachedBalance: 100000,
+    cachedBalance: 0,
     holderId: moinUser._id,
     isActive: true,
   });
 
-  const samratNagad = await CustodyAccount.create({
+  await CustodyAccount.create({
     name: 'Samrat Nagad Wallet',
     accountType: AccountType.ACCOUNTANT_CUSTODY,
     channel: CustodyChannel.NAGAD,
     accountNumber: 'NAGAD-01780503933',
-    cachedBalance: 80000,
+    cachedBalance: 0,
     holderId: samratUser._id,
     isActive: true,
   });
 
-  const bkashAccount = await CustodyAccount.create({
+  await CustodyAccount.create({
     name: 'bKash Society Merchant/Agent',
     accountType: AccountType.ACCOUNTANT_CUSTODY,
     channel: CustodyChannel.BKASH,
     accountNumber: 'BKASH-01747969042',
-    cachedBalance: 50000,
+    cachedBalance: 0,
     holderId: moinUser._id,
     isActive: true,
   });
 
-  const pettyCash = await CustodyAccount.create({
+  await CustodyAccount.create({
     name: 'Physical Petty Cash',
     accountType: AccountType.ACCOUNTANT_CUSTODY,
     channel: CustodyChannel.CASH,
     accountNumber: 'CASH-VAULT-01',
-    cachedBalance: 20000,
+    cachedBalance: 0,
     holderId: moinUser._id,
     isActive: true,
   });
 
-  // Seed opening double-entry movements
-  const openingMovements = [
-    { accountId: moinBank._id, amount: 100000, desc: 'Opening IBBL Operating Balance', holder: moinUser._id },
-    { accountId: samratNagad._id, amount: 80000, desc: 'Opening Nagad Wallet Balance', holder: samratUser._id },
-    { accountId: bkashAccount._id, amount: 50000, desc: 'Opening bKash Gateway Balance', holder: moinUser._id },
-    { accountId: pettyCash._id, amount: 20000, desc: 'Opening Physical Petty Cash Vault', holder: moinUser._id },
-  ];
-
-  for (const om of openingMovements) {
-    await CustodyMovement.create({
-      custodyAccountId: om.accountId,
-      movementType: MovementType.IN,
-      amount: om.amount,
-      sourceType: MovementSourceType.ADJUSTMENT,
-      date: new Date('2024-01-01'),
-      description: om.desc,
-      performedBy: om.holder,
-    });
-  }
-
-  console.log('Seeded 4 custody accounts with paired ledger opening movements.');
+  console.log('Seeded 4 active custody accounts at ৳0.00; no opening financial movements were created.');
 
   // 6. Seed System Config & Rules
   console.log('Configuring default society parameters...');

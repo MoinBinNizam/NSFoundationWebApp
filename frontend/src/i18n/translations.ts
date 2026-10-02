@@ -442,6 +442,8 @@ export const bangla: Record<string, string> = {
   'All Historical Records': 'সব সময়ের তথ্য',
   'total receipts': 'টি জমার রসিদ',
   Principal: 'মূল টাকা',
+  'Cash-out': 'ক্যাশ-আউট',
+  'cash-out cases': 'টি ক্যাশ-আউট বকেয়া',
   'expense records': 'টি খরচের রেকর্ড',
   'Society overheads': 'সমিতির পরিচালন খরচ',
   'My Custody Holdings': 'আমার তহবিল',

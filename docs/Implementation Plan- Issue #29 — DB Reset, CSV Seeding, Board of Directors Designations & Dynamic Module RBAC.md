@@ -72,7 +72,7 @@ flowchart TD
      - `gs@nsfoundation.org` (Nayem Islam) -> Role: `ADMIN`, Designation: `GENERAL_SECRETARY`.
      - `convener@nsfoundation.org` (Abdul Hannan Khan) -> Role: `ADMIN`, Designation: `CONVENER`.
      - `member@nsfoundation.org` (Bayzid Hasan - NSF007) -> Role: `MEMBER`, Designation: `GENERAL_MEMBER`.
-   - Seed default custody accounts (Moin IBBL Bank, Samrat Nagad, bKash, Cash) with double-entry opening balances.
+   - Seed default custody account structure only (Moin IBBL Bank, Samrat Nagad, bKash, Cash), each at ৳0.00 with no opening financial movements. Balances may change only through an authorized transaction.
    - Seed default penalty rules and gateway cashout rates.
    - Seed default `ModulePermission` document.
 

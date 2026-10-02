@@ -201,4 +201,46 @@ describe('Payment & Allocation Engine Integration Tests', () => {
     expect(duplicate.status).toBe(409);
     expect(duplicate.body.message).toMatch(/already submitted/i);
   });
+
+  it('7. Collection analytics reflects a newly recorded payment immediately', async () => {
+    const member = await createTestMember('NS-PAY-ANALYTICS', 'Analytics Member', 2);
+    const before = await request(app)
+      .get('/api/payments/stats?timeframe=monthly&date=2024-09&receiverId=ALL&paymentMethod=ALL')
+      .set('Authorization', `Bearer ${primaryAccountant.token}`);
+
+    expect(before.status).toBe(200);
+    const beforeTotals = before.body.data.totals;
+
+    const payment = await request(app)
+      .post('/api/payments')
+      .set('Authorization', `Bearer ${primaryAccountant.token}`)
+      .set('Idempotency-Key', `idemp_analytics_${Date.now()}`)
+      .send({
+        memberId: member._id,
+        custodyAccountId: testCustody._id,
+        totalAmount: 1000,
+        paymentDate: '2024-09-05T10:00:00.000Z',
+        paymentMethod: PaymentMethod.BANK_TRANSFER,
+        cashoutChargePaid: 0,
+        transactionReference: `TRX_ANALYTICS_${Date.now()}`,
+      });
+
+    expect(payment.status).toBe(201);
+
+    const after = await request(app)
+      .get('/api/payments/stats?timeframe=monthly&date=2024-09&receiverId=ALL&paymentMethod=ALL')
+      .set('Authorization', `Bearer ${primaryAccountant.token}`);
+
+    expect(after.status).toBe(200);
+    expect(after.body.data.totals.count).toBe(beforeTotals.count + 1);
+    expect(after.body.data.totals.totalReceived).toBe(beforeTotals.totalReceived + 1000);
+    expect(after.body.data.byMethod.BANK_TRANSFER.total).toBeGreaterThanOrEqual(1000);
+    expect(after.body.data.dueSummary).toMatchObject({
+      principal: expect.any(Number),
+      penalty: expect.any(Number),
+      cashout: expect.any(Number),
+      total: expect.any(Number),
+      cashoutMemberCount: expect.any(Number),
+    });
+  });
 });

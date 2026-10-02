@@ -11,6 +11,7 @@ import {
   X,
   ChevronRight,
   ShieldAlert,
+  Trash2,
 } from 'lucide-react';
 
 export interface MemberOption {
@@ -122,6 +123,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
   const [allocationPreview, setAllocationPreview] = useState<any>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [removingReceiptId, setRemovingReceiptId] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -270,6 +272,30 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
     if (fileBlobUrl) {
       URL.revokeObjectURL(fileBlobUrl);
       setFileBlobUrl(null);
+    }
+  };
+
+  const handleRemoveReceipt = async (receipt: ReceiptItem) => {
+    if (receipt.status === 'POSTED') return;
+
+    const confirmed = window.confirm(
+      `Permanently remove ${receipt.originalFilename} from the OCR queue? This deletes the uploaded source image or PDF and cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setRemovingReceiptId(receipt.receiptId);
+    setActionError(null);
+
+    try {
+      await apiRequest(`/payments/receipts/${receipt.receiptId}`, { method: 'DELETE' });
+      if (selectedReceipt?.receiptId === receipt.receiptId) {
+        closeReview();
+      }
+      await fetchReceipts();
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to remove the OCR receipt image.');
+    } finally {
+      setRemovingReceiptId(null);
     }
   };
 
@@ -454,6 +480,9 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
               Upload bKash, Nagad, or Bank deposit screenshots &amp; PDFs. The system auto-extracts TrxID, amounts, and
               matches candidate members. Review and verify before authoritative posting.
             </p>
+            <p className="text-amber-300/80 text-xs max-w-xl">
+              Unposted OCR files can be permanently removed. Posted receipts remain protected as financial evidence.
+            </p>
           </div>
 
           {/* Upload Button & Dropzone trigger */}
@@ -577,8 +606,23 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
                       {rcpt.receiptId.length > 16 ? `...${rcpt.receiptId.slice(-8)}` : rcpt.receiptId}
                     </span>
                   </div>
-                  <div className="shrink-0 ml-auto">
+                  <div className="shrink-0 ml-auto flex items-center gap-1.5">
                     {getStatusBadge(rcpt.status)}
+                    {rcpt.status !== 'POSTED' && (
+                      <button
+                        type="button"
+                        aria-label={`Remove OCR receipt ${rcpt.receiptId}`}
+                        title="Remove unposted OCR image"
+                        disabled={removingReceiptId === rcpt.receiptId}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void handleRemoveReceipt(rcpt);
+                        }}
+                        className="p-1.5 rounded-lg text-rose-300 hover:text-rose-100 hover:bg-rose-500/15 transition-colors disabled:opacity-50"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -923,6 +967,21 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
 
                 {/* Actions Footer */}
                 <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-white/10">
+                  {selectedReceipt.status !== 'POSTED' && (
+                    <button
+                      type="button"
+                      disabled={removingReceiptId === selectedReceipt.receiptId || submitting}
+                      onClick={() => void handleRemoveReceipt(selectedReceipt)}
+                      className="px-4 py-2.5 rounded-xl text-xs font-bold text-rose-300 hover:text-rose-100 hover:bg-rose-500/10 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {removingReceiptId === selectedReceipt.receiptId ? (
+                        <RefreshCw size={14} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={14} />
+                      )}
+                      <span>Remove Image</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={closeReview}

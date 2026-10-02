@@ -54,6 +54,7 @@ router.get('/', ReceiptController.list);
 // Single receipt details and protected file streaming
 router.get('/:id', ReceiptController.getById);
 router.get('/:id/file', ReceiptController.streamFile);
+router.delete('/:id', ReceiptController.remove);
 
 // Review & Allocation Preview
 router.patch('/:id/review', ReceiptController.review);

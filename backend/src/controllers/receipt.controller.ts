@@ -120,6 +120,25 @@ export class ReceiptController {
   }
 
   /**
+   * DELETE /api/payments/receipts/:id
+   * Permanently removes an unposted OCR draft and its private source file.
+   */
+  static async remove(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      await ReceiptService.removeReceipt(id, req.user as any);
+
+      res.status(200).json({
+        success: true,
+        message: 'Unposted OCR receipt image and draft removed.',
+        data: { receiptId: id },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
    * PATCH /api/payments/receipts/:id/review
    */
   static async review(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {

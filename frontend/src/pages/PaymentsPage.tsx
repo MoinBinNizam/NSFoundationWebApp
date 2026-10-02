@@ -150,6 +150,13 @@ interface PaymentStats {
     count: number;
   };
   byMethod: Record<string, { total: number; count: number }>;
+  dueSummary: {
+    principal: number;
+    penalty: number;
+    cashout: number;
+    total: number;
+    cashoutMemberCount: number;
+  };
   byAccountant: Array<{
     _id: string;
     name: string;
@@ -187,6 +194,13 @@ interface PenaltyWaiverItem {
 const paymentMethodForChannel = (channel?: string) =>
   channel === 'BANK' ? 'BANK_TRANSFER' : channel === 'NAGAD' ? 'NAGAD' : channel === 'CASH' ? 'CASH' : 'BKASH';
 
+const analyticsDateForPayment = (paymentDate: string, timeframe: 'daily' | 'monthly' | 'yearly') => {
+  const calendarDate = paymentDate.slice(0, 10);
+  if (timeframe === 'daily') return calendarDate;
+  if (timeframe === 'yearly') return calendarDate.slice(0, 4);
+  return calendarDate.slice(0, 7);
+};
+
 export const PaymentsPage: React.FC = () => {
   const { user, canAccess } = useAuth();
   const canEdit = canAccess('PAYMENTS', 'edit');
@@ -209,6 +223,7 @@ export const PaymentsPage: React.FC = () => {
   // Stats Data
   const [stats, setStats] = useState<PaymentStats | null>(null);
   const [loadingStats, setLoadingStats] = useState<boolean>(false);
+  const [analyticsNotice, setAnalyticsNotice] = useState<string | null>(null);
 
   // Payments Ledger Data
   const [payments, setPayments] = useState<PaymentItem[]>([]);
@@ -314,14 +329,14 @@ export const PaymentsPage: React.FC = () => {
   }, [fetchMetadata]);
 
   // Fetch Stats Analytics
-  const fetchStats = useCallback(async () => {
+  const fetchStats = useCallback(async (overrides?: { date?: string; receiverId?: string; paymentMethod?: string }) => {
     setLoadingStats(true);
     try {
       const params = new URLSearchParams({
         timeframe,
-        date: filterDate,
-        receiverId: accountantFilter,
-        paymentMethod: methodFilter,
+        date: overrides?.date ?? filterDate,
+        receiverId: overrides?.receiverId ?? accountantFilter,
+        paymentMethod: overrides?.paymentMethod ?? methodFilter,
       });
       const res = await apiRequest<PaymentStats>(`/payments/stats?${params.toString()}`);
       setStats(res.data);
@@ -359,6 +374,25 @@ export const PaymentsPage: React.FC = () => {
       setLoadingPayments(false);
     }
   }, [ledgerPage, ledgerSearch, accountantFilter, methodFilter]);
+
+  const refreshAnalyticsAfterPayment = useCallback(async (payment: Pick<PaymentItem, 'paymentDate'>) => {
+    const analyticsDate = analyticsDateForPayment(payment.paymentDate || formData.paymentDate, timeframe);
+
+    // Always show the committed payment in its own accounting period. This
+    // prevents a historical payment being hidden by the previously selected
+    // month, receiver, or payment-method filter.
+    setActiveTab('analytics');
+    setFilterDate(analyticsDate);
+    setAccountantFilter('ALL');
+    setMethodFilter('ALL');
+    setAnalyticsNotice(`Payment recorded. Analytics now show ${analyticsDate}.`);
+
+    await Promise.all([
+      fetchStats({ date: analyticsDate, receiverId: 'ALL', paymentMethod: 'ALL' }),
+      fetchPaymentsLedger(),
+      fetchMetadata(),
+    ]);
+  }, [fetchMetadata, fetchPaymentsLedger, fetchStats, formData.paymentDate, timeframe]);
 
   useEffect(() => {
     if (activeTab === 'ledger') {
@@ -435,11 +469,10 @@ export const PaymentsPage: React.FC = () => {
       });
 
       setShowCollectModal(false);
-      // Open receipt modal for newly collected payment
-      handleViewReceipt(res.data.payment._id);
-      fetchStats();
-      fetchPaymentsLedger();
-      fetchMetadata();
+      await Promise.all([
+        refreshAnalyticsAfterPayment(res.data.payment),
+        handleViewReceipt(res.data.payment._id),
+      ]);
     } catch (err: unknown) {
       setCollectError((err as Error).message);
     } finally {
@@ -688,6 +721,14 @@ export const PaymentsPage: React.FC = () => {
       {/* TAB 1: COLLECTION ANALYTICS & STATS DASHBOARD */}
       {activeTab === 'analytics' && (
         <div className="space-y-6">
+          {analyticsNotice && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+              <span>{analyticsNotice}</span>
+              <button type="button" onClick={() => setAnalyticsNotice(null)} className="text-emerald-200 hover:text-white" aria-label="Dismiss analytics update notice">
+                <X size={16} />
+              </button>
+            </div>
+          )}
           {/* Filter Bar */}
           <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-4">
             {/* Timeframe selector: Daily | Monthly | Yearly */}
@@ -859,6 +900,31 @@ export const PaymentsPage: React.FC = () => {
               </span>
             </div>
           </div>
+
+          <section className="glass-card p-5" aria-label="Outstanding member dues">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Total Outstanding Dues</h2>
+                <p className="mt-1 text-xs text-gray-400">Live organization-wide balance: unpaid principal, penalties, and gateway cash-out charges.</p>
+              </div>
+              <p className="text-xl font-extrabold text-amber-300">৳ {(stats?.dueSummary.total || 0).toLocaleString()}</p>
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-blue-400/20 bg-blue-500/10 p-3">
+                <p className="text-xs font-semibold text-blue-200">Principal Due</p>
+                <p className="mt-1 text-lg font-extrabold text-white">৳ {(stats?.dueSummary.principal || 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border border-rose-400/20 bg-rose-500/10 p-3">
+                <p className="text-xs font-semibold text-rose-200">Penalty Due</p>
+                <p className="mt-1 text-lg font-extrabold text-white">৳ {(stats?.dueSummary.penalty || 0).toLocaleString()}</p>
+              </div>
+              <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 p-3">
+                <p className="text-xs font-semibold text-amber-200">Cash-out Charges Due</p>
+                <p className="mt-1 text-lg font-extrabold text-white">৳ {(stats?.dueSummary.cashout || 0).toLocaleString()}</p>
+                <p className="mt-1 text-[11px] text-amber-100/70">{stats?.dueSummary.cashoutMemberCount || 0} affected members</p>
+              </div>
+            </div>
+          </section>
 
           {/* Breakdown Section: By Payment Method & Multi-Accountant Comparison */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1243,11 +1309,9 @@ export const PaymentsPage: React.FC = () => {
           membersList={membersList}
           custodyAccounts={custodyAccounts}
           onPaymentPosted={(payment) => {
-            fetchPaymentsLedger();
-            fetchStats();
-            fetchMetadata();
+            void refreshAnalyticsAfterPayment(payment);
             if (payment?._id) {
-              handleViewReceipt(payment._id);
+              void handleViewReceipt(payment._id);
             }
           }}
         />

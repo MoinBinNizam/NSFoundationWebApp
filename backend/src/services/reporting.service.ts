@@ -43,7 +43,6 @@ const monthBounds = (month: string) => {
     end: new Date(year, monthNumber, 0, 23, 59, 59, 999),
   };
 };
-const monthlyOutstanding = (ledger: any) => Math.max(0, Number(ledger.principalDue || 0) + Number(ledger.penaltyDue || 0) - Number(ledger.principalPaid || 0) - Number(ledger.penaltyPaid || 0));
 const percentageChange = (current: number, previous: number) => previous === 0 ? null : ((current - previous) / Math.abs(previous)) * 100;
 const activityPageSize = 10;
 const mapActivity = (item: any) => ({ id: item._id, action: item.action, entityName: item.entityName, reason: item.reason, createdAt: item.createdAt, performedBy: item.performedBy?.name || 'System' });
@@ -109,16 +108,33 @@ export class ReportingService {
       { label: '90+ days', min: 91, max: Number.POSITIVE_INFINITY, total: 0, count: 0 },
     ];
     const overdueMemberIds = new Set<string>();
+    const dueBreakdown = { principal: 0, penalty: 0 };
     for (const ledger of dueLedgers) {
-      const outstanding = monthlyOutstanding(ledger);
+      const principalOutstanding = Math.max(0, Number(ledger.principalDue || 0) - Number(ledger.principalPaid || 0));
+      const penaltyOutstanding = Math.max(0, Number(ledger.penaltyDue || 0) - Number(ledger.penaltyPaid || 0));
+      const outstanding = principalOutstanding + penaltyOutstanding;
       if (!outstanding) continue;
+      dueBreakdown.principal += principalOutstanding;
+      dueBreakdown.penalty += penaltyOutstanding;
       const monthEnd = monthBounds(ledger.month).end;
       const ageDays = Math.max(0, Math.floor((Date.now() - monthEnd.getTime()) / (24 * 60 * 60 * 1000)));
       const bucket = dueAging.find((item) => ageDays >= item.min && ageDays <= item.max);
       if (bucket) { bucket.total += outstanding; bucket.count += 1; }
       if (ageDays > 30) overdueMemberIds.add(String(ledger.memberId));
     }
-    const dues = { total: dueAging.reduce((sum, item) => sum + item.total, 0), count: dueAging.reduce((sum, item) => sum + item.count, 0) };
+    const cashoutDue = await Member.aggregate([
+      { $match: { cashoutDue: { $gt: 0 } } },
+      { $group: { _id: null, total: { $sum: '$cashoutDue' }, count: { $sum: 1 } } },
+    ]);
+    const cashout = Number(cashoutDue[0]?.total || 0);
+    const dues = {
+      principal: dueBreakdown.principal,
+      penalty: dueBreakdown.penalty,
+      cashout,
+      total: dueBreakdown.principal + dueBreakdown.penalty + cashout,
+      count: dueAging.reduce((sum, item) => sum + item.count, 0),
+      cashoutMemberCount: Number(cashoutDue[0]?.count || 0),
+    };
     const lowBalanceThreshold = 1000;
     const lowCustodyAccounts = visibleAccounts.filter((account: any) => account.derivedBalance <= lowBalanceThreshold).slice(0, 4).map((account: any) => ({ name: account.name, balance: account.derivedBalance }));
     return {

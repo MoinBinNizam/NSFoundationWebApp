@@ -406,4 +406,51 @@ export class ReceiptService {
 
     return ReceiptStorageService.getReadStream(receipt.storageKey);
   }
+
+  /**
+   * Permanently removes an OCR draft and its source file before ledger posting.
+   * Posted receipts and anything already linked to a payment are immutable evidence.
+   */
+  static async removeReceipt(receiptId: string, actor: IUser): Promise<void> {
+    const receipt = await PaymentReceipt.findOne({ receiptId });
+    if (!receipt) {
+      throw createError(`Receipt not found: ${receiptId}`, 404);
+    }
+
+    if (receipt.status === ReceiptStatus.POSTED || receipt.paymentId) {
+      throw createError('Posted receipts cannot be removed because they are financial evidence.', 409);
+    }
+
+    try {
+      await ReceiptStorageService.delete(receipt.storageKey);
+    } catch (error) {
+      logger.error(`Failed to remove receipt source file: ${receiptId}`, {
+        component: 'ReceiptService',
+        receiptId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw createError('Unable to remove the stored receipt image. The draft was not deleted.', 500);
+    }
+
+    await PaymentReceipt.deleteOne({ _id: receipt._id });
+
+    await AuditLog.create({
+      performedBy: (actor as any)._id,
+      action: 'RECEIPT_REMOVED',
+      entityName: 'PaymentReceipt',
+      entityId: receipt._id,
+      beforeState: {
+        receiptId,
+        originalFilename: receipt.originalFilename,
+        storageKey: receipt.storageKey,
+        status: receipt.status,
+      },
+      reason: `Removed unposted OCR receipt and its source file (${receiptId})`,
+    });
+
+    logger.info(`Unposted receipt removed: ${receiptId}`, {
+      component: 'ReceiptService',
+      receiptId,
+    });
+  }
 }
