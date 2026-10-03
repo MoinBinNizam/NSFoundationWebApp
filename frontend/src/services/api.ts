@@ -1,4 +1,11 @@
+import { translateText } from '../i18n/translations';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
+function localizeApiMessage(message: string): string {
+  const language = localStorage.getItem('language') === 'bn' ? 'bn' : 'en';
+  return translateText(message, language);
+}
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -75,7 +82,7 @@ export async function apiRequest<T = unknown>(
             'Ensure the backend server is running on port 5000 and MongoDB is available.'
         );
       }
-      throw new Error(message || `Request failed with status ${response.status}`);
+      throw new Error(localizeApiMessage(message || `Request failed with status ${response.status}`));
     }
 
     if (!data) {

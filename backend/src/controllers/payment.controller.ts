@@ -125,13 +125,14 @@ export class PaymentController {
    */
   static async listPayments(req: Request, res: Response, next: NextFunction) {
     try {
-      const { page, limit, search, receiverId, paymentMethod, month } = req.query;
+      const { page, limit, search, receiverId, paymentMethod, year, month } = req.query;
       const result = await PaymentService.getPayments({
         page: page ? Number(page) : undefined,
         limit: limit ? Number(limit) : undefined,
         search: search ? String(search) : undefined,
         receiverId: receiverId ? String(receiverId) : undefined,
         paymentMethod: paymentMethod ? String(paymentMethod) : undefined,
+        year: year ? String(year) : undefined,
         month: month ? String(month) : undefined,
       });
 

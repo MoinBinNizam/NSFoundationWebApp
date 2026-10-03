@@ -234,6 +234,7 @@ export const PaymentsPage: React.FC = () => {
   // Payments Ledger Data
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [ledgerSearch, setLedgerSearch] = useState<string>('');
+  const [ledgerYear, setLedgerYear] = useState<string>('');
   const [ledgerMonth, setLedgerMonth] = useState<string>('');
   const [ledgerPage, setLedgerPage] = useState<number>(1);
   const [ledgerTotalPages, setLedgerTotalPages] = useState<number>(1);
@@ -375,6 +376,7 @@ export const PaymentsPage: React.FC = () => {
         search: ledgerSearch,
         receiverId: accountantFilter,
         paymentMethod: methodFilter,
+        year: ledgerYear,
         month: ledgerMonth,
       });
       const res = await apiRequest<PaymentItem[]>(`/payments?${params.toString()}`);
@@ -388,7 +390,7 @@ export const PaymentsPage: React.FC = () => {
     } finally {
       setLoadingPayments(false);
     }
-  }, [ledgerPage, ledgerSearch, accountantFilter, methodFilter, ledgerMonth]);
+  }, [ledgerPage, ledgerSearch, accountantFilter, methodFilter, ledgerYear, ledgerMonth]);
 
   const refreshAnalyticsAfterPayment = useCallback(async (payment: Pick<PaymentItem, 'paymentDate'>) => {
     const analyticsDate = analyticsDateForPayment(payment.paymentDate || formData.paymentDate, timeframe);
@@ -1001,10 +1003,10 @@ export const PaymentsPage: React.FC = () => {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
                 {[
+                  { key: 'BANK_TRANSFER', label: 'Bank', color: 'from-blue-500 to-indigo-600' },
                   { key: 'BKASH', label: 'bKash', color: 'from-pink-500 to-rose-600' },
                   { key: 'NAGAD', label: 'Nagad', color: 'from-orange-500 to-amber-600' },
                   { key: 'CASH', label: 'Physical Cash', color: 'from-emerald-500 to-teal-600' },
-                  { key: 'BANK_TRANSFER', label: 'Bank', color: 'from-blue-500 to-indigo-600' },
                 ].map((m) => {
                   const data = stats?.byMethod[m.key] || { total: 0, count: 0 };
                   const pct =
@@ -1108,20 +1110,40 @@ export const PaymentsPage: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider" htmlFor="payment-history-year">Year</label>
+              <select
+                id="payment-history-year"
+                className="form-input py-2 text-sm"
+                value={ledgerYear}
+                onChange={(e) => {
+                  setLedgerYear(e.target.value);
+                  setLedgerMonth('');
+                  setLedgerPage(1);
+                }}
+              >
+                <option value="">All years</option>
+                {[2024, 2025, 2026, 2027, 2028].map((year) => <option key={year} value={year}>{year}</option>)}
+              </select>
               <label className="text-xs font-bold text-gray-400 uppercase tracking-wider" htmlFor="payment-history-month">Month</label>
-              <input
+              <select
                 id="payment-history-month"
-                type="month"
                 className="form-input py-2 text-sm"
                 value={ledgerMonth}
+                disabled={!ledgerYear}
                 onChange={(e) => {
                   setLedgerMonth(e.target.value);
                   setLedgerPage(1);
                 }}
-              />
-              {ledgerMonth && (
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setLedgerMonth(''); setLedgerPage(1); }}>
+              >
+                <option value="">All months</option>
+                {[
+                  'January', 'February', 'March', 'April', 'May', 'June',
+                  'July', 'August', 'September', 'October', 'November', 'December',
+                ].map((month, index) => <option key={month} value={`${ledgerYear}-${String(index + 1).padStart(2, '0')}`}>{month}</option>)}
+              </select>
+              {(ledgerYear || ledgerMonth) && (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setLedgerYear(''); setLedgerMonth(''); setLedgerPage(1); }}>
                   Clear
                 </button>
               )}

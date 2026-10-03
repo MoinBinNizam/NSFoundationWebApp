@@ -820,6 +820,7 @@ export class PaymentService {
     search?: string;
     receiverId?: string;
     paymentMethod?: string;
+    year?: string;
     month?: string;
   }) {
     const page = Math.max(1, Number(query.page) || 1);
@@ -841,6 +842,12 @@ export class PaymentService {
       filter.paymentDate = {
         $gte: new Date(y, m - 1, 1),
         $lt: new Date(y, m, 1),
+      };
+    } else if (query.year && /^\d{4}$/.test(query.year)) {
+      const year = Number(query.year);
+      filter.paymentDate = {
+        $gte: new Date(year, 0, 1),
+        $lt: new Date(year + 1, 0, 1),
       };
     }
 
