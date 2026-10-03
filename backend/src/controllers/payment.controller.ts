@@ -15,7 +15,7 @@ export class PaymentController {
    */
   static async previewPayment(req: Request, res: Response, next: NextFunction) {
     try {
-      const { memberId, totalAmount, paymentDate, paymentMethod, custodyAccountId, cashoutChargePaid } = req.body;
+      const { memberId, totalAmount, paymentDate, paymentMethod, custodyAccountId, cashoutChargePaid, penaltyWaiverAmount, cashoutWaiverAmount, waiverReason } = req.body;
       if (!memberId || totalAmount === undefined) {
         return next(createError('memberId and totalAmount are required', 400));
       }
@@ -27,6 +27,9 @@ export class PaymentController {
         paymentMethod,
         custodyAccountId,
         cashoutChargePaid: Number(cashoutChargePaid) || 0,
+        penaltyWaiverAmount: Number(penaltyWaiverAmount) || 0,
+        cashoutWaiverAmount: Number(cashoutWaiverAmount) || 0,
+        waiverReason,
       });
 
       res.status(200).json({
@@ -51,6 +54,9 @@ export class PaymentController {
         totalAmount,
         paymentMethod,
         cashoutChargePaid,
+        penaltyWaiverAmount,
+        cashoutWaiverAmount,
+        waiverReason,
         transactionReference,
         notes,
       } = req.body;
@@ -72,6 +78,9 @@ export class PaymentController {
           totalAmount: Number(totalAmount),
           paymentMethod,
           cashoutChargePaid: Number(cashoutChargePaid) || 0,
+          penaltyWaiverAmount: Number(penaltyWaiverAmount) || 0,
+          cashoutWaiverAmount: Number(cashoutWaiverAmount) || 0,
+          waiverReason,
           transactionReference,
           notes,
         },
@@ -83,6 +92,29 @@ export class PaymentController {
         message: 'Member payment recorded successfully',
         data: result,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** PATCH /api/payments/:id - non-financial correction only */
+  static async updatePaymentMetadata(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const payment = await PaymentService.updatePaymentMetadata(req.params.id, {
+        transactionReference: req.body.transactionReference,
+        notes: req.body.notes,
+      }, req.user!);
+      res.status(200).json({ success: true, message: 'Payment reference and notes updated.', data: payment });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** DELETE /api/payments/:id - audited financial void, never a physical delete */
+  static async voidPayment(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const payment = await PaymentService.voidPayment(req.params.id, req.body.reason, req.user!);
+      res.status(200).json({ success: true, message: 'Payment voided with a compensating custody reversal.', data: payment });
     } catch (error) {
       next(error);
     }
@@ -120,7 +152,7 @@ export class PaymentController {
     try {
       const { timeframe, date, receiverId, paymentMethod } = req.query;
       const stats = await PaymentService.getPaymentStats({
-        timeframe: (timeframe as 'daily' | 'monthly' | 'yearly') || 'monthly',
+        timeframe: (timeframe as 'all' | 'daily' | 'monthly' | 'yearly') || 'all',
         date: date ? String(date) : undefined,
         receiverId: receiverId ? String(receiverId) : undefined,
         paymentMethod: paymentMethod ? String(paymentMethod) : undefined,

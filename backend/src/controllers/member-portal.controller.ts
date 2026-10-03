@@ -15,7 +15,7 @@ export async function getMyPortal(req: AuthRequest, res: Response, next: NextFun
       Payment.find({ memberId: member._id }).select('receiptNumber paymentDate totalAmount principalAmount penaltyAmount advanceAmount cashoutCharge paymentMethod status').sort({ paymentDate: -1 }).limit(50).lean(),
       MonthlyLedger.find({ memberId: member._id }).sort({ month: -1 }).limit(24).lean(),
     ]);
-    const due = ledgers.filter((item) => item.status === 'DUE' || item.status === 'PARTIAL').reduce((sum, item) => sum + Math.max(0, item.principalDue + item.penaltyDue - item.principalPaid - item.penaltyPaid), 0);
+    const due = ledgers.filter((item) => item.status === 'DUE' || item.status === 'PARTIAL').reduce((sum, item) => sum + Math.max(0, item.principalDue + item.penaltyDue - item.principalPaid - item.penaltyPaid - (item.penaltyWaived || 0)), 0);
     const advance = ledgers.reduce((sum, item) => sum + Number(item.excessAdvance || 0), 0);
     res.json({ success: true, data: { member, currentShares: share?.shareCount || 1, due, advance, payments, ledgers } });
   } catch (error) { next(error); }

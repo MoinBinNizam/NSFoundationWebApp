@@ -60,6 +60,35 @@ const paymentSchema = new Schema<IPayment>(
       default: 0,
       min: [0, 'Unpaid cashout charge cannot be negative'],
     },
+    penaltyWaived: {
+      type: Number,
+      default: 0,
+      min: [0, 'Waived penalty cannot be negative'],
+    },
+    cashoutChargeWaived: {
+      type: Number,
+      default: 0,
+      min: [0, 'Waived cash-out charge cannot be negative'],
+    },
+    waiverReason: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    voidReason: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    voidedAt: {
+      type: Date,
+      default: null,
+    },
+    voidedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     advanceAmount: {
       type: Number,
       default: 0,

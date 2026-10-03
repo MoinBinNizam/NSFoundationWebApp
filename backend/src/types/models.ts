@@ -313,6 +313,12 @@ export interface IPayment {
   penaltyAmount: number;
   cashoutCharge: number; // Cash out charge paid by member
   unpaidCashoutCharge?: number; // Gateway fee not paid by member, added to member's cashoutDue
+  penaltyWaived?: number; // Outstanding penalty forgiven by the accountant during this payment
+  cashoutChargeWaived?: number; // Existing/current cash-out charge forgiven during this payment
+  waiverReason?: string;
+  voidReason?: string;
+  voidedAt?: Date | null;
+  voidedBy?: Types.ObjectId | null;
   advanceAmount: number;
   paymentMethod: PaymentMethod;
   transactionReference?: string;
@@ -341,6 +347,7 @@ export interface IMonthlyLedger {
   penaltyDue: number;
   principalPaid: number;
   penaltyPaid: number;
+  penaltyWaived?: number;
   advanceApplied: number;
   excessAdvance: number;
   status: MonthlyLedgerStatus;

@@ -22,6 +22,8 @@ router.get('/penalty-rules', PaymentController.getPenaltyRules);
 router.get('/penalty-waivers', PaymentController.getPenaltyWaivers);
 router.get('/', requireModuleAccess('PAYMENTS', 'view'), PaymentController.listPayments);
 router.get('/:id', requireModuleAccess('PAYMENTS', 'view'), PaymentController.getPaymentDetails);
+router.patch('/:id', requireAccountant(AccountantType.PRIMARY, AccountantType.ASSISTANT), requireModuleAccess('PAYMENTS', 'edit'), PaymentController.updatePaymentMetadata);
+router.delete('/:id', requireAccountant(AccountantType.PRIMARY, AccountantType.ASSISTANT), requireModuleAccess('PAYMENTS', 'edit'), PaymentController.voidPayment);
 
 // Accountant collection routes (Accessible by both Primary and Assistant Accountants)
 router.post(

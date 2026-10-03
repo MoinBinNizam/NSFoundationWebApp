@@ -6,6 +6,8 @@ import { createTestUser, createTestMember, createTestCustodyAccount, ensureDefau
 import { UserRole, AccountantType, CustodyChannel, PaymentMethod } from '../types/models.js';
 import { MonthlyLedger } from '../models/MonthlyLedger.js';
 import { Member } from '../models/Member.js';
+import { Payment } from '../models/Payment.js';
+import { AuditLog } from '../models/AuditLog.js';
 
 describe('Payment & Allocation Engine Integration Tests', () => {
   const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/ns-foundation';
@@ -242,5 +244,117 @@ describe('Payment & Allocation Engine Integration Tests', () => {
       total: expect.any(Number),
       cashoutMemberCount: expect.any(Number),
     });
+  });
+
+  it('8. Per-payment waivers clear prior penalty and cash-out dues with an audit reason', async () => {
+    const member = await createTestMember('NS-PAY-WAIVER', 'Waiver Member', 2);
+    member.cashoutDue = 25;
+    await member.save();
+    await MonthlyLedger.create({
+      memberId: member._id,
+      month: '2024-01',
+      shareCount: 2,
+      principalDue: 1000,
+      principalPaid: 1000,
+      penaltyDue: 80,
+      penaltyPaid: 0,
+      status: 'PARTIAL',
+    });
+
+    const missingReason = await request(app)
+      .post('/api/payments/preview')
+      .set('Authorization', `Bearer ${primaryAccountant.token}`)
+      .send({
+        memberId: member._id,
+        custodyAccountId: testCustody._id,
+        totalAmount: 1000,
+        paymentDate: '2024-02-10T10:00:00.000Z',
+        paymentMethod: PaymentMethod.BANK_TRANSFER,
+        penaltyWaiverAmount: 80,
+      });
+    expect(missingReason.status).toBe(400);
+    expect(missingReason.body.message).toMatch(/waiver reason/i);
+
+    const response = await request(app)
+      .post('/api/payments')
+      .set('Authorization', `Bearer ${primaryAccountant.token}`)
+      .set('Idempotency-Key', `idemp_waiver_${Date.now()}`)
+      .send({
+        memberId: member._id,
+        custodyAccountId: testCustody._id,
+        totalAmount: 1000,
+        paymentDate: '2024-02-10T10:00:00.000Z',
+        paymentMethod: PaymentMethod.BANK_TRANSFER,
+        cashoutChargePaid: 0,
+        penaltyWaiverAmount: 80,
+        cashoutWaiverAmount: 25,
+        waiverReason: 'Board-approved hardship waiver',
+        transactionReference: `TRX_WAIVER_${Date.now()}`,
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.payment.penaltyWaived).toBe(80);
+    expect(response.body.data.payment.cashoutChargeWaived).toBe(25);
+    expect(response.body.data.payment.waiverReason).toBe('Board-approved hardship waiver');
+
+    const waivedLedger = await MonthlyLedger.findOne({ memberId: member._id, month: '2024-01' });
+    const updatedMember = await Member.findById(member._id);
+    expect(waivedLedger?.penaltyWaived).toBe(80);
+    expect(waivedLedger?.status).toBe('PAID');
+    expect(updatedMember?.cashoutDue).toBe(0);
+
+    const payment = await Payment.findById(response.body.data.payment._id);
+    const audit = await AuditLog.findOne({ entityName: 'Payment', entityId: payment!._id, action: 'COLLECT_MEMBER_PAYMENT' });
+    expect(audit?.afterState).toMatchObject({ penaltyWaived: 80, cashoutChargeWaived: 25, waiverReason: 'Board-approved hardship waiver' });
+  });
+
+  it('9. All-time collection analytics reconciles every completed payment in payment history', async () => {
+    const stats = await request(app)
+      .get('/api/payments/stats?timeframe=all&receiverId=ALL&paymentMethod=ALL')
+      .set('Authorization', `Bearer ${primaryAccountant.token}`);
+
+    expect(stats.status).toBe(200);
+    expect(stats.body.data.timeframe).toBe('all');
+    expect(stats.body.data.dateRange).toBeNull();
+    expect(stats.body.data.totals.count).toBeGreaterThanOrEqual(8);
+    expect(stats.body.data.totals.totalReceived).toBeGreaterThan(0);
+  });
+
+  it('10. Payment history supports metadata correction and an auditable void without physical deletion', async () => {
+    const member = await createTestMember('NS-PAY-HISTORY', 'History Member', 2);
+    const created = await request(app)
+      .post('/api/payments')
+      .set('Authorization', `Bearer ${primaryAccountant.token}`)
+      .set('Idempotency-Key', `idemp_history_${Date.now()}`)
+      .send({
+        memberId: member._id,
+        custodyAccountId: testCustody._id,
+        totalAmount: 1000,
+        paymentDate: '2024-10-05T10:00:00.000Z',
+        paymentMethod: PaymentMethod.BANK_TRANSFER,
+        transactionReference: 'HISTORY-ORIGINAL',
+      });
+    expect(created.status).toBe(201);
+    const paymentId = created.body.data.payment._id;
+
+    const edited = await request(app)
+      .patch(`/api/payments/${paymentId}`)
+      .set('Authorization', `Bearer ${primaryAccountant.token}`)
+      .send({ transactionReference: 'HISTORY-CORRECTED', notes: 'Corrected source reference' });
+    expect(edited.status).toBe(200);
+    expect(edited.body.data.transactionReference).toBe('HISTORY-CORRECTED');
+
+    const voided = await request(app)
+      .delete(`/api/payments/${paymentId}`)
+      .set('Authorization', `Bearer ${primaryAccountant.token}`)
+      .send({ reason: 'Duplicate payment entry' });
+    expect(voided.status).toBe(200);
+    expect(voided.body.data.status).toBe('CANCELLED');
+
+    const retained = await Payment.findById(paymentId);
+    const voidAudit = await AuditLog.findOne({ entityName: 'Payment', entityId: paymentId, action: 'VOID_MEMBER_PAYMENT' });
+    expect(retained?.status).toBe('CANCELLED');
+    expect(retained?.voidReason).toBe('Duplicate payment entry');
+    expect(voidAudit?.reason).toMatch(/Duplicate payment entry/);
   });
 });

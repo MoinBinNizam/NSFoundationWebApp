@@ -105,12 +105,21 @@ export class PaymentService {
     paymentDate?: string | Date;
     totalAmount: number;
     cashoutChargePaid?: number;
+    penaltyWaiverAmount?: number;
+    cashoutWaiverAmount?: number;
+    waiverReason?: string;
     paymentMethod: PaymentMethod;
     custodyAccountId?: string;
   }) {
     const { memberId, totalAmount } = input;
     const paymentDate = input.paymentDate ? new Date(input.paymentDate) : new Date();
     const cashoutChargePaid = Math.max(0, Number(input.cashoutChargePaid) || 0);
+    const penaltyWaiverAmount = currency(Math.max(0, Number(input.penaltyWaiverAmount) || 0));
+    const cashoutWaiverAmount = currency(Math.max(0, Number(input.cashoutWaiverAmount) || 0));
+    const waiverReason = input.waiverReason?.trim() || '';
+    if ((penaltyWaiverAmount > 0 || cashoutWaiverAmount > 0) && waiverReason.length < 5) {
+      throw createError('A waiver reason of at least 5 characters is required.', 400);
+    }
 
     const member = await Member.findById(memberId);
     if (!member) {
@@ -148,8 +157,12 @@ export class PaymentService {
     const existingDues = await MonthlyLedger.find({
       memberId: member._id,
       month: { $lt: currentYearMonth },
-      status: { $in: [MonthlyLedgerStatus.DUE, MonthlyLedgerStatus.PARTIAL] },
     }).sort({ month: 1 });
+
+    const currentLedger = await MonthlyLedger.findOne({
+      memberId: member._id,
+      month: currentYearMonth,
+    });
 
     const allocations: Array<{
       targetMonth: string;
@@ -161,6 +174,18 @@ export class PaymentService {
     let totalPrincipal = 0;
     let totalPenalty = 0;
     let totalAdvance = 0;
+    let remainingPenaltyWaiver = penaltyWaiverAmount;
+    const penaltyWaiversByMonth: Array<{ month: string; amount: number }> = [];
+
+    for (const due of existingDues) {
+      if (remainingPenaltyWaiver <= 0) break;
+      const outstandingPenalty = Math.max(0, due.penaltyDue - due.penaltyPaid - (due.penaltyWaived || 0));
+      const waived = Math.min(remainingPenaltyWaiver, outstandingPenalty);
+      if (waived > 0) {
+        penaltyWaiversByMonth.push({ month: due.month, amount: waived });
+        remainingPenaltyWaiver = currency(remainingPenaltyWaiver - waived);
+      }
+    }
 
     // Allocate to Past Dues (Principal first, then Penalty) - SRS Section 10.2
     for (const due of existingDues) {
@@ -180,7 +205,8 @@ export class PaymentService {
       }
 
       // Past month penalties
-      const outstandingPenalty = Math.max(0, due.penaltyDue - due.penaltyPaid);
+      const waiverForMonth = penaltyWaiversByMonth.find((waiver) => waiver.month === due.month)?.amount || 0;
+      const outstandingPenalty = Math.max(0, due.penaltyDue - due.penaltyPaid - (due.penaltyWaived || 0) - waiverForMonth);
       if (outstandingPenalty > 0 && remainingCash > 0) {
         const penaltyAllocated = Math.min(remainingCash, outstandingPenalty);
         allocations.push({
@@ -195,12 +221,28 @@ export class PaymentService {
     }
 
     // Allocate to Current Month
-    const currentLedger = await MonthlyLedger.findOne({
-      memberId: member._id,
-      month: currentYearMonth,
-    });
+    const currentPenaltyRule = await this.getPenaltyRule(currentYearMonth);
+    const currentPenaltyApplies = dayOfMonth > currentPenaltyRule.graceDayOfMonth
+      && !(await this.isMonthWaived(currentYearMonth, member._id));
+    const currentPenaltyDue = currentPenaltyApplies
+      ? currentMemberShares * currentPenaltyRule.ratePerShare
+      : 0;
+    const currentPenaltyOutstanding = Math.max(
+      0,
+      currentPenaltyDue - (currentLedger?.penaltyPaid || 0) - (currentLedger?.penaltyWaived || 0)
+    );
+    const currentPenaltyWaived = Math.min(remainingPenaltyWaiver, currentPenaltyOutstanding);
+    if (currentPenaltyWaived > 0) {
+      penaltyWaiversByMonth.push({ month: currentYearMonth, amount: currentPenaltyWaived });
+      remainingPenaltyWaiver = currency(remainingPenaltyWaiver - currentPenaltyWaived);
+    }
+    if (remainingPenaltyWaiver > 0) {
+      throw createError(`Penalty waiver cannot exceed the member's outstanding penalty of BDT ${currency(penaltyWaiverAmount - remainingPenaltyWaiver)}.`, 400);
+    }
 
-    const isCurrentPaid = currentLedger && currentLedger.status === MonthlyLedgerStatus.PAID;
+    const isCurrentPaid = !!currentLedger
+      && currentLedger.principalPaid >= monthlyObligation
+      && (currentLedger.penaltyPaid + (currentLedger.penaltyWaived || 0)) >= currentPenaltyDue;
 
     if (!isCurrentPaid && remainingCash > 0) {
       const currentPaid = currentLedger ? currentLedger.principalPaid : 0;
@@ -218,14 +260,8 @@ export class PaymentService {
         totalPrincipal += principalAllocated;
       }
 
-      // Check if current month penalty applies (SRS 7.2: Day > graceDay and not waived)
-      const penaltyRule = await this.getPenaltyRule(currentYearMonth);
-      const isWaived = await this.isMonthWaived(currentYearMonth, member._id);
-
-      if (dayOfMonth > penaltyRule.graceDayOfMonth && !isWaived && remainingCash > 0) {
-        const currentMonthPenaltyDue = currentMemberShares * penaltyRule.ratePerShare;
-        const currentPenaltyPaid = currentLedger ? currentLedger.penaltyPaid : 0;
-        const penaltyNeeded = Math.max(0, currentMonthPenaltyDue - currentPenaltyPaid);
+      if (currentPenaltyApplies && remainingCash > 0) {
+        const penaltyNeeded = Math.max(0, currentPenaltyOutstanding - currentPenaltyWaived);
 
         if (penaltyNeeded > 0) {
           const penaltyAllocated = Math.min(remainingCash, penaltyNeeded);
@@ -233,7 +269,7 @@ export class PaymentService {
             targetMonth: currentYearMonth,
             allocationType: AllocationType.PENALTY,
             amount: penaltyAllocated,
-            description: `Current month (${currentYearMonth}) late penalty (${penaltyRule.ratePerShare} BDT/share)`,
+            description: `Current month (${currentYearMonth}) late penalty (${currentPenaltyRule.ratePerShare} BDT/share)`,
           });
           remainingCash -= penaltyAllocated;
           totalPenalty += penaltyAllocated;
@@ -281,20 +317,24 @@ export class PaymentService {
       throw createError('Cash-out charge paid cannot exceed the total amount received.', 400);
     }
     const totalChargeDueBeforePayment = currentCashoutDue + requiredCashoutCharge;
+    if (cashoutChargePaid + cashoutWaiverAmount > totalChargeDueBeforePayment) {
+      throw createError(`Cash-out payment and waiver cannot exceed the member's due charge of BDT ${totalChargeDueBeforePayment}.`, 400);
+    }
     if (cashoutChargePaid > totalChargeDueBeforePayment) {
       throw createError(`Cash-out charge paid cannot exceed the member's due charge of BDT ${totalChargeDueBeforePayment}.`, 400);
     }
-    const newCashoutDue = Math.max(0, totalChargeDueBeforePayment - cashoutChargePaid);
-    const newlyUnpaidCashoutCharge = Math.max(0, requiredCashoutCharge - Math.max(0, cashoutChargePaid - currentCashoutDue));
+    const newCashoutDue = Math.max(0, totalChargeDueBeforePayment - cashoutChargePaid - cashoutWaiverAmount);
+    const cashoutWaiverAgainstCurrentCharge = Math.max(0, cashoutWaiverAmount - currentCashoutDue);
+    const newlyUnpaidCashoutCharge = Math.max(0, requiredCashoutCharge - Math.max(0, cashoutChargePaid - currentCashoutDue) - cashoutWaiverAgainstCurrentCharge);
     const pastPrincipalDue = existingDues.reduce((sum, due) => sum + Math.max(0, due.principalDue - due.principalPaid), 0);
-    const pastPenaltyDue = existingDues.reduce((sum, due) => sum + Math.max(0, due.penaltyDue - due.penaltyPaid), 0);
+    const pastPenaltyDue = existingDues.reduce((sum, due) => {
+      const waiverForMonth = penaltyWaiversByMonth.find((waiver) => waiver.month === due.month)?.amount || 0;
+      return sum + Math.max(0, due.penaltyDue - due.penaltyPaid - (due.penaltyWaived || 0) - waiverForMonth);
+    }, 0);
     const currentPrincipalDue = Math.max(0, monthlyObligation - (currentLedger?.principalPaid || 0));
-    const currentPenaltyRule = await this.getPenaltyRule(currentYearMonth);
-    const currentPenaltyDue = dayOfMonth > currentPenaltyRule.graceDayOfMonth && !(await this.isMonthWaived(currentYearMonth, member._id))
-      ? Math.max(0, currentMemberShares * currentPenaltyRule.ratePerShare - (currentLedger?.penaltyPaid || 0))
-      : 0;
+    const currentPenaltyDueAfterWaiver = Math.max(0, currentPenaltyOutstanding - currentPenaltyWaived);
     const requiredChargeForCurrentDue = (() => {
-      const dueBase = pastPrincipalDue + pastPenaltyDue + currentPrincipalDue + currentPenaltyDue;
+      const dueBase = pastPrincipalDue + pastPenaltyDue + currentPrincipalDue + currentPenaltyDueAfterWaiver;
       const raw = currency(dueBase * (gatewayRate.cashoutRatePercentage / 100) + gatewayRate.fixedFee);
       return raw > 0 ? roundingIncrement > 0 ? Math.ceil(raw / roundingIncrement) * roundingIncrement : currency(raw) : 0;
     })();
@@ -317,6 +357,8 @@ export class PaymentService {
         advanceAmount: totalAdvance,
         cashoutChargePaid,
         unpaidCashoutCharge: newlyUnpaidCashoutCharge,
+        penaltyWaived: penaltyWaiverAmount,
+        cashoutChargeWaived: cashoutWaiverAmount,
       },
       gateway: {
         channel: gatewayChannel,
@@ -330,14 +372,20 @@ export class PaymentService {
         previousMonthsPrincipal: pastPrincipalDue,
         previousMonthsPenalty: pastPenaltyDue,
         currentMonthPayable: currentPrincipalDue,
-        currentMonthPenalty: currentPenaltyDue,
+        currentMonthPenalty: currentPenaltyDueAfterWaiver,
         carriedCashoutCharge: currentCashoutDue,
         estimatedCashoutCharge: requiredChargeForCurrentDue,
-        totalDue: pastPrincipalDue + pastPenaltyDue + currentPrincipalDue + currentPenaltyDue + currentCashoutDue + requiredChargeForCurrentDue,
+        totalDue: pastPrincipalDue + pastPenaltyDue + currentPrincipalDue + currentPenaltyDueAfterWaiver + newCashoutDue,
       },
       coverage: {
         coversFrom,
         coversTo,
+      },
+      waivers: {
+        penaltyAmount: penaltyWaiverAmount,
+        cashoutAmount: cashoutWaiverAmount,
+        reason: waiverReason,
+        penaltyByMonth: penaltyWaiversByMonth,
       },
     };
   }
@@ -355,6 +403,9 @@ export class PaymentService {
       totalAmount: number;
       paymentMethod: PaymentMethod;
       cashoutChargePaid?: number;
+      penaltyWaiverAmount?: number;
+      cashoutWaiverAmount?: number;
+      waiverReason?: string;
       transactionReference?: string;
       notes?: string;
     },
@@ -393,6 +444,9 @@ export class PaymentService {
       paymentDate,
       totalAmount,
       cashoutChargePaid: input.cashoutChargePaid,
+      penaltyWaiverAmount: input.penaltyWaiverAmount,
+      cashoutWaiverAmount: input.cashoutWaiverAmount,
+      waiverReason: input.waiverReason,
       paymentMethod,
       custodyAccountId,
     });
@@ -435,6 +489,9 @@ export class PaymentService {
       penaltyAmount: preview.breakdown.penaltyAmount,
       cashoutCharge: preview.breakdown.cashoutChargePaid,
       unpaidCashoutCharge: preview.breakdown.unpaidCashoutCharge,
+      penaltyWaived: preview.breakdown.penaltyWaived,
+      cashoutChargeWaived: preview.breakdown.cashoutChargeWaived,
+      waiverReason: preview.waivers.reason,
       advanceAmount: preview.breakdown.advanceAmount,
       paymentMethod,
       transactionReference: input.transactionReference || '',
@@ -456,7 +513,10 @@ export class PaymentService {
     }
 
     // 5. Update/Upsert MonthlyLedger for affected months
-    const affectedMonths = Array.from(new Set(preview.allocations.map((a) => a.targetMonth)));
+    const affectedMonths = Array.from(new Set([
+      ...preview.allocations.map((a) => a.targetMonth),
+      ...preview.waivers.penaltyByMonth.map((waiver) => waiver.month),
+    ]));
     for (const month of affectedMonths) {
       const monthAllocations = preview.allocations.filter((a) => a.targetMonth === month);
       const principalAlloc = monthAllocations
@@ -471,6 +531,9 @@ export class PaymentService {
       const penaltyAlloc = monthAllocations
         .filter((a) => a.allocationType === AllocationType.PENALTY)
         .reduce((sum, a) => sum + a.amount, 0);
+      const penaltyWaived = preview.waivers.penaltyByMonth
+        .filter((waiver) => waiver.month === month)
+        .reduce((sum, waiver) => sum + waiver.amount, 0);
 
       const shareCount = await this.getMemberShareCount(member._id, month);
       const monthlyObligation = shareCount * (await getMonthlyShareValue());
@@ -479,7 +542,11 @@ export class PaymentService {
       if (existingLedger) {
         existingLedger.principalPaid += principalAlloc;
         existingLedger.penaltyPaid += penaltyAlloc;
-        if (existingLedger.principalPaid >= existingLedger.principalDue) {
+        existingLedger.penaltyWaived = (existingLedger.penaltyWaived || 0) + penaltyWaived;
+        if (
+          existingLedger.principalPaid >= existingLedger.principalDue
+          && existingLedger.penaltyPaid + (existingLedger.penaltyWaived || 0) >= existingLedger.penaltyDue
+        ) {
           existingLedger.status = MonthlyLedgerStatus.PAID;
         } else {
           existingLedger.status = MonthlyLedgerStatus.PARTIAL;
@@ -487,15 +554,19 @@ export class PaymentService {
         existingLedger.lastRebuiltAt = new Date();
         await existingLedger.save();
       } else {
-        const isPaid = principalAlloc >= monthlyObligation;
+        const penaltyDueForNewLedger = month === currentYearMonth
+          ? preview.dueSummary.currentMonthPenalty + penaltyWaived
+          : penaltyAlloc;
+        const isPaid = principalAlloc >= monthlyObligation && penaltyAlloc + penaltyWaived >= penaltyDueForNewLedger;
         await MonthlyLedger.create({
           memberId: member._id,
           month,
           shareCount,
           principalDue: monthlyObligation,
-          penaltyDue: penaltyAlloc,
+          penaltyDue: penaltyDueForNewLedger,
           principalPaid: principalAlloc,
           penaltyPaid: penaltyAlloc,
+          penaltyWaived,
           advanceApplied: month > currentYearMonth ? principalAlloc : 0,
           excessAdvance: 0,
           status: isPaid ? MonthlyLedgerStatus.PAID : MonthlyLedgerStatus.PARTIAL,
@@ -547,6 +618,9 @@ export class PaymentService {
         principalAmount: payment.principalAmount,
         penaltyAmount: payment.penaltyAmount,
         cashoutCharge: payment.cashoutCharge,
+        penaltyWaived: payment.penaltyWaived,
+        cashoutChargeWaived: payment.cashoutChargeWaived,
+        waiverReason: payment.waiverReason,
         advanceAmount: payment.advanceAmount,
         custodyAccount: custodyAccount.name,
         paymentMethod,
@@ -564,15 +638,15 @@ export class PaymentService {
 
   /**
    * Analytics & Aggregations
-   * Supports filtering by Daily, Monthly, Yearly intervals, Accountant, and Payment Method.
+   * Supports filtering by all-time, daily, monthly, yearly intervals, Accountant, and Payment Method.
    */
   static async getPaymentStats(filters: {
-    timeframe?: 'daily' | 'monthly' | 'yearly';
+    timeframe?: 'all' | 'daily' | 'monthly' | 'yearly';
     date?: string; // YYYY-MM-DD for daily, YYYY-MM for monthly, YYYY for yearly
     receiverId?: string;
     paymentMethod?: string;
   }) {
-    const timeframe = filters.timeframe || 'monthly';
+    const timeframe = filters.timeframe || 'all';
     const matchQuery: Record<string, unknown> = {
       status: { $ne: PaymentStatus.CANCELLED },
     };
@@ -589,10 +663,13 @@ export class PaymentService {
 
     // Date range filter
     const now = new Date();
-    let startDate: Date;
-    let endDate: Date;
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
 
-    if (timeframe === 'daily') {
+    if (timeframe === 'all') {
+      // Intentionally no payment-date predicate: the overview must reconcile
+      // with the full receipt and payment-history ledger.
+    } else if (timeframe === 'daily') {
       const target = filters.date ? new Date(filters.date) : now;
       startDate = new Date(target.getFullYear(), target.getMonth(), target.getDate(), 0, 0, 0);
       endDate = new Date(target.getFullYear(), target.getMonth(), target.getDate(), 23, 59, 59, 999);
@@ -609,7 +686,9 @@ export class PaymentService {
       endDate = new Date(y, m + 1, 0, 23, 59, 59, 999);
     }
 
-    matchQuery.paymentDate = { $gte: startDate, $lte: endDate };
+    if (startDate && endDate) {
+      matchQuery.paymentDate = { $gte: startDate, $lte: endDate };
+    }
 
     // 1. Live receipt aggregations. These are queried after every posted
     // payment; no analytics value is cached in the application process.
@@ -688,7 +767,7 @@ export class PaymentService {
 
       // Outstanding ledger parts are kept separate so accountants can see
       // exactly whether principal, penalty, or gateway charges need action.
-      MonthlyLedger.find({}).select('principalDue penaltyDue principalPaid penaltyPaid').lean(),
+      MonthlyLedger.find({}).select('principalDue penaltyDue principalPaid penaltyPaid penaltyWaived').lean(),
       Member.aggregate([
         { $match: { cashoutDue: { $gt: 0 } } },
         { $group: { _id: null, total: { $sum: '$cashoutDue' }, count: { $sum: 1 } } },
@@ -698,7 +777,7 @@ export class PaymentService {
     const dueSummary = dueLedgers.reduce(
       (summary, ledger) => {
         summary.principal += Math.max(0, Number(ledger.principalDue || 0) - Number(ledger.principalPaid || 0));
-        summary.penalty += Math.max(0, Number(ledger.penaltyDue || 0) - Number(ledger.penaltyPaid || 0));
+        summary.penalty += Math.max(0, Number(ledger.penaltyDue || 0) - Number(ledger.penaltyPaid || 0) - Number(ledger.penaltyWaived || 0));
         return summary;
       },
       { principal: 0, penalty: 0 }
@@ -707,7 +786,7 @@ export class PaymentService {
 
     return {
       timeframe,
-      dateRange: { startDate, endDate },
+      dateRange: startDate && endDate ? { startDate, endDate } : null,
       totals: overall[0] || {
         totalReceived: 0,
         totalPrincipal: 0,
@@ -825,6 +904,108 @@ export class PaymentService {
       payment,
       allocations,
     };
+  }
+
+  /**
+   * Corrects non-financial receipt metadata without changing the payment amount,
+   * allocations, or custody movement.
+   */
+  static async updatePaymentMetadata(
+    paymentId: string,
+    input: { transactionReference?: string; notes?: string },
+    actingUser: IUser
+  ) {
+    const payment = await Payment.findById(paymentId);
+    if (!payment) throw createError('Payment receipt not found', 404);
+    if (payment.status === PaymentStatus.CANCELLED) throw createError('A voided payment cannot be edited.', 409);
+
+    const beforeState = { transactionReference: payment.transactionReference || '', notes: payment.notes || '' };
+    if (input.transactionReference !== undefined) payment.transactionReference = input.transactionReference.trim();
+    if (input.notes !== undefined) payment.notes = input.notes.trim();
+    await payment.save();
+
+    await AuditLog.create({
+      performedBy: (actingUser as any)._id,
+      action: 'EDIT_PAYMENT_METADATA',
+      entityName: 'Payment',
+      entityId: payment._id,
+      beforeState,
+      afterState: { transactionReference: payment.transactionReference || '', notes: payment.notes || '' },
+      reason: `Corrected non-financial payment metadata for ${payment.receiptNumber}`,
+    });
+    return payment;
+  }
+
+  /**
+   * A posted payment is never physically deleted. This provides an auditable
+   * void for the latest simple payment, paired with a compensating custody OUT.
+   */
+  static async voidPayment(paymentId: string, reason: string, actingUser: IUser) {
+    const payment = await Payment.findById(paymentId);
+    if (!payment) throw createError('Payment receipt not found', 404);
+    if (payment.status === PaymentStatus.CANCELLED) throw createError('This payment has already been voided.', 409);
+    if (!reason || reason.trim().length < 5) throw createError('A void reason of at least 5 characters is required.', 400);
+    if ((payment.cashoutCharge || 0) > 0 || (payment.unpaidCashoutCharge || 0) > 0 || (payment.penaltyWaived || 0) > 0 || (payment.cashoutChargeWaived || 0) > 0) {
+      throw createError('Payments containing cash-out charges or waivers require an Admin correction; they cannot be voided automatically.', 409);
+    }
+
+    const latestActive = await Payment.findOne({ memberId: payment.memberId, status: { $ne: PaymentStatus.CANCELLED } })
+      .sort({ paymentDate: -1, createdAt: -1 });
+    if (!latestActive || String(latestActive._id) !== String(payment._id)) {
+      throw createError('Only the member\'s latest active payment can be voided automatically. Use an Admin correction for an older payment.', 409);
+    }
+
+    const allocations = await PaymentAllocation.find({ paymentId: payment._id });
+    for (const allocation of allocations) {
+      const ledger = await MonthlyLedger.findOne({ memberId: payment.memberId, month: allocation.targetMonth });
+      if (!ledger) continue;
+      if ([AllocationType.PRINCIPAL, AllocationType.PREVIOUS_DUE, AllocationType.ADVANCE].includes(allocation.allocationType)) {
+        ledger.principalPaid = Math.max(0, ledger.principalPaid - allocation.amount);
+      } else if (allocation.allocationType === AllocationType.PENALTY) {
+        ledger.penaltyPaid = Math.max(0, ledger.penaltyPaid - allocation.amount);
+      }
+      ledger.status = ledger.principalPaid >= ledger.principalDue
+        && ledger.penaltyPaid + (ledger.penaltyWaived || 0) >= ledger.penaltyDue
+        ? MonthlyLedgerStatus.PAID
+        : ledger.principalPaid > 0 || ledger.penaltyPaid > 0 ? MonthlyLedgerStatus.PARTIAL : MonthlyLedgerStatus.DUE;
+      ledger.lastRebuiltAt = new Date();
+      await ledger.save();
+    }
+
+    const custodyAccount = await CustodyAccount.findById(payment.custodyAccountId);
+    if (!custodyAccount) throw createError('Payment custody account not found.', 404);
+    await CustodyMovement.create({
+      custodyAccountId: custodyAccount._id,
+      movementType: MovementType.OUT,
+      amount: payment.totalAmount,
+      sourceType: MovementSourceType.MEMBER_PAYMENT,
+      sourceRefId: payment._id,
+      date: new Date(),
+      description: `Void of member payment ${payment.receiptNumber}: ${reason.trim()}`,
+      performedBy: (actingUser as any)._id,
+    });
+    const movements = await CustodyMovement.aggregate([
+      { $match: { custodyAccountId: custodyAccount._id } },
+      { $group: { _id: '$movementType', total: { $sum: '$amount' } } },
+    ]);
+    custodyAccount.cachedBalance = movements.reduce((sum, movement) => sum + (movement._id === MovementType.IN ? movement.total : -movement.total), 0);
+    await custodyAccount.save();
+
+    payment.status = PaymentStatus.CANCELLED;
+    payment.voidReason = reason.trim();
+    payment.voidedAt = new Date();
+    payment.voidedBy = (actingUser as any)._id;
+    await payment.save();
+    await AuditLog.create({
+      performedBy: (actingUser as any)._id,
+      action: 'VOID_MEMBER_PAYMENT',
+      entityName: 'Payment',
+      entityId: payment._id,
+      beforeState: { status: PaymentStatus.COLLECTED, totalAmount: payment.totalAmount },
+      afterState: { status: PaymentStatus.CANCELLED, voidReason: payment.voidReason },
+      reason: `Voided ${payment.receiptNumber}: ${payment.voidReason}`,
+    });
+    return payment;
   }
 
   /**

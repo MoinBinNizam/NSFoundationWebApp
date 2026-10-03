@@ -40,6 +40,11 @@ const monthlyLedgerSchema = new Schema<IMonthlyLedger>(
       default: 0,
       min: 0,
     },
+    penaltyWaived: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     advanceApplied: {
       type: Number,
       default: 0,

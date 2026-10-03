@@ -21,6 +21,8 @@ import {
   ChevronRight,
   Download,
   Printer,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { ReceiptOcrManager } from '../components/ReceiptOcrManager';
 
@@ -129,6 +131,9 @@ interface PaymentItem {
   principalAmount: number;
   penaltyAmount: number;
   cashoutCharge: number;
+  penaltyWaived?: number;
+  cashoutChargeWaived?: number;
+  waiverReason?: string;
   unpaidCashoutCharge?: number;
   advanceAmount: number;
   paymentMethod: string;
@@ -194,8 +199,9 @@ interface PenaltyWaiverItem {
 const paymentMethodForChannel = (channel?: string) =>
   channel === 'BANK' ? 'BANK_TRANSFER' : channel === 'NAGAD' ? 'NAGAD' : channel === 'CASH' ? 'CASH' : 'BKASH';
 
-const analyticsDateForPayment = (paymentDate: string, timeframe: 'daily' | 'monthly' | 'yearly') => {
+const analyticsDateForPayment = (paymentDate: string, timeframe: 'all' | 'daily' | 'monthly' | 'yearly') => {
   const calendarDate = paymentDate.slice(0, 10);
+  if (timeframe === 'all') return '';
   if (timeframe === 'daily') return calendarDate;
   if (timeframe === 'yearly') return calendarDate.slice(0, 4);
   return calendarDate.slice(0, 7);
@@ -210,7 +216,7 @@ export const PaymentsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'analytics' | 'ledger' | 'rules' | 'ocr'>('analytics');
 
   // Filter States for Analytics
-  const [timeframe, setTimeframe] = useState<'daily' | 'monthly' | 'yearly'>('monthly');
+  const [timeframe, setTimeframe] = useState<'all' | 'daily' | 'monthly' | 'yearly'>('all');
   const [filterDate, setFilterDate] = useState<string>(() => {
     const d = new Date();
     const y = d.getFullYear();
@@ -228,10 +234,12 @@ export const PaymentsPage: React.FC = () => {
   // Payments Ledger Data
   const [payments, setPayments] = useState<PaymentItem[]>([]);
   const [ledgerSearch, setLedgerSearch] = useState<string>('');
+  const [ledgerMonth, setLedgerMonth] = useState<string>('');
   const [ledgerPage, setLedgerPage] = useState<number>(1);
   const [ledgerTotalPages, setLedgerTotalPages] = useState<number>(1);
   const [ledgerTotalCount, setLedgerTotalCount] = useState<number>(0);
   const [loadingPayments, setLoadingPayments] = useState<boolean>(false);
+  const [ledgerActionError, setLedgerActionError] = useState<string | null>(null);
 
   // Common Metadata
   const [membersList, setMembersList] = useState<MemberOption[]>([]);
@@ -258,6 +266,9 @@ export const PaymentsPage: React.FC = () => {
     totalAmount: '',
     paymentMethod: 'BKASH',
     cashoutChargePaid: '0',
+    penaltyWaiverAmount: '0',
+    cashoutWaiverAmount: '0',
+    waiverReason: '',
     transactionReference: '',
     notes: '',
   });
@@ -269,6 +280,8 @@ export const PaymentsPage: React.FC = () => {
       penaltyAmount: number;
       advanceAmount: number;
       cashoutChargePaid: number;
+      penaltyWaived: number;
+      cashoutChargeWaived: number;
     };
     member: {
       shares: number;
@@ -278,6 +291,7 @@ export const PaymentsPage: React.FC = () => {
     };
     gateway: { channel: string; ratePercentage: number; fixedFee: number; roundingIncrement: number; requiredCharge: number; };
     dueSummary: { previousMonthsPrincipal: number; previousMonthsPenalty: number; currentMonthPayable: number; currentMonthPenalty: number; carriedCashoutCharge: number; estimatedCashoutCharge: number; totalDue: number; };
+    waivers: { penaltyAmount: number; cashoutAmount: number; reason: string; penaltyByMonth: Array<{ month: string; amount: number }> };
   } | null>(null);
 
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
@@ -361,6 +375,7 @@ export const PaymentsPage: React.FC = () => {
         search: ledgerSearch,
         receiverId: accountantFilter,
         paymentMethod: methodFilter,
+        month: ledgerMonth,
       });
       const res = await apiRequest<PaymentItem[]>(`/payments?${params.toString()}`);
       setPayments(res.data || []);
@@ -373,7 +388,7 @@ export const PaymentsPage: React.FC = () => {
     } finally {
       setLoadingPayments(false);
     }
-  }, [ledgerPage, ledgerSearch, accountantFilter, methodFilter]);
+  }, [ledgerPage, ledgerSearch, accountantFilter, methodFilter, ledgerMonth]);
 
   const refreshAnalyticsAfterPayment = useCallback(async (payment: Pick<PaymentItem, 'paymentDate'>) => {
     const analyticsDate = analyticsDateForPayment(payment.paymentDate || formData.paymentDate, timeframe);
@@ -382,10 +397,10 @@ export const PaymentsPage: React.FC = () => {
     // prevents a historical payment being hidden by the previously selected
     // month, receiver, or payment-method filter.
     setActiveTab('analytics');
-    setFilterDate(analyticsDate);
+    if (timeframe !== 'all') setFilterDate(analyticsDate);
     setAccountantFilter('ALL');
     setMethodFilter('ALL');
-    setAnalyticsNotice(`Payment recorded. Analytics now show ${analyticsDate}.`);
+    setAnalyticsNotice(timeframe === 'all' ? 'Payment recorded. Analytics now show all receipt history.' : `Payment recorded. Analytics now show ${analyticsDate}.`);
 
     await Promise.all([
       fetchStats({ date: analyticsDate, receiverId: 'ALL', paymentMethod: 'ALL' }),
@@ -415,6 +430,8 @@ export const PaymentsPage: React.FC = () => {
           penaltyAmount: number;
           advanceAmount: number;
           cashoutChargePaid: number;
+          penaltyWaived: number;
+          cashoutChargeWaived: number;
         };
         member: {
           shares: number;
@@ -424,6 +441,7 @@ export const PaymentsPage: React.FC = () => {
         };
         gateway: { channel: string; ratePercentage: number; fixedFee: number; roundingIncrement: number; requiredCharge: number; };
         dueSummary: { previousMonthsPrincipal: number; previousMonthsPenalty: number; currentMonthPayable: number; currentMonthPenalty: number; carriedCashoutCharge: number; estimatedCashoutCharge: number; totalDue: number; };
+        waivers: { penaltyAmount: number; cashoutAmount: number; reason: string; penaltyByMonth: Array<{ month: string; amount: number }> };
       }>('/payments/preview', {
         method: 'POST',
         body: JSON.stringify({
@@ -433,6 +451,9 @@ export const PaymentsPage: React.FC = () => {
           paymentMethod: formData.paymentMethod,
           custodyAccountId: formData.custodyAccountId,
           cashoutChargePaid: Number(formData.cashoutChargePaid) || 0,
+          penaltyWaiverAmount: Number(formData.penaltyWaiverAmount) || 0,
+          cashoutWaiverAmount: Number(formData.cashoutWaiverAmount) || 0,
+          waiverReason: formData.waiverReason,
         }),
       });
       setAllocationPreview(res.data);
@@ -463,6 +484,9 @@ export const PaymentsPage: React.FC = () => {
           totalAmount: Number(formData.totalAmount),
           paymentMethod: formData.paymentMethod,
           cashoutChargePaid: Number(formData.cashoutChargePaid) || 0,
+          penaltyWaiverAmount: Number(formData.penaltyWaiverAmount) || 0,
+          cashoutWaiverAmount: Number(formData.cashoutWaiverAmount) || 0,
+          waiverReason: formData.waiverReason,
           transactionReference: formData.transactionReference,
           notes: formData.notes,
         }),
@@ -491,6 +515,39 @@ export const PaymentsPage: React.FC = () => {
       setShowReceiptModal(true);
     } catch (err) {
       console.error('Error fetching receipt details:', err);
+    }
+  };
+
+  const handleEditPaymentMetadata = async (payment: PaymentItem) => {
+    const transactionReference = window.prompt('Transaction reference / TrxID', payment.transactionReference || '');
+    if (transactionReference === null) return;
+    const notes = window.prompt('Payment notes', payment.notes || '');
+    if (notes === null) return;
+    setLedgerActionError(null);
+    try {
+      await apiRequest(`/payments/${payment._id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ transactionReference, notes }),
+      });
+      await fetchPaymentsLedger();
+    } catch (err: unknown) {
+      setLedgerActionError((err as Error).message);
+    }
+  };
+
+  const handleVoidPayment = async (payment: PaymentItem) => {
+    const reason = window.prompt(`Reason for voiding ${payment.receiptNumber}`);
+    if (!reason) return;
+    if (!window.confirm(`Void ${payment.receiptNumber}? The record stays in history and a compensating custody reversal will be created.`)) return;
+    setLedgerActionError(null);
+    try {
+      await apiRequest(`/payments/${payment._id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ reason }),
+      });
+      await Promise.all([fetchPaymentsLedger(), fetchStats()]);
+    } catch (err: unknown) {
+      setLedgerActionError((err as Error).message);
     }
   };
 
@@ -655,16 +712,20 @@ export const PaymentsPage: React.FC = () => {
 
             <button
               onClick={() => {
+                const defaultCustodyAccount = custodyAccounts[0];
                 setCollectError(null);
                 setAllocationPreview(null);
                 setFormData({
                   memberId: membersList[0]?._id || '',
-                  custodyAccountId: custodyAccounts[0]?._id || '',
+                  custodyAccountId: defaultCustodyAccount?._id || '',
                   receiverId: user?.id || '',
                   paymentDate: new Date().toISOString().split('T')[0],
                   totalAmount: '',
-                  paymentMethod: 'BKASH',
+                  paymentMethod: paymentMethodForChannel(defaultCustodyAccount?.channel),
                   cashoutChargePaid: '0',
+                  penaltyWaiverAmount: '0',
+                  cashoutWaiverAmount: '0',
+                  waiverReason: '',
                   transactionReference: '',
                   notes: '',
                 });
@@ -737,13 +798,14 @@ export const PaymentsPage: React.FC = () => {
                 Interval:
               </span>
               <div className="bg-slate-900/80 p-1 rounded-xl border border-white/10 flex gap-1">
-                {(['daily', 'monthly', 'yearly'] as const).map((t) => (
+                {(['all', 'daily', 'monthly', 'yearly'] as const).map((t) => (
                   <button
                     key={t}
                     type="button"
                     onClick={() => {
                       setTimeframe(t);
-                      if (t === 'daily') setFilterDate(new Date().toISOString().split('T')[0]);
+                      if (t === 'all') setFilterDate('');
+                      else if (t === 'daily') setFilterDate(new Date().toISOString().split('T')[0]);
                       else if (t === 'yearly') setFilterDate(String(new Date().getFullYear()));
                       else {
                         const d = new Date();
@@ -756,7 +818,7 @@ export const PaymentsPage: React.FC = () => {
                         : 'text-gray-400 hover:text-white'
                     }`}
                   >
-                    {t}
+                    {t === 'all' ? 'All time' : t}
                   </button>
                 ))}
               </div>
@@ -856,13 +918,15 @@ export const PaymentsPage: React.FC = () => {
 
             <div className="glass-card p-5 border-l-4 border-l-emerald-500">
               <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase">
-                <span>Monthly Principal</span>
+                <span>{timeframe === 'monthly' ? 'Monthly Principal' : 'Principal Collected'}</span>
                 <Layers size={18} className="text-emerald-400" />
               </div>
               <p className="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-2">
                 ৳ {(stats?.totals.totalPrincipal || 0).toLocaleString()}
               </p>
-              <span className="text-[11px] text-gray-500 mt-1 block">Monthly share dues settled</span>
+              <span className="text-[11px] text-gray-500 mt-1 block">
+                {timeframe === 'monthly' ? 'Monthly share dues settled' : 'Share dues settled in this view'}
+              </span>
             </div>
 
             <div className="glass-card p-5 border-l-4 border-l-rose-500">
@@ -1021,6 +1085,10 @@ export const PaymentsPage: React.FC = () => {
       {/* TAB 2: RECEIPTS & PAYMENT HISTORY LEDGER */}
       {activeTab === 'ledger' && (
         <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-extrabold text-white">Payment History</h2>
+            <p className="mt-1 text-sm text-gray-400">Review member payment receipts by a chosen month and year, or search the complete ledger.</p>
+          </div>
           {/* Search bar & count */}
           <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-4">
             <div className="relative flex-1 min-w-[280px]">
@@ -1040,10 +1108,34 @@ export const PaymentsPage: React.FC = () => {
               />
             </div>
 
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider" htmlFor="payment-history-month">Month</label>
+              <input
+                id="payment-history-month"
+                type="month"
+                className="form-input py-2 text-sm"
+                value={ledgerMonth}
+                onChange={(e) => {
+                  setLedgerMonth(e.target.value);
+                  setLedgerPage(1);
+                }}
+              />
+              {ledgerMonth && (
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setLedgerMonth(''); setLedgerPage(1); }}>
+                  Clear
+                </button>
+              )}
+            </div>
+
             <span className="text-xs font-semibold text-gray-400">
               Showing {payments.length} of {ledgerTotalCount} records
             </span>
           </div>
+          {ledgerActionError && (
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
+              {ledgerActionError}
+            </div>
+          )}
 
           {/* Payments Table */}
           <div className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
@@ -1110,9 +1202,10 @@ export const PaymentsPage: React.FC = () => {
                         </div>
                       </td>
                       <td>
-                        <span className="badge badge-active text-[10px]">
+                        <span className={`badge text-[10px] ${p.status === 'CANCELLED' ? 'badge-inactive' : 'badge-active'}`}>
                           {p.paymentMethod}
                         </span>
+                        {p.status === 'CANCELLED' && <span className="ml-1 text-[10px] font-bold text-rose-300">VOID</span>}
                       </td>
                       <td>
                         <span className="font-extrabold text-sm text-white">
@@ -1142,13 +1235,25 @@ export const PaymentsPage: React.FC = () => {
                         </div>
                       </td>
                       <td className="text-right">
-                        <button
-                          onClick={() => handleViewReceipt(p._id)}
-                          className="btn btn-secondary btn-sm p-1.5"
-                          title="View Official Receipt"
-                        >
-                          <Eye size={14} />
-                        </button>
+                        <div className="flex justify-end gap-1.5">
+                          <button
+                            onClick={() => handleViewReceipt(p._id)}
+                            className="btn btn-secondary btn-sm p-1.5"
+                            title="View Official Receipt"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          {canEdit && p.status !== 'CANCELLED' && (
+                            <button onClick={() => void handleEditPaymentMetadata(p)} className="btn btn-secondary btn-sm p-1.5" title="Edit reference and notes">
+                              <Pencil size={14} />
+                            </button>
+                          )}
+                          {canEdit && p.status !== 'CANCELLED' && (
+                            <button onClick={() => void handleVoidPayment(p)} className="btn btn-secondary btn-sm p-1.5 text-rose-300 hover:text-rose-100" title="Void payment (audited reversal)">
+                              <Trash2 size={14} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -1536,6 +1641,57 @@ export const PaymentsPage: React.FC = () => {
                 </div>
               </div>
 
+              <div className="p-4 bg-rose-500/5 rounded-xl border border-rose-500/20 space-y-3">
+                <div>
+                  <p className="text-xs font-bold text-rose-200 uppercase tracking-wider">Per-payment waiver</p>
+                  <p className="mt-1 text-[11px] text-gray-400">
+                    An accountant may forgive outstanding penalties or cash-out charges. Penalty waivers apply to the oldest previous dues first, then the current month. The reason is stored in the payment and audit trail.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] text-gray-400 font-semibold block mb-1">Penalty waiver (৳)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="form-input text-xs"
+                      value={formData.penaltyWaiverAmount}
+                      onChange={(e) => {
+                        setFormData({ ...formData, penaltyWaiverAmount: e.target.value });
+                        setAllocationPreview(null);
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-gray-400 font-semibold block mb-1">Cash-out charge waiver (৳)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      className="form-input text-xs"
+                      value={formData.cashoutWaiverAmount}
+                      onChange={(e) => {
+                        setFormData({ ...formData, cashoutWaiverAmount: e.target.value });
+                        setAllocationPreview(null);
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[11px] text-gray-400 font-semibold block mb-1">Waiver reason {Number(formData.penaltyWaiverAmount) > 0 || Number(formData.cashoutWaiverAmount) > 0 ? '(required)' : '(optional)'}</label>
+                  <input
+                    type="text"
+                    className="form-input text-xs"
+                    minLength={Number(formData.penaltyWaiverAmount) > 0 || Number(formData.cashoutWaiverAmount) > 0 ? 5 : undefined}
+                    placeholder="e.g. Board-approved hardship waiver"
+                    value={formData.waiverReason}
+                    onChange={(e) => {
+                      setFormData({ ...formData, waiverReason: e.target.value });
+                      setAllocationPreview(null);
+                    }}
+                  />
+                </div>
+              </div>
+
               {/* Allocation Preview Card */}
               {allocationPreview && (
                 <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl space-y-3 animate-fadeIn">
@@ -1572,6 +1728,12 @@ export const PaymentsPage: React.FC = () => {
                     <div className="rounded-lg bg-slate-900/60 border border-white/5 p-3 space-y-1"><p className="font-bold text-blue-300">Current gateway charge</p><p className="text-white">৳ {allocationPreview.gateway.requiredCharge} <span className="text-gray-500 font-normal">({allocationPreview.gateway.ratePercentage}% · round up to {allocationPreview.gateway.roundingIncrement})</span></p><p className="text-gray-400">Paid now: ৳ {allocationPreview.breakdown.cashoutChargePaid} · carried: ৳ {allocationPreview.member.newCashoutDue}</p></div>
                     <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 space-y-1"><p className="font-bold text-amber-200">Member total due snapshot</p><p className="text-white">৳ {allocationPreview.dueSummary.totalDue}</p><p className="text-gray-400">Past: {allocationPreview.dueSummary.previousMonthsPrincipal + allocationPreview.dueSummary.previousMonthsPenalty} · This month: {allocationPreview.dueSummary.currentMonthPayable + allocationPreview.dueSummary.currentMonthPenalty} · Carried fee: {allocationPreview.dueSummary.carriedCashoutCharge}</p></div>
                   </div>
+                  {(allocationPreview.waivers.penaltyAmount > 0 || allocationPreview.waivers.cashoutAmount > 0) && (
+                    <div className="rounded-lg bg-rose-500/10 border border-rose-500/20 p-3 text-xs text-rose-100">
+                      Waived in this payment: penalty ৳ {allocationPreview.waivers.penaltyAmount} · cash-out ৳ {allocationPreview.waivers.cashoutAmount}
+                      {allocationPreview.waivers.penaltyByMonth.length > 0 && ` · penalty months: ${allocationPreview.waivers.penaltyByMonth.map((item) => `${item.month} (৳ ${item.amount})`).join(', ')}`}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1753,6 +1915,21 @@ export const PaymentsPage: React.FC = () => {
                     <span>Cash Out Charge Paid:</span>
                     <span>৳ {selectedReceipt.payment.cashoutCharge}</span>
                   </div>
+                )}
+                {(selectedReceipt.payment.penaltyWaived || 0) > 0 && (
+                  <div className="flex justify-between text-rose-200">
+                    <span>Penalty Waived:</span>
+                    <span>৳ {selectedReceipt.payment.penaltyWaived}</span>
+                  </div>
+                )}
+                {(selectedReceipt.payment.cashoutChargeWaived || 0) > 0 && (
+                  <div className="flex justify-between text-amber-200">
+                    <span>Cash-out Charge Waived:</span>
+                    <span>৳ {selectedReceipt.payment.cashoutChargeWaived}</span>
+                  </div>
+                )}
+                {selectedReceipt.payment.waiverReason && (
+                  <p className="pt-1 text-[11px] text-gray-400">Waiver reason: {selectedReceipt.payment.waiverReason}</p>
                 )}
                 <div className="pt-2 border-t border-white/10 flex justify-between font-extrabold text-sm text-white">
                   <span>Total Cash Received:</span>

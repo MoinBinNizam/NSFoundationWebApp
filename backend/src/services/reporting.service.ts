@@ -73,12 +73,12 @@ export class ReportingService {
       AuditLog.countDocuments(activityFilter),
       Member.countDocuments({ status: 'ACTIVE' }),
       canAccessInvestments(user) ? InvestmentService.getInvestmentStats() : Promise.resolve(null),
-      MonthlyLedger.find({ month: { $gte: '2024-01', $lte: currentMonth() } }).select('memberId month principalDue penaltyDue principalPaid penaltyPaid').lean(),
+      MonthlyLedger.find({ month: { $gte: '2024-01', $lte: currentMonth() } }).select('memberId month principalDue penaltyDue principalPaid penaltyPaid penaltyWaived').lean(),
       Payment.aggregate([{ $match: trendPaymentFilter }, { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$paymentDate' } }, total: { $sum: '$totalAmount' } } }]),
       Expense.aggregate([{ $match: trendExpenseFilter }, { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$date' } }, total: { $sum: '$amount' } } }]),
       MonthlyLedger.aggregate([
         { $match: { month: { $gte: trendMonths[0] || currentMonth(), $lte: trendMonths[trendMonths.length - 1] || currentMonth() } } },
-        { $project: { month: 1, outstanding: { $max: [0, { $subtract: [{ $add: ['$principalDue', '$penaltyDue'] }, { $add: ['$principalPaid', '$penaltyPaid'] }] }] } } },
+        { $project: { month: 1, outstanding: { $max: [0, { $subtract: [{ $add: ['$principalDue', '$penaltyDue'] }, { $add: ['$principalPaid', '$penaltyPaid', { $ifNull: ['$penaltyWaived', 0] }] }] }] } } },
         { $group: { _id: '$month', total: { $sum: '$outstanding' } } },
       ]),
       canAccessInvestments(user)
@@ -111,7 +111,7 @@ export class ReportingService {
     const dueBreakdown = { principal: 0, penalty: 0 };
     for (const ledger of dueLedgers) {
       const principalOutstanding = Math.max(0, Number(ledger.principalDue || 0) - Number(ledger.principalPaid || 0));
-      const penaltyOutstanding = Math.max(0, Number(ledger.penaltyDue || 0) - Number(ledger.penaltyPaid || 0));
+      const penaltyOutstanding = Math.max(0, Number(ledger.penaltyDue || 0) - Number(ledger.penaltyPaid || 0) - Number(ledger.penaltyWaived || 0));
       const outstanding = principalOutstanding + penaltyOutstanding;
       if (!outstanding) continue;
       dueBreakdown.principal += principalOutstanding;
@@ -212,7 +212,7 @@ export class ReportingService {
 
   static async dues(query: Record<string, unknown>) {
     const ledgers = await MonthlyLedger.find(query.month ? { month: String(query.month) } : {}).populate('memberId', 'memberId name').lean();
-    const rows = ledgers.map((item: any) => ({ memberId: item.memberId?.memberId || '', member: item.memberId?.name || '', month: item.month, status: item.status, principalDue: item.principalDue, penaltyDue: item.penaltyDue, paid: item.principalPaid + item.penaltyPaid, advance: item.excessAdvance, outstanding: Math.max(0, item.principalDue + item.penaltyDue - item.principalPaid - item.penaltyPaid) }));
+    const rows = ledgers.map((item: any) => ({ memberId: item.memberId?.memberId || '', member: item.memberId?.name || '', month: item.month, status: item.status, principalDue: item.principalDue, penaltyDue: item.penaltyDue, paid: item.principalPaid + item.penaltyPaid, waivedPenalty: item.penaltyWaived || 0, advance: item.excessAdvance, outstanding: Math.max(0, item.principalDue + item.penaltyDue - item.principalPaid - item.penaltyPaid - (item.penaltyWaived || 0)) }));
     return { type: 'dues', ...paginate(rows, query) };
   }
 
