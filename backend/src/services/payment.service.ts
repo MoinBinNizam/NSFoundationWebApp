@@ -827,7 +827,9 @@ export class PaymentService {
     const limit = Math.max(1, Math.min(100, Number(query.limit) || 15));
     const skip = (page - 1) * limit;
 
-    const filter: Record<string, unknown> = {};
+    // Deleted receipts are retained as cancelled audit records, but are not
+    // shown in the active payment-history list or its totals.
+    const filter: Record<string, unknown> = { status: { $ne: PaymentStatus.CANCELLED } };
 
     if (query.receiverId && query.receiverId !== 'ALL') {
       filter.receiverId = query.receiverId;
@@ -944,24 +946,69 @@ export class PaymentService {
   }
 
   /**
+   * A financial receipt correction is represented as an audited replacement:
+   * the original receipt is voided with its compensating custody movement and
+   * a freshly allocated receipt is posted from the edited form values.
+   */
+  static async replacePayment(
+    paymentId: string,
+    input: {
+      memberId: string;
+      receiverId: string;
+      custodyAccountId: string;
+      paymentDate?: string | Date;
+      totalAmount: number;
+      paymentMethod: PaymentMethod;
+      cashoutChargePaid?: number;
+      penaltyWaiverAmount?: number;
+      cashoutWaiverAmount?: number;
+      waiverReason?: string;
+      transactionReference?: string;
+      notes?: string;
+    },
+    actingUser: IUser
+  ) {
+    const original = await Payment.findById(paymentId);
+    if (!original) throw createError('Payment receipt not found', 404);
+    if (original.status === PaymentStatus.CANCELLED) throw createError('A voided payment cannot be edited.', 409);
+
+    // Validate the replacement before reversing the existing financial record.
+    await this.calculatePaymentPreview({
+      memberId: input.memberId,
+      paymentDate: input.paymentDate,
+      totalAmount: input.totalAmount,
+      paymentMethod: input.paymentMethod,
+      custodyAccountId: input.custodyAccountId,
+      cashoutChargePaid: input.cashoutChargePaid,
+      penaltyWaiverAmount: input.penaltyWaiverAmount,
+      cashoutWaiverAmount: input.cashoutWaiverAmount,
+      waiverReason: input.waiverReason,
+    });
+
+    await this.voidPayment(paymentId, `Replaced through receipt editor.`, actingUser);
+    const replacement = await this.recordPayment(input, actingUser);
+    await AuditLog.create({
+      performedBy: (actingUser as any)._id,
+      action: 'REPLACE_MEMBER_PAYMENT',
+      entityName: 'Payment',
+      entityId: replacement.payment._id,
+      beforeState: { receiptNumber: original.receiptNumber, paymentId: original._id },
+      afterState: { receiptNumber: replacement.payment.receiptNumber, paymentId: replacement.payment._id },
+      reason: `Replaced receipt ${original.receiptNumber} with ${replacement.payment.receiptNumber}.`,
+    });
+    return replacement;
+  }
+
+  /**
    * A posted payment is never physically deleted. This provides an auditable
-   * void for the latest simple payment, paired with a compensating custody OUT.
+   * void with a compensating custody OUT. It may be used from the history
+   * delete action for any active receipt.
    */
   static async voidPayment(paymentId: string, reason: string, actingUser: IUser) {
     const payment = await Payment.findById(paymentId);
     if (!payment) throw createError('Payment receipt not found', 404);
     if (payment.status === PaymentStatus.CANCELLED) throw createError('This payment has already been voided.', 409);
     if (!reason || reason.trim().length < 5) throw createError('A void reason of at least 5 characters is required.', 400);
-    if ((payment.cashoutCharge || 0) > 0 || (payment.unpaidCashoutCharge || 0) > 0 || (payment.penaltyWaived || 0) > 0 || (payment.cashoutChargeWaived || 0) > 0) {
-      throw createError('Payments containing cash-out charges or waivers require an Admin correction; they cannot be voided automatically.', 409);
-    }
-
-    const latestActive = await Payment.findOne({ memberId: payment.memberId, status: { $ne: PaymentStatus.CANCELLED } })
-      .sort({ paymentDate: -1, createdAt: -1 });
-    if (!latestActive || String(latestActive._id) !== String(payment._id)) {
-      throw createError('Only the member\'s latest active payment can be voided automatically. Use an Admin correction for an older payment.', 409);
-    }
-
     const allocations = await PaymentAllocation.find({ paymentId: payment._id });
     for (const allocation of allocations) {
       const ledger = await MonthlyLedger.findOne({ memberId: payment.memberId, month: allocation.targetMonth });
@@ -978,6 +1025,34 @@ export class PaymentService {
       ledger.lastRebuiltAt = new Date();
       await ledger.save();
     }
+
+    const member = await Member.findById(payment.memberId);
+    if (!member) throw createError('Member not found', 404);
+    let remainingPenaltyWaiver = payment.penaltyWaived || 0;
+    if (remainingPenaltyWaiver > 0) {
+      const waivedLedgers = await MonthlyLedger.find({ memberId: payment.memberId, penaltyWaived: { $gt: 0 } }).sort({ month: 1 });
+      for (const ledger of waivedLedgers) {
+        if (remainingPenaltyWaiver <= 0) break;
+        const reversed = Math.min(remainingPenaltyWaiver, ledger.penaltyWaived || 0);
+        ledger.penaltyWaived = Math.max(0, (ledger.penaltyWaived || 0) - reversed);
+        ledger.status = ledger.principalPaid >= ledger.principalDue && ledger.penaltyPaid + ledger.penaltyWaived >= ledger.penaltyDue
+          ? MonthlyLedgerStatus.PAID
+          : ledger.principalPaid > 0 || ledger.penaltyPaid > 0 ? MonthlyLedgerStatus.PARTIAL : MonthlyLedgerStatus.DUE;
+        await ledger.save();
+        remainingPenaltyWaiver -= reversed;
+      }
+    }
+
+    const gatewayChannel = paymentMethodChannel(payment.paymentMethod);
+    const gatewayRate = await getGatewayRateForChannel(gatewayChannel, payment.paymentDate);
+    const paymentBase = Math.max(0, payment.totalAmount - (payment.cashoutCharge || 0));
+    const rawCharge = currency(paymentBase * (gatewayRate.cashoutRatePercentage / 100) + gatewayRate.fixedFee);
+    const increment = gatewayRate.roundingIncrement ?? 0;
+    const requiredCharge = rawCharge > 0
+      ? increment > 0 ? Math.ceil(rawCharge / increment) * increment : rawCharge
+      : 0;
+    member.cashoutDue = Math.max(0, currency((member.cashoutDue || 0) + (payment.cashoutCharge || 0) + (payment.cashoutChargeWaived || 0) - requiredCharge));
+    await member.save();
 
     const custodyAccount = await CustodyAccount.findById(payment.custodyAccountId);
     if (!custodyAccount) throw createError('Payment custody account not found.', 404);

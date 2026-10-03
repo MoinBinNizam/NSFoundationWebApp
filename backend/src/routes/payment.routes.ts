@@ -16,6 +16,7 @@ router.use(authenticate);
 
 // Public/Staff reading routes
 router.get('/stats', PaymentController.getContributionStats);
+router.get('/collection-members', requireAccountant(AccountantType.PRIMARY, AccountantType.ASSISTANT), requireModuleAccess('PAYMENTS', 'edit'), PaymentController.getCollectionMembers);
 router.get('/custody-accounts', PaymentController.getCustodyAccounts);
 router.get('/gateway-rates', PaymentController.getGatewayRates);
 router.get('/penalty-rules', PaymentController.getPenaltyRules);
@@ -23,6 +24,7 @@ router.get('/penalty-waivers', PaymentController.getPenaltyWaivers);
 router.get('/', requireModuleAccess('PAYMENTS', 'view'), PaymentController.listPayments);
 router.get('/:id', requireModuleAccess('PAYMENTS', 'view'), PaymentController.getPaymentDetails);
 router.patch('/:id', requireAccountant(AccountantType.PRIMARY, AccountantType.ASSISTANT), requireModuleAccess('PAYMENTS', 'edit'), PaymentController.updatePaymentMetadata);
+router.put('/:id', requireAccountant(AccountantType.PRIMARY, AccountantType.ASSISTANT), requireModuleAccess('PAYMENTS', 'edit'), financialIdempotency('PAYMENT_REPLACE'), PaymentController.replacePayment);
 router.delete('/:id', requireAccountant(AccountantType.PRIMARY, AccountantType.ASSISTANT), requireModuleAccess('PAYMENTS', 'edit'), PaymentController.voidPayment);
 
 // Accountant collection routes (Accessible by both Primary and Assistant Accountants)

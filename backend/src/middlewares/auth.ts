@@ -92,6 +92,13 @@ export function requireAccountant(...types: AccountantType[]) {
       return next(createError('Authentication required.', 401));
     }
 
+    // A Super Admin may perform an accountant operation while retaining the
+    // same audit identity. This keeps its UI/API capabilities consistent with
+    // its unconditional module-edit permission.
+    if (req.user.role === UserRole.SUPER_ADMIN) {
+      return next();
+    }
+
     // Must be either an ACCOUNTANT or an ADMIN with designated accountantType
     if (!req.user.accountantType || !types.includes(req.user.accountantType)) {
       return next(

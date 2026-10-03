@@ -74,9 +74,9 @@ const money = (amount: number) =>
 const today = () => new Date().toISOString().slice(0, 10);
 
 export const ExpensesPage: React.FC = () => {
-  const { user } = useAuth();
+  const { canAccess } = useAuth();
   const { t } = usePreferences();
-  const canCreate = user?.role === "ADMIN" || user?.role === "ACCOUNTANT";
+  const canCreate = canAccess("EXPENSES", "edit");
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);

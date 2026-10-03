@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   CreditCard,
   Plus,
@@ -209,6 +210,7 @@ const analyticsDateForPayment = (paymentDate: string, timeframe: 'all' | 'daily'
 
 export const PaymentsPage: React.FC = () => {
   const { user, canAccess } = useAuth();
+  const { t } = usePreferences();
   const canEdit = canAccess('PAYMENTS', 'edit');
   const isAdmin = (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && canEdit;
 
@@ -250,6 +252,9 @@ export const PaymentsPage: React.FC = () => {
 
   // Modal States
   const [showCollectModal, setShowCollectModal] = useState<boolean>(false);
+  const [editingPayment, setEditingPayment] = useState<PaymentItem | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<PaymentItem | null>(null);
+  const [deletingPayment, setDeletingPayment] = useState<boolean>(false);
   const [showReceiptModal, setShowReceiptModal] = useState<boolean>(false);
   const [selectedReceipt, setSelectedReceipt] = useState<{
     payment: PaymentItem;
@@ -319,7 +324,7 @@ export const PaymentsPage: React.FC = () => {
   const fetchMetadata = useCallback(async () => {
     try {
       const [membersRes, custodyRes, rulesRes, waiversRes] = await Promise.all([
-        apiRequest<MemberOption[]>('/members?limit=200'),
+        apiRequest<MemberOption[]>('/payments/collection-members'),
         apiRequest<CustodyAccountItem[]>('/payments/custody-accounts'),
         apiRequest<PenaltyRuleItem[]>('/payments/penalty-rules'),
         apiRequest<PenaltyWaiverItem[]>('/payments/penalty-waivers'),
@@ -476,8 +481,8 @@ export const PaymentsPage: React.FC = () => {
       const res = await apiRequest<{
         payment: PaymentItem;
         receiptNumber: string;
-      }>('/payments', {
-        method: 'POST',
+      }>(editingPayment ? `/payments/${editingPayment._id}` : '/payments', {
+        method: editingPayment ? 'PUT' : 'POST',
         body: JSON.stringify({
           memberId: formData.memberId,
           receiverId: formData.receiverId || user?.id,
@@ -495,6 +500,7 @@ export const PaymentsPage: React.FC = () => {
       });
 
       setShowCollectModal(false);
+      setEditingPayment(null);
       await Promise.all([
         refreshAnalyticsAfterPayment(res.data.payment),
         handleViewReceipt(res.data.payment._id),
@@ -520,36 +526,43 @@ export const PaymentsPage: React.FC = () => {
     }
   };
 
-  const handleEditPaymentMetadata = async (payment: PaymentItem) => {
-    const transactionReference = window.prompt('Transaction reference / TrxID', payment.transactionReference || '');
-    if (transactionReference === null) return;
-    const notes = window.prompt('Payment notes', payment.notes || '');
-    if (notes === null) return;
+  const handleEditPayment = (payment: PaymentItem) => {
     setLedgerActionError(null);
-    try {
-      await apiRequest(`/payments/${payment._id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ transactionReference, notes }),
-      });
-      await fetchPaymentsLedger();
-    } catch (err: unknown) {
-      setLedgerActionError((err as Error).message);
-    }
+    setCollectError(null);
+    setAllocationPreview(null);
+    setEditingPayment(payment);
+    setFormData({
+      memberId: payment.memberId._id,
+      custodyAccountId: payment.custodyAccountId._id,
+      receiverId: payment.receiverId._id,
+      paymentDate: payment.paymentDate.slice(0, 10),
+      totalAmount: String(payment.totalAmount),
+      paymentMethod: payment.paymentMethod,
+      cashoutChargePaid: String(payment.cashoutCharge || 0),
+      penaltyWaiverAmount: String(payment.penaltyWaived || 0),
+      cashoutWaiverAmount: String(payment.cashoutChargeWaived || 0),
+      waiverReason: payment.waiverReason || '',
+      transactionReference: payment.transactionReference || '',
+      notes: payment.notes || '',
+    });
+    setShowCollectModal(true);
   };
 
-  const handleVoidPayment = async (payment: PaymentItem) => {
-    const reason = window.prompt(`Reason for voiding ${payment.receiptNumber}`);
-    if (!reason) return;
-    if (!window.confirm(`Void ${payment.receiptNumber}? The record stays in history and a compensating custody reversal will be created.`)) return;
+  const handleVoidPayment = async () => {
+    if (!pendingDelete) return;
     setLedgerActionError(null);
+    setDeletingPayment(true);
     try {
-      await apiRequest(`/payments/${payment._id}`, {
+      await apiRequest(`/payments/${pendingDelete._id}`, {
         method: 'DELETE',
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ reason: 'Deleted from payment history by authenticated accountant.' }),
       });
+      setPendingDelete(null);
       await Promise.all([fetchPaymentsLedger(), fetchStats()]);
     } catch (err: unknown) {
       setLedgerActionError((err as Error).message);
+    } finally {
+      setDeletingPayment(false);
     }
   };
 
@@ -717,6 +730,7 @@ export const PaymentsPage: React.FC = () => {
                 const defaultCustodyAccount = custodyAccounts[0];
                 setCollectError(null);
                 setAllocationPreview(null);
+                setEditingPayment(null);
                 setFormData({
                   memberId: membersList[0]?._id || '',
                   custodyAccountId: defaultCustodyAccount?._id || '',
@@ -1092,8 +1106,8 @@ export const PaymentsPage: React.FC = () => {
             <p className="mt-1 text-sm text-gray-400">Review member payment receipts by a chosen month and year, or search the complete ledger.</p>
           </div>
           {/* Search bar & count */}
-          <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-4">
-            <div className="relative flex-1 min-w-[280px]">
+          <div className="glass-card flex flex-wrap items-center gap-3 p-3 lg:flex-nowrap">
+            <div className="relative min-w-[220px] flex-1">
               <Search
                 size={18}
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
@@ -1110,11 +1124,12 @@ export const PaymentsPage: React.FC = () => {
               />
             </div>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider" htmlFor="payment-history-year">Year</label>
+            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
+              <label className="sr-only" htmlFor="payment-history-year">Year</label>
               <select
                 id="payment-history-year"
-                className="form-input py-2 text-sm"
+                aria-label="Year"
+                className="form-input h-9 w-[106px] py-1 text-sm"
                 value={ledgerYear}
                 onChange={(e) => {
                   setLedgerYear(e.target.value);
@@ -1125,10 +1140,11 @@ export const PaymentsPage: React.FC = () => {
                 <option value="">All years</option>
                 {[2024, 2025, 2026, 2027, 2028].map((year) => <option key={year} value={year}>{year}</option>)}
               </select>
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider" htmlFor="payment-history-month">Month</label>
+              <label className="sr-only" htmlFor="payment-history-month">Month</label>
               <select
                 id="payment-history-month"
-                className="form-input py-2 text-sm"
+                aria-label="Month"
+                className="form-input h-9 w-[126px] py-1 text-sm"
                 value={ledgerMonth}
                 disabled={!ledgerYear}
                 onChange={(e) => {
@@ -1143,13 +1159,13 @@ export const PaymentsPage: React.FC = () => {
                 ].map((month, index) => <option key={month} value={`${ledgerYear}-${String(index + 1).padStart(2, '0')}`}>{month}</option>)}
               </select>
               {(ledgerYear || ledgerMonth) && (
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setLedgerYear(''); setLedgerMonth(''); setLedgerPage(1); }}>
+                <button type="button" className="btn btn-secondary btn-sm h-9 px-2" onClick={() => { setLedgerYear(''); setLedgerMonth(''); setLedgerPage(1); }}>
                   Clear
                 </button>
               )}
             </div>
 
-            <span className="text-xs font-semibold text-gray-400">
+            <span className="shrink-0 text-xs font-semibold text-gray-400">
               Showing {payments.length} of {ledgerTotalCount} records
             </span>
           </div>
@@ -1266,12 +1282,12 @@ export const PaymentsPage: React.FC = () => {
                             <Eye size={14} />
                           </button>
                           {canEdit && p.status !== 'CANCELLED' && (
-                            <button onClick={() => void handleEditPaymentMetadata(p)} className="btn btn-secondary btn-sm p-1.5" title="Edit reference and notes">
+                            <button onClick={() => handleEditPayment(p)} className="btn btn-secondary btn-sm p-1.5" title="Edit receipt">
                               <Pencil size={14} />
                             </button>
                           )}
                           {canEdit && p.status !== 'CANCELLED' && (
-                            <button onClick={() => void handleVoidPayment(p)} className="btn btn-secondary btn-sm p-1.5 text-rose-300 hover:text-rose-100" title="Void payment (audited reversal)">
+                            <button onClick={() => setPendingDelete(p)} className="btn btn-secondary btn-sm p-1.5 text-rose-300 hover:text-rose-100" title="Delete receipt (audited reversal)">
                               <Trash2 size={14} />
                             </button>
                           )}
@@ -1450,15 +1466,27 @@ export const PaymentsPage: React.FC = () => {
           <div className="modal-content max-w-2xl">
             <div className="p-6 border-b border-white/10 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-white">
-                  Record Member Contribution
-                </h3>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Record payment collected by Moin or Samrat with automatic allocation engine.
-                </p>
+                {editingPayment ? (
+                  <>
+                    <div className="mb-1 inline-flex rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                      {t('Edit mode')}
+                    </div>
+                    <h3 className="text-lg font-bold text-white">
+                      {t('Edit Receipt')} <span className="text-amber-300">{editingPayment.receiptNumber}</span>
+                    </h3>
+                    <p className="mt-0.5 text-xs text-amber-100/75">
+                      {t('Update the receipt values, preview the new allocation, then save the audited replacement.')}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-lg font-bold text-white">{t('Record Member Contribution')}</h3>
+                    <p className="mt-0.5 text-xs text-gray-400">{t('Record payment collected by Moin or Samrat with automatic allocation engine.')}</p>
+                  </>
+                )}
               </div>
               <button
-                onClick={() => setShowCollectModal(false)}
+                onClick={() => { setShowCollectModal(false); setEditingPayment(null); }}
                 className="text-gray-400 hover:text-white"
               >
                 <X size={20} />
@@ -1792,7 +1820,7 @@ export const PaymentsPage: React.FC = () => {
               <div className="pt-4 border-t border-white/10 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowCollectModal(false)}
+                  onClick={() => { setShowCollectModal(false); setEditingPayment(null); }}
                   className="btn btn-secondary"
                 >
                   Cancel
@@ -1802,10 +1830,44 @@ export const PaymentsPage: React.FC = () => {
                   disabled={collectSubmitting || !formData.totalAmount}
                   className="btn btn-primary px-6"
                 >
-                  {collectSubmitting ? 'Recording Payment...' : 'Confirm & Save Receipt'}
+                  {collectSubmitting ? t('Saving Receipt...') : editingPayment ? t('Save Receipt Correction') : t('Confirm & Save Receipt')}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE RECEIPT CONFIRMATION */}
+      {pendingDelete && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="delete-receipt-title">
+          <div className="modal-content max-w-md overflow-hidden border border-rose-500/30">
+            <div className="flex items-start gap-4 border-b border-rose-500/20 bg-rose-500/10 p-6">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-rose-400/30 bg-rose-500/20 text-rose-300">
+                <AlertTriangle size={22} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 id="delete-receipt-title" className="text-lg font-extrabold text-white">{t('Delete Receipt?')}</h3>
+                <p className="mt-1 text-xs leading-5 text-rose-100/80">{t('This action reverses the receipt and removes it from active payment history.')}</p>
+              </div>
+              <button type="button" onClick={() => setPendingDelete(null)} disabled={deletingPayment} className="text-gray-400 transition-colors hover:text-white" aria-label={t('Cancel')}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-4 p-6">
+              <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4 text-sm">
+                <p className="font-mono font-bold text-blue-300">{pendingDelete.receiptNumber}</p>
+                <p className="mt-1 font-semibold text-white">{pendingDelete.memberId.name}</p>
+                <p className="mt-1 text-xs text-gray-400">৳ {pendingDelete.totalAmount.toLocaleString()} · {new Date(pendingDelete.paymentDate).toLocaleDateString()}</p>
+              </div>
+              <p className="text-xs leading-5 text-gray-400">{t('A compensating custody reversal and audit record will be kept for accountability.')}</p>
+              <div className="flex justify-end gap-3 border-t border-white/10 pt-4">
+                <button type="button" className="btn btn-secondary" disabled={deletingPayment} onClick={() => setPendingDelete(null)}>{t('Cancel')}</button>
+                <button type="button" className="btn bg-rose-600 px-5 text-white hover:bg-rose-500 disabled:opacity-60" disabled={deletingPayment} onClick={() => void handleVoidPayment()}>
+                  {deletingPayment ? t('Deleting Receipt...') : t('Delete Receipt')}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

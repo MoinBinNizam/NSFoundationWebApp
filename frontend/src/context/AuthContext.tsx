@@ -113,7 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Default fallbacks
     if (user.role === 'ADMIN') return true;
     if (user.role === 'ACCOUNTANT') {
-      return ['PAYMENTS', 'CUSTODY', 'MEMBERS', 'REPORTS'].includes(moduleKey);
+      return ['PAYMENTS', 'CUSTODY', 'MEMBERS', 'EXPENSES', 'REPORTS'].includes(moduleKey);
     }
     return moduleKey === 'MEMBERS' && action === 'view';
   }, [user, permissions]);

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { PaymentService } from '../services/payment.service.js';
 import { CustodyAccount } from '../models/CustodyAccount.js';
 import { GatewayRate } from '../models/GatewayRate.js';
+import { Member } from '../models/Member.js';
 import { IUser } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 
@@ -10,6 +11,23 @@ interface AuthenticatedRequest extends Request {
 }
 
 export class PaymentController {
+  /** Minimal active-member directory for payment collection. It deliberately
+   * uses PAYMENTS permission instead of MEMBERS permission so an assistant
+   * accountant can collect from every active member without receiving member
+   * management access. */
+  static async getCollectionMembers(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const members = await Member.find({ status: 'ACTIVE' })
+        .select('name memberId phone')
+        .sort({ memberId: 1 })
+        .limit(500)
+        .lean();
+      res.status(200).json({ success: true, data: members });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   /**
    * POST /api/payments/preview
    */
@@ -105,6 +123,32 @@ export class PaymentController {
         notes: req.body.notes,
       }, req.user!);
       res.status(200).json({ success: true, message: 'Payment reference and notes updated.', data: payment });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** PUT /api/payments/:id - audited financial receipt replacement */
+  static async replacePayment(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.body.memberId || !req.body.custodyAccountId || !req.body.totalAmount || !req.body.paymentMethod) {
+        return next(createError('memberId, custodyAccountId, totalAmount, and paymentMethod are required', 400));
+      }
+      const result = await PaymentService.replacePayment(req.params.id, {
+        memberId: req.body.memberId,
+        receiverId: req.body.receiverId || (req.user as any)._id,
+        custodyAccountId: req.body.custodyAccountId,
+        paymentDate: req.body.paymentDate,
+        totalAmount: Number(req.body.totalAmount),
+        paymentMethod: req.body.paymentMethod,
+        cashoutChargePaid: Number(req.body.cashoutChargePaid) || 0,
+        penaltyWaiverAmount: Number(req.body.penaltyWaiverAmount) || 0,
+        cashoutWaiverAmount: Number(req.body.cashoutWaiverAmount) || 0,
+        waiverReason: req.body.waiverReason,
+        transactionReference: req.body.transactionReference,
+        notes: req.body.notes,
+      }, req.user!);
+      res.status(200).json({ success: true, message: 'Receipt corrected and replaced successfully.', data: result });
     } catch (error) {
       next(error);
     }

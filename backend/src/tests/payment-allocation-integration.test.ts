@@ -357,4 +357,44 @@ describe('Payment & Allocation Engine Integration Tests', () => {
     expect(retained?.voidReason).toBe('Duplicate payment entry');
     expect(voidAudit?.reason).toMatch(/Duplicate payment entry/);
   });
+
+  it('11. Receipt correction voids the original and posts a newly allocated replacement from the edited form', async () => {
+    const member = await createTestMember('NS-PAY-REPLACE', 'Replacement Member', 1);
+    const created = await request(app)
+      .post('/api/payments')
+      .set('Authorization', `Bearer ${primaryAccountant.token}`)
+      .set('Idempotency-Key', `idemp_replace_create_${Date.now()}`)
+      .send({
+        memberId: member._id,
+        custodyAccountId: testCustody._id,
+        totalAmount: 500,
+        paymentDate: '2024-11-05T10:00:00.000Z',
+        paymentMethod: PaymentMethod.BANK_TRANSFER,
+        transactionReference: 'REPLACE-ORIGINAL',
+      });
+    expect(created.status).toBe(201);
+
+    const replaced = await request(app)
+      .put(`/api/payments/${created.body.data.payment._id}`)
+      .set('Authorization', `Bearer ${primaryAccountant.token}`)
+      .set('Idempotency-Key', `idemp_replace_update_${Date.now()}`)
+      .send({
+        memberId: member._id,
+        receiverId: primaryAccountant.user._id,
+        custodyAccountId: testCustody._id,
+        totalAmount: 600,
+        paymentDate: '2024-11-06T10:00:00.000Z',
+        paymentMethod: PaymentMethod.BANK_TRANSFER,
+        transactionReference: 'REPLACE-CORRECTED',
+        notes: 'Corrected amount from receipt editor',
+      });
+    expect(replaced.status).toBe(200);
+    expect(replaced.body.data.payment.totalAmount).toBe(600);
+    expect(replaced.body.data.payment.transactionReference).toBe('REPLACE-CORRECTED');
+
+    const original = await Payment.findById(created.body.data.payment._id);
+    const replacementAudit = await AuditLog.findOne({ action: 'REPLACE_MEMBER_PAYMENT', entityId: replaced.body.data.payment._id });
+    expect(original?.status).toBe('CANCELLED');
+    expect(replacementAudit?.reason).toMatch(/Replaced receipt/);
+  });
 });
