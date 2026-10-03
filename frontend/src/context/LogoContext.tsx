@@ -1,61 +1,72 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiRequest } from '../services/api';
 
 interface LogoContextType {
   logo: string | null;
   uploadLogo: (file: File) => Promise<void>;
-  resetLogo: () => void;
+  resetLogo: () => Promise<void>;
 }
 
-const LOGO_STORAGE_KEY = 'ns_foundation_logo';
-
 const LogoContext = createContext<LogoContextType | undefined>(undefined);
+const LEGACY_LOGO_STORAGE_KEY = 'ns_foundation_logo';
 
 export const LogoProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [logo, setLogo] = useState<string | null>(() => {
-    return localStorage.getItem(LOGO_STORAGE_KEY);
-  });
+  const [logo, setLogo] = useState<string | null>(() => localStorage.getItem(LEGACY_LOGO_STORAGE_KEY));
 
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === LOGO_STORAGE_KEY) {
-        setLogo(e.newValue);
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    let active = true;
+    apiRequest<{ logo: string | null }>('/settings/organization-logo')
+      .then(async (response) => {
+        if (!active) return;
+        if (response.data.logo) {
+          setLogo(response.data.logo);
+          localStorage.removeItem(LEGACY_LOGO_STORAGE_KEY);
+          return;
+        }
+        // Move the accountant's previously browser-only upload into the shared record on first load.
+        const legacyLogo = localStorage.getItem(LEGACY_LOGO_STORAGE_KEY);
+        if (legacyLogo && localStorage.getItem('token')) {
+          try {
+            const saved = await apiRequest<{ logo: string | null }>('/settings/organization-logo', {
+              method: 'PUT', body: JSON.stringify({ logo: legacyLogo }),
+            });
+            if (active) { setLogo(saved.data.logo || legacyLogo); localStorage.removeItem(LEGACY_LOGO_STORAGE_KEY); }
+          } catch { /* A non-admin can still see the legacy mark on this device; an admin can publish it. */ }
+        }
+      })
+      .catch(() => { /* Branding is optional; retain the built-in mark. */ });
+    return () => { active = false; };
   }, []);
 
   const uploadLogo = (file: File): Promise<void> => {
     return new Promise((resolve, reject) => {
-      if (!file.type.startsWith('image/')) {
-        reject(new Error('Please upload a valid image file (PNG, JPG, SVG, WebP)'));
+      if (!['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.type)) {
+        reject(new Error('Please upload a PNG, JPEG, WebP, or SVG logo.'));
         return;
       }
 
       // 2MB size limit
       if (file.size > 2 * 1024 * 1024) {
-        reject(new Error('Logo image must be smaller than 2MB'));
+        reject(new Error('Logo image must be smaller than 2 MB.'));
         return;
       }
 
       const reader = new FileReader();
       reader.onload = () => {
         const base64 = reader.result as string;
-        try {
-          localStorage.setItem(LOGO_STORAGE_KEY, base64);
-          setLogo(base64);
-          resolve();
-        } catch {
-          reject(new Error('Storage quota exceeded. Please upload a smaller image file.'));
-        }
+        apiRequest<{ logo: string | null }>('/settings/organization-logo', {
+          method: 'PUT', body: JSON.stringify({ logo: base64 }),
+        }).then((response) => { setLogo(response.data.logo || null); resolve(); }).catch(reject);
       };
       reader.onerror = () => reject(new Error('Failed to read image file'));
       reader.readAsDataURL(file);
     });
   };
 
-  const resetLogo = () => {
-    localStorage.removeItem(LOGO_STORAGE_KEY);
+  const resetLogo = async () => {
+    await apiRequest<{ logo: string | null }>('/settings/organization-logo', {
+      method: 'PUT', body: JSON.stringify({ logo: null }),
+    });
     setLogo(null);
   };
 

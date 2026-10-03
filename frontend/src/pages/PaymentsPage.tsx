@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
+import { useLogo } from '../context/LogoContext';
+import { BrandLogo } from '../components/BrandLogo';
 import {
   CreditCard,
   Plus,
@@ -17,7 +19,6 @@ import {
   TrendingUp,
   X,
   Eye,
-  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Download,
@@ -70,12 +71,37 @@ const receiptMoney = (value: number) => `৳ ${Number(value || 0).toLocaleString
   maximumFractionDigits: 2,
 })}`;
 
+const receiptPeriod = (value: string) => {
+  const matched = /^(\d{4})-(\d{2})$/.exec(value);
+  if (!matched) return value;
+  return new Intl.DateTimeFormat('en', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(Number(matched[1]), Number(matched[2]) - 1, 1)));
+};
+
+const receiptAmountInWords = (value: number) => {
+  const underTwenty = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+  const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+  const asWords = (amount: number): string => {
+    if (amount < 20) return underTwenty[amount];
+    if (amount < 100) return `${tens[Math.floor(amount / 10)]}${amount % 10 ? `-${underTwenty[amount % 10]}` : ''}`;
+    if (amount < 1_000) return `${underTwenty[Math.floor(amount / 100)]} hundred${amount % 100 ? ` ${asWords(amount % 100)}` : ''}`;
+    for (const [size, label] of [[1_000_000_000, 'billion'], [1_000_000, 'million'], [1_000, 'thousand']] as const) {
+      if (amount >= size) return `${asWords(Math.floor(amount / size))} ${label}${amount % size ? ` ${asWords(amount % size)}` : ''}`;
+    }
+    return 'zero';
+  };
+  const cents = Math.round((Number(value) - Math.floor(Number(value))) * 100);
+  const taka = Math.max(0, Math.floor(Number(value) || 0));
+  const phrase = `${asWords(taka)} taka${cents ? ` and ${asWords(cents)} paisa` : ''} only`;
+  return phrase.charAt(0).toUpperCase() + phrase.slice(1);
+};
+
 /** A deliberately small, standalone document: it avoids printing the full React
  * application and is constrained to one A4 sheet for fast print/download. */
-function createReceiptDocument(payment: PaymentItem, allocations: AllocationItem[]) {
+function createReceiptDocument(payment: PaymentItem, allocations: AllocationItem[], logo: string | null) {
   const displayedAllocations = allocations.slice(0, 12);
   const allocationRows = displayedAllocations.map((allocation) => `
-    <tr><td>${receiptValue(allocation.targetMonth)}</td><td>${receiptValue(allocation.allocationType)}</td><td class="amount">${receiptMoney(allocation.amount)}</td></tr>`).join('');
+    <tr><td>${receiptValue(receiptPeriod(allocation.targetMonth))}</td><td>${receiptValue(allocation.allocationType)}</td><td class="amount">${receiptMoney(allocation.amount)}</td></tr>`).join('');
   const extraAllocations = allocations.length > displayedAllocations.length
     ? `<tr><td colspan="3" class="muted">আরও ${allocations.length - displayedAllocations.length}টি বরাদ্দ মোটের মধ্যে অন্তর্ভুক্ত আছে।</td></tr>`
     : '';
@@ -91,16 +117,16 @@ function createReceiptDocument(payment: PaymentItem, allocations: AllocationItem
     * { box-sizing: border-box; } body { margin: 0; color: #152238; font: 10.5pt/1.32 Arial, "Noto Sans Bengali", sans-serif; }
     .receipt { width: 100%; max-width: 192mm; margin: 0 auto; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10mm; page-break-inside: avoid; }
     h1 { margin: 0; font-size: 16pt; letter-spacing: .03em; } .subtitle, .muted { color: #64748b; font-size: 8.5pt; }
-    .top { display: flex; justify-content: space-between; gap: 12mm; border-bottom: 2px solid #2563eb; padding-bottom: 5mm; } .receipt-no { color: #1d4ed8; font-weight: 700; }
+    .top { display: flex; justify-content: space-between; gap: 12mm; border-bottom: 2px solid #2563eb; padding-bottom: 5mm; } .brand { display: flex; gap: 4mm; align-items: center; } .logo { width: 22mm; height: 22mm; object-fit: contain; } .receipt-no { color: #1d4ed8; font-weight: 700; }
     .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin: 5mm 0; } .meta strong, .total strong { display: block; } .right { text-align: right; }
     table { width: 100%; border-collapse: collapse; margin: 4mm 0; font-size: 9pt; } th { background: #eff6ff; text-align: left; } th, td { padding: 2.1mm 2.5mm; border: 1px solid #cbd5e1; } .amount { text-align: right; white-space: nowrap; }
-    .summary { margin-left: auto; width: 82mm; padding: 3.5mm; border: 1px solid #bfdbfe; border-radius: 6px; } .line, .total { display: flex; justify-content: space-between; gap: 8mm; padding: 1mm 0; } .total { margin-top: 2mm; padding-top: 2mm; border-top: 1px solid #94a3b8; font-size: 11pt; }
+    .summary { margin-left: auto; width: 82mm; padding: 3.5mm; border: 1px solid #bfdbfe; border-radius: 6px; } .line, .total { display: flex; justify-content: space-between; gap: 8mm; padding: 1mm 0; } .total { margin-top: 2mm; padding-top: 2mm; border-top: 1px solid #94a3b8; font-size: 11pt; } .amount-words { margin-top: 2mm; color: #475569; font-size: 8.5pt; font-style: italic; }
     .footer { display: flex; justify-content: space-between; gap: 10mm; margin-top: 7mm; padding-top: 4mm; border-top: 1px dashed #94a3b8; font-size: 8.5pt; } @media print { .receipt { border-color: #94a3b8; } }
   </style></head><body><main class="receipt">
-    <header class="top"><div><h1>NS FOUNDATION COOPERATIVE SOCIETY</h1><div class="subtitle">Official Member Contribution &amp; Payment Receipt</div></div><div class="right receipt-no">${receiptValue(payment.receiptNumber)}</div></header>
+    <header class="top"><div class="brand">${logo ? `<img class="logo" src="${receiptValue(logo)}" alt="NS Foundation logo">` : ''}<div><h1>NS FOUNDATION COOPERATIVE SOCIETY</h1><div class="subtitle">Official Member Contribution &amp; Payment Receipt</div></div></div><div class="right receipt-no">${receiptValue(payment.receiptNumber)}</div></header>
     <section class="meta"><div><div class="subtitle">Member</div><strong>${receiptValue(payment.memberId?.name)}</strong><div>${receiptValue(payment.memberId?.memberId)} · ${receiptValue(payment.memberId?.phone)}</div></div><div class="right"><div class="subtitle">Payment details</div><strong>${receiptValue(new Date(payment.paymentDate).toLocaleDateString())}</strong><div>${receiptValue(payment.paymentMethod)} · Received by ${receiptValue(payment.receiverId?.name)}</div></div></section>
     <div class="subtitle">Accounting allocations</div><table><thead><tr><th>Period</th><th>Allocation type</th><th class="amount">Amount</th></tr></thead><tbody>${allocationRows}${extraAllocations}</tbody></table>
-    <section class="summary"><div class="line"><span>Principal</span><strong>${receiptMoney(payment.principalAmount)}</strong></div>${optionalLines}<div class="total"><span>Total received</span><strong>${receiptMoney(payment.totalAmount)}</strong></div></section>
+    <section class="summary"><div class="line"><span>Principal</span><strong>${receiptMoney(payment.principalAmount)}</strong></div>${optionalLines}<div class="total"><span>Total received</span><strong>${receiptMoney(payment.totalAmount)}</strong></div><div class="amount-words">${receiptValue(receiptAmountInWords(payment.totalAmount))}</div></section>
     <footer class="footer"><span>Custody: ${receiptValue(payment.custodyAccountId?.name)}</span><span>Verified deposit</span><span>Member signature: __________________</span></footer>
   </main></body></html>`;
 }
@@ -209,6 +235,7 @@ const analyticsDateForPayment = (paymentDate: string, timeframe: 'all' | 'daily'
 };
 
 export const PaymentsPage: React.FC = () => {
+  const { logo } = useLogo();
   const { user, canAccess } = useAuth();
   const { t } = usePreferences();
   const canEdit = canAccess('PAYMENTS', 'edit');
@@ -303,6 +330,13 @@ export const PaymentsPage: React.FC = () => {
   const [previewLoading, setPreviewLoading] = useState<boolean>(false);
   const [collectSubmitting, setCollectSubmitting] = useState<boolean>(false);
   const [collectError, setCollectError] = useState<string | null>(null);
+  const [memberDueSnapshot, setMemberDueSnapshot] = useState<{
+    monthlyObligation: number;
+    principal: number;
+    penalty: number;
+    cashout: number;
+    total: number;
+  } | null>(null);
 
   // Admin Penalty Rule Form
   const [ruleFormData, setRuleFormData] = useState({
@@ -573,13 +607,13 @@ export const PaymentsPage: React.FC = () => {
     const printWindow = window.open('', '_blank', 'popup,width=860,height=1000');
     if (!printWindow) return;
     printWindow.document.open();
-    printWindow.document.write(createReceiptDocument(selectedReceipt.payment, selectedReceipt.allocations));
+    printWindow.document.write(createReceiptDocument(selectedReceipt.payment, selectedReceipt.allocations, logo));
     printWindow.document.close();
     printWindow.focus();
     printWindow.requestAnimationFrame(() => printWindow.print());
   };
 
-  const downloadReceipt = () => {
+  const downloadReceipt = async () => {
     if (!selectedReceipt) return;
     const { payment, allocations } = selectedReceipt;
     const canvas = document.createElement('canvas');
@@ -597,9 +631,29 @@ export const PaymentsPage: React.FC = () => {
       context.fillStyle = color;
       context.fillText(value, x, y);
     };
-    text('NS FOUNDATION COOPERATIVE SOCIETY', 90, 118, 'bold 34px Arial');
-    text('Official Member Contribution & Payment Receipt', 90, 154, '22px Arial', '#64748b');
-    text(payment.receiptNumber, 850, 122, 'bold 24px Arial', '#1d4ed8');
+    let titleX = 90;
+    if (logo) {
+      const logoImage = new Image();
+      await new Promise<void>((resolve) => {
+        logoImage.onload = () => resolve();
+        logoImage.onerror = () => resolve();
+        logoImage.src = logo;
+      });
+      if (logoImage.complete && logoImage.naturalWidth > 0) {
+        const scale = Math.min(92 / logoImage.naturalWidth, 92 / logoImage.naturalHeight);
+        const width = logoImage.naturalWidth * scale;
+        const height = logoImage.naturalHeight * scale;
+        context.drawImage(logoImage, 90 + (92 - width) / 2, 78 + (92 - height) / 2, width, height);
+        titleX = 200;
+      }
+    }
+    // Keep the long society name and receipt number on separate header rows.
+    // This remains clear whether a logo is present or not.
+    text('NS FOUNDATION COOPERATIVE SOCIETY', titleX, 118, 'bold 34px Arial');
+    text('Official Member Contribution & Payment Receipt', titleX, 154, '22px Arial', '#64748b');
+    context.textAlign = 'right';
+    text(payment.receiptNumber, 1150, 78, 'bold 24px Arial', '#1d4ed8');
+    context.textAlign = 'left';
     context.strokeStyle = '#2563eb';
     context.lineWidth = 4;
     context.beginPath(); context.moveTo(88, 180); context.lineTo(1152, 180); context.stroke();
@@ -621,7 +675,7 @@ export const PaymentsPage: React.FC = () => {
       context.strokeStyle = '#cbd5e1'; context.lineWidth = 1;
       context.strokeRect(90, y, 1030, 42);
       context.beginPath(); context.moveTo(columns[1], y); context.lineTo(columns[1], y + 42); context.moveTo(columns[2], y); context.lineTo(columns[2], y + 42); context.stroke();
-      text(allocation.targetMonth, columns[0] + 12, y + 28, '18px Arial', '#1d4ed8');
+      text(receiptPeriod(allocation.targetMonth), columns[0] + 12, y + 28, '18px Arial', '#1d4ed8');
       text(allocation.allocationType, columns[1] + 12, y + 28, '18px Arial');
       text(receiptMoney(allocation.amount), columns[2] + 12, y + 28, 'bold 18px Arial');
       y += 42;
@@ -637,6 +691,7 @@ export const PaymentsPage: React.FC = () => {
     summary.forEach(([label, amount]) => { text(label, 700, y, '20px Arial', '#475569'); text(receiptMoney(amount), 940, y, 'bold 20px Arial'); y += 34; });
     context.strokeStyle = '#94a3b8'; context.beginPath(); context.moveTo(690, y); context.lineTo(1120, y); context.stroke(); y += 38;
     text('Total received', 700, y, 'bold 25px Arial'); text(receiptMoney(payment.totalAmount), 930, y, 'bold 25px Arial', '#1d4ed8');
+    text(receiptAmountInWords(payment.totalAmount), 700, y + 30, 'italic 17px Arial', '#475569');
     text(`Custody: ${payment.custodyAccountId?.name || ''}`, 90, 1570, '19px Arial', '#475569');
     text('Verified deposit', 90, 1610, 'bold 19px Arial', '#166534');
     text('Member signature: ______________________', 700, 1610, '19px Arial', '#475569');
@@ -682,6 +737,48 @@ export const PaymentsPage: React.FC = () => {
   };
 
   const selectedMemberObj = membersList.find((m) => m._id === formData.memberId);
+
+  // The member summary is calculated by the same authoritative allocation
+  // engine used when posting a receipt. A zero amount is intentional here:
+  // it exposes obligations without allocating or persisting any payment.
+  useEffect(() => {
+    if (!showCollectModal || !formData.memberId || !formData.custodyAccountId) {
+      setMemberDueSnapshot(null);
+      return;
+    }
+    let active = true;
+    void apiRequest<{
+      member: { monthlyObligation: number };
+      dueSummary: { previousMonthsPrincipal: number; previousMonthsPenalty: number; currentMonthPayable: number; currentMonthPenalty: number; carriedCashoutCharge: number; estimatedCashoutCharge: number; totalDue: number };
+    }>('/payments/preview', {
+      method: 'POST',
+      body: JSON.stringify({
+        memberId: formData.memberId,
+        custodyAccountId: formData.custodyAccountId,
+        paymentDate: formData.paymentDate,
+        paymentMethod: formData.paymentMethod,
+        totalAmount: 0,
+      }),
+    }).then((res) => {
+      if (!active) return;
+      const due = res.data.dueSummary;
+      setMemberDueSnapshot({
+        monthlyObligation: res.data.member.monthlyObligation,
+        principal: due.previousMonthsPrincipal + due.currentMonthPayable,
+        penalty: due.previousMonthsPenalty + due.currentMonthPenalty,
+        cashout: due.carriedCashoutCharge + due.estimatedCashoutCharge,
+        total: due.totalDue,
+      });
+    }).catch(() => { if (active) setMemberDueSnapshot(null); });
+    return () => { active = false; };
+  }, [showCollectModal, formData.memberId, formData.custodyAccountId, formData.paymentDate, formData.paymentMethod]);
+
+  const setPaymentPeriod = (year: string, month: string) => {
+    const currentDay = Number(formData.paymentDate.slice(8, 10)) || 1;
+    const maxDay = new Date(Number(year), Number(month), 0).getDate();
+    setFormData({ ...formData, paymentDate: `${year}-${month}-${String(Math.min(currentDay, maxDay)).padStart(2, '0')}` });
+    setAllocationPreview(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -1521,27 +1618,35 @@ export const PaymentsPage: React.FC = () => {
                 </select>
               </div>
 
-              {/* Member Status & Unpaid Cashout Due Alert */}
+              {/* Authoritative member obligation and due snapshot */}
               {selectedMemberObj && (
-                <div className="p-3.5 bg-slate-900/80 rounded-xl border border-white/10 space-y-2">
+                <div className="rounded-xl border border-white/10 bg-slate-900/80 p-3.5">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-gray-400">Selected Member:</span>
                     <span className="font-bold text-white">{selectedMemberObj.name}</span>
                   </div>
-
-                  {(selectedMemberObj.cashoutDue || 0) > 0 ? (
-                    <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-xs">
-                      <AlertTriangle size={15} className="shrink-0" />
-                      <span>
-                        Member has <strong>৳ {selectedMemberObj.cashoutDue}</strong> previous unpaid gateway cashout charge due!
-                      </span>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                    <div className="rounded-lg border border-emerald-400/20 bg-emerald-500/10 p-2">
+                      <p className="text-[10px] text-emerald-200">Monthly payable</p>
+                      <p className="mt-1 font-bold text-emerald-300">৳ {memberDueSnapshot?.monthlyObligation.toLocaleString() ?? '—'}</p>
                     </div>
-                  ) : (
-                    <div className="text-[11px] text-gray-500 flex items-center gap-1.5">
-                      <CheckCircle2 size={13} className="text-emerald-400" />
-                      <span>No pending gateway cash out charges due.</span>
+                    <div className="rounded-lg border border-blue-400/20 bg-blue-500/10 p-2">
+                      <p className="text-[10px] text-blue-200">Principal due</p>
+                      <p className="mt-1 font-bold text-blue-300">৳ {memberDueSnapshot?.principal.toLocaleString() ?? '—'}</p>
                     </div>
-                  )}
+                    <div className="rounded-lg border border-rose-400/20 bg-rose-500/10 p-2">
+                      <p className="text-[10px] text-rose-200">Penalty due</p>
+                      <p className="mt-1 font-bold text-rose-300">৳ {memberDueSnapshot?.penalty.toLocaleString() ?? '—'}</p>
+                    </div>
+                    <div className="rounded-lg border border-amber-400/20 bg-amber-500/10 p-2">
+                      <p className="text-[10px] text-amber-200">Cash-out due</p>
+                      <p className="mt-1 font-bold text-amber-300">৳ {memberDueSnapshot?.cashout.toLocaleString() ?? '—'}</p>
+                    </div>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between border-t border-white/10 pt-2 text-xs">
+                    <span className="text-gray-400">Total current dues</span>
+                    <span className="font-extrabold text-white">৳ {memberDueSnapshot?.total.toLocaleString() ?? '—'}</span>
+                  </div>
                 </div>
               )}
 
@@ -1620,16 +1725,29 @@ export const PaymentsPage: React.FC = () => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Payment Date</label>
-                  <input
-                    type="date"
-                    required
-                    className="form-input"
-                    value={formData.paymentDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, paymentDate: e.target.value })
-                    }
-                  />
+                  <label className="form-label">Payment period</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      className="form-select"
+                      aria-label="Payment year"
+                      value={formData.paymentDate.slice(0, 4)}
+                      onChange={(e) => setPaymentPeriod(e.target.value, formData.paymentDate.slice(5, 7))}
+                    >
+                      {[2024, 2025, 2026, 2027, 2028].map((year) => <option key={year} value={year}>{year}</option>)}
+                    </select>
+                    <select
+                      className="form-select"
+                      aria-label="Payment month"
+                      value={formData.paymentDate.slice(5, 7)}
+                      onChange={(e) => setPaymentPeriod(formData.paymentDate.slice(0, 4), e.target.value)}
+                    >
+                      {[
+                        'January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December',
+                      ].map((month, index) => <option key={month} value={String(index + 1).padStart(2, '0')}>{month}</option>)}
+                    </select>
+                  </div>
+                  <p className="mt-1 text-[10px] text-gray-500">The recorded day is retained when the payment period changes.</p>
                 </div>
               </div>
 
@@ -1761,7 +1879,7 @@ export const PaymentsPage: React.FC = () => {
                         className="flex items-center justify-between text-xs py-1 px-2.5 rounded bg-slate-900/60 border border-white/5"
                       >
                         <span className="text-gray-300">
-                          {a.targetMonth} &bull; {a.description}
+                          {receiptPeriod(a.targetMonth)} &bull; {a.description}
                         </span>
                         <span className="font-bold text-white">৳ {a.amount}</span>
                       </div>
@@ -1902,6 +2020,7 @@ export const PaymentsPage: React.FC = () => {
             <div className="receipt-print p-6 space-y-5 text-gray-200">
               {/* Society Header */}
               <div className="text-center pb-4 border-b border-white/10">
+                <BrandLogo size="xl" className="mb-3" />
                 <h4 className="text-lg font-black text-white tracking-wide">
                   NS FOUNDATION COOPERATIVE SOCIETY
                 </h4>
@@ -1961,7 +2080,7 @@ export const PaymentsPage: React.FC = () => {
                       {selectedReceipt.allocations.map((a, i) => (
                         <tr key={i}>
                           <td className="p-2.5 font-mono text-blue-400">
-                            {a.targetMonth}
+                            {receiptPeriod(a.targetMonth)}
                           </td>
                           <td className="p-2.5 text-gray-300">
                             {a.allocationType}
@@ -2021,6 +2140,9 @@ export const PaymentsPage: React.FC = () => {
                     ৳ {selectedReceipt.payment.totalAmount.toLocaleString()}
                   </span>
                 </div>
+                <p className="pt-1 text-[11px] italic text-gray-400">
+                  {receiptAmountInWords(selectedReceipt.payment.totalAmount)}
+                </p>
               </div>
 
               {/* Custody Account & Status */}

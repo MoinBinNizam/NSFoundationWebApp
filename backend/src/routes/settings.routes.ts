@@ -5,6 +5,9 @@ import { UserRole } from '../types/models.js';
 
 const router = Router();
 
+// Login and registration must render the same organization mark before a user has a token.
+router.get('/organization-logo', SettingsController.getOrganizationLogo);
+
 router.use(authenticate);
 
 // Read access lets accountants apply the same organization rule in member and payment workflows.
@@ -24,6 +27,7 @@ router.post('/penalty-waivers', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN
 router.post('/gateway-rates', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.saveGatewayRate);
 router.post('/operational-end-year', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.saveOperationalEndYear);
 router.put('/member-transparency', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.saveMemberTransparency);
+router.put('/organization-logo', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.saveOrganizationLogo);
 router.put('/permissions', requireRole(UserRole.SUPER_ADMIN), SettingsController.savePermissions);
 // Retained temporarily for older browser sessions that still submit POST.
 router.post('/permissions', requireRole(UserRole.SUPER_ADMIN), SettingsController.savePermissions);

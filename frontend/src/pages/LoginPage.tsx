@@ -59,7 +59,7 @@ export const LoginPage: React.FC = () => {
         {/* Brand Heading */}
         <div className="text-center mb-8">
           <div className="inline-block mb-3">
-            <BrandLogo size="xl" editable />
+            <BrandLogo size="xl" />
           </div>
           <h1 className="text-3xl font-extrabold text-white tracking-tight">
             NS Foundation

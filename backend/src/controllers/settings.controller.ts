@@ -14,10 +14,24 @@ import {
   getUserEffectivePermissions,
   getMemberTransparencySettings,
   saveMemberTransparencySettings,
+  getOrganizationLogo,
+  saveOrganizationLogo,
 } from '../services/settings.service.js';
 import { CustodyChannel, UserRole } from '../types/models.js';
 
 export class SettingsController {
+  static async getOrganizationLogo(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try { res.status(200).json({ success: true, data: { logo: await getOrganizationLogo() } }); } catch (error) { next(error); }
+  }
+
+  static async saveOrganizationLogo(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const logo = await saveOrganizationLogo(req.body.logo ?? null, req.user, { ip: req.ip, userAgent: req.headers['user-agent'] });
+      res.status(200).json({ success: true, message: logo ? 'Organization logo updated.' : 'Organization logo removed.', data: { logo } });
+    } catch (error) { next(error); }
+  }
+
   static async getShareAmount(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       res.status(200).json({ success: true, data: await getMonthlyShareSetting() });

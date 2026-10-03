@@ -973,6 +973,13 @@ export const bangla: Record<string, string> = {
   'Notes (optional)': 'নোট (ঐচ্ছিক)',
   'Recording…': 'নথিভুক্ত করা হচ্ছে…',
   'Select…': 'নির্বাচন করুন…',
+  'Monthly payable': 'মাসিক প্রদেয়',
+  'Principal due': 'মূল বকেয়া',
+  'Penalty due': 'জরিমানা বকেয়া',
+  'Cash-out due': 'ক্যাশআউট বকেয়া',
+  'Total current dues': 'বর্তমান মোট বকেয়া',
+  'Payment period': 'পরিশোধের সময়কাল',
+  'The recorded day is retained when the payment period changes.': 'পরিশোধের সময়কাল পরিবর্তন করলেও নথিভুক্ত দিনের তথ্য অপরিবর্তিত থাকবে।',
 };
 
 export const englishFromBangla = Object.fromEntries(Object.entries(bangla).map(([english, bengali]) => [bengali, english]));

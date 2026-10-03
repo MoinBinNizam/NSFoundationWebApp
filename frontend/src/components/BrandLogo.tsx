@@ -60,7 +60,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
           <img
             src={logo}
             alt={altText}
-            className="w-full h-full object-cover rounded-inherit"
+            className="w-full h-full object-contain rounded-inherit bg-white"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-br from-blue-600 via-indigo-600 to-emerald-600 flex items-center justify-center text-white font-extrabold tracking-wider">

@@ -11,6 +11,7 @@ export const MONTHLY_SHARE_VALUE_KEY = 'MONTHLY_SHARE_VALUE';
 export const DEFAULT_MONTHLY_SHARE_VALUE = 500;
 export const DEFAULT_OPERATIONAL_END_YEAR = 2028;
 export const MEMBER_TRANSPARENCY_KEY = 'MEMBER_TRANSPARENCY';
+export const ORGANIZATION_LOGO_KEY = 'ORGANIZATION_LOGO';
 export type MemberTransparencySettings = {
   showCollections: boolean;
   showExpenses: boolean;
@@ -48,6 +49,40 @@ export async function getMonthlyShareSetting() {
     updatedAt: config?.updatedAt || null,
     isDefault: !config,
   };
+}
+
+/** Public organization branding so authentication screens and receipts are consistent on every device. */
+export async function getOrganizationLogo(): Promise<string | null> {
+  const config = await SystemConfig.findOne({ key: ORGANIZATION_LOGO_KEY }).lean();
+  return config && typeof config.value === 'string' ? config.value : null;
+}
+
+export async function saveOrganizationLogo(
+  logoDataUrl: string | null,
+  actingUser: HydratedDocument<IUser>,
+  meta?: { ip?: string; userAgent?: string }
+) {
+  if (logoDataUrl !== null && (!/^data:image\/(png|jpe?g|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(logoDataUrl) || logoDataUrl.length > 2_800_000)) {
+    throw createError('Organization logo must be a PNG, JPEG, WebP, or SVG image smaller than 2 MB.', 400);
+  }
+  const before = await SystemConfig.findOne({ key: ORGANIZATION_LOGO_KEY }).lean();
+  const config = await SystemConfig.findOneAndUpdate(
+    { key: ORGANIZATION_LOGO_KEY },
+    { value: logoDataUrl, description: 'Organization-wide logo for application headers, authentication, and receipts.', updatedBy: actingUser._id },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+  await AuditLog.create({
+    performedBy: actingUser._id,
+    action: 'UPDATE_ORGANIZATION_LOGO',
+    entityName: 'SystemConfig',
+    entityId: config._id,
+    beforeState: before || null,
+    afterState: config.toObject(),
+    reason: logoDataUrl ? 'Updated organization-wide logo.' : 'Removed organization-wide logo.',
+    ipAddress: meta?.ip,
+    userAgent: meta?.userAgent,
+  });
+  return getOrganizationLogo();
 }
 
 /** Changes the organization-wide share amount and records a complete audit trail. */

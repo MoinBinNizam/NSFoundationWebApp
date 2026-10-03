@@ -110,7 +110,7 @@ export const Layout: React.FC = () => {
         {/* Brand Header */}
         <div className="p-5 border-b border-white/10 flex items-center justify-between">
           <div className="flex min-w-0 items-center gap-3">
-            <BrandLogo size="md" editable />
+            <BrandLogo size="md" editable={user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'} />
             <div>
               <h1 className="text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
                 NS Foundation
