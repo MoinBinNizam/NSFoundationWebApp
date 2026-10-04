@@ -13,6 +13,7 @@ The project is designed around auditable financial source records: payments, all
 | Database | MongoDB with Mongoose |
 | Authentication | JWT bearer tokens, server-side role checks, session version revocation |
 | Testing | Vitest (backend baseline) |
+| Containers | Docker, Docker Compose, Nginx (frontend), MongoDB 8, Redis 7 |
 
 ## Features
 
@@ -98,6 +99,54 @@ Run these from the repository root unless otherwise noted.
 
 The backend also contains focused domain verification scripts such as `test:reporting`, `test:expenses`, and `test:reinvestments`; see [`backend/package.json`](backend/package.json).
 
+## Docker environments
+
+Docker is supported for repeatable staging and production-style deployments. The frontend and API use multi-stage Dockerfiles, while the production Compose stack provides MongoDB 8 as a replica set, Redis, application health checks, persistent volumes, and an Nginx-served frontend.
+
+### Staging or local container build
+
+Build the frontend and backend images from the current checkout:
+
+```bash
+docker compose -f docker-compose.staging.yml build
+```
+
+### Production-style stack
+
+Before starting the production Compose stack, create the ignored environment files below. Never commit passwords, JWT secrets, registry credentials, or production connection strings.
+
+- `.env.production`: `BACKEND_IMAGE`, `FRONTEND_IMAGE`, `MONGO_ROOT_USERNAME`, `MONGO_ROOT_PASSWORD`, and optionally `HTTP_PORT`.
+- `backend/.env.production`: application configuration such as `JWT_SECRET`, `JWT_EXPIRES_IN`, and the production `CORS_ORIGIN`.
+
+Then start the immutable image deployment:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+```
+
+Use `docker compose ... logs -f backend` or `logs -f frontend` for diagnosis. Before exposing a stack publicly, complete the backup, TLS, firewall, secret-management, and recovery checks in the production runbook.
+
+## Delivery methodology
+
+Development follows an Agile, issue-oriented workflow: requirements are broken into focused issues, implementation is reviewed against business rules and user feedback, domain behavior is validated, and each completed increment is documented for the next iteration. Financial changes are handled conservatively: source records remain auditable, imports are previewed before writing, and corrections use reversals or compensating entries instead of silent record edits.
+
+## CI/CD roadmap
+
+The repository is container-ready for CI/CD. The next pipeline milestone is to run the following on every pull request and main-branch change:
+
+1. Install frontend and backend dependencies.
+2. Run backend type checking and tests, plus frontend linting and production build.
+3. Build the Docker images.
+4. Publish immutable, version-tagged images to the selected container registry after protected-branch approval.
+5. Deploy the approved image tags to staging, verify health checks, then promote the same tags to production with a backup and rollback plan.
+
+No CI workflow is currently committed, so these steps are documented as the intended pipeline rather than an already active automated deployment.
+
+## API documentation roadmap
+
+Swagger/OpenAPI documentation is planned for the Express API. It will document bearer-token authentication, role requirements, request and response schemas, validation errors, pagination, idempotency behavior for financial writes, and the public health/branding endpoints. The interactive documentation endpoint will be added only after its access policy and production exposure are defined.
+
 ## Security and financial integrity
 
 - The API requires a valid bearer token for protected routes and enforces roles on the server. Client-side navigation is not an authorization boundary.
@@ -121,6 +170,7 @@ The backend also contains focused domain verification scripts such as `test:repo
 - [Business rules](docs/BUSINESS-RULES.md)
 - [Issue #13 audit/security walkthrough](<docs/Walkthrough- Issue #13 — Audit, Security & Testing (Full-Stack).md>)
 - [Issue #21 background jobs, tests, and recovery-readiness plan](<docs/Implementation Plan- Issue #21 — Background Jobs, Test Suite & Operational Readiness (Full-Stack).md>)
+- [Issue #14 deployment and backup plan](<docs/Implementation Plan- Issue #14 — Deployment & Backup (Full-Stack).md>)
 - [All project documentation](docs/)
 
 ## Troubleshooting
