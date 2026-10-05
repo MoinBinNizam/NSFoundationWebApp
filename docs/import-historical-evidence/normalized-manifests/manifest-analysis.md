@@ -14,7 +14,7 @@ This review-only manifest is generated from the private workbook evidence. It do
 | 2024-06 | 46 | 24 | ৳27,560.00 | 22 |
 | 2024-07 | 46 | 24 | ৳27,630.00 | 22 |
 | 2024-08 | 46 | 24 | ৳35,790.00 | 22 |
-| 2024-09 | 92 | 21 | ৳27,210.00 | 25 |
+| 2024-09 | 46 | 21 | ৳27,210.00 | 25 |
 | 2024-10 | 46 | 25 | ৳40,480.00 | 21 |
 | 2024-11 | 40 | 21 | ৳27,010.00 | 19 |
 | 2024-12 | 36 | 29 | ৳47,510.00 | 7 |
@@ -23,13 +23,12 @@ This review-only manifest is generated from the private workbook evidence. It do
 | 2025-03 | 35 | 14 | ৳23,350.00 | 21 |
 | 2025-04 | 35 | 15 | ৳27,350.00 | 20 |
 
-Detected 46 potential duplicate source rows. They are retained for evidence but excluded from posting until resolved.
+No potential duplicate source rows were detected.
 
 ## Detected schemas
 
 | File | Period | Columns |
 |---|---|---|
-| Month - September 2024.xlsx | 2024-09 | member id, name, no. of share, amount, gateway, receiver, date of payment, due, penalty, balance, comment |
 | Month_April_2024.xlsx | 2024-04 | member id, name, no. of share, amount, gateway, receiver, date of payment, due, penalty, comment |
 | Month_August_2024.xlsx | 2024-08 | member id, name, no. of share, amount, gateway, receiver, date of payment, due, penalty, comment |
 | Month_December_2024.xlsx | 2024-12 | member id, name, no. of share, amount, gateway, receiver, date of payment, due, penalty, balance, comment |

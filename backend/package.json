@@ -12,6 +12,8 @@
     "seed:users": "tsx src/scripts/seed-users.ts",
     "reset-and-seed": "tsx src/scripts/reset-and-seed.ts",
     "remove-demo-financial-data": "tsx src/scripts/remove-demo-financial-data.ts",
+    "reset-payment-data": "tsx src/scripts/reset-payment-data-for-historical-import.ts",
+    "stage:january-2024": "tsx src/scripts/stage-january-2024-historical-import.ts",
     "seed:custody": "tsx src/scripts/seed-custody-gateways.ts",
     "test:reinvestments": "tsx src/scripts/test-reinvestments.ts",
     "test:expenses": "tsx src/scripts/test-expenses.ts",

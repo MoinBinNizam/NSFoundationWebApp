@@ -215,6 +215,10 @@ Historical records retain their original receiver, custody account, payment, tra
 
 The remaining work is verification and normalized manifest preparation—not automatic posting. For each workbook/month, reconcile member ID, share position, received amount, paid/due principal, paid/due penalty, cash-out status, advance balance, gateway, receiver, source comment, and receipt/reference before obtaining approval to post.
 
+### Member-level allocation rule
+
+Every payment, due, penalty, waiver, cash-out charge, and advance belongs only to its own member ID. An advance paid by one member must never reduce, settle, or mask another member's due. A member with no payment in a month retains their own principal due; when that member later pays, the payment is allocated to that member's oldest unpaid principal and then penalty, unless an approved waiver changes the penalty. This rule applies to every historical workbook and all future live payments.
+
 ## Next step
 
 Review the complete evidence set in a staging database, create approved month-by-month manifests, and obtain a signed reconciliation result before posting any historical payment or investment records. Only then run the approved migration into production, verify the financial reports and custody balances, and open live operations.
