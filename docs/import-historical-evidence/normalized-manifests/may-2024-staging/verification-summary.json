@@ -1,0 +1,11 @@
+{
+  "members": 35,
+  "payments": 29,
+  "allocations": 38,
+  "cash_received": 34135.0,
+  "may_principal_due": 8500.0,
+  "prior_principal_arrears_collected": 2000.0,
+  "prior_penalties_collected": 100.0,
+  "advances_collected": 4000.0,
+  "cashout_charges_collected": 35.0
+}
