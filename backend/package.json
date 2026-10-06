@@ -21,6 +21,7 @@
     "stage:june-2024": "tsx src/scripts/stage-june-2024-historical-import.ts",
     "stage:july-2024": "tsx src/scripts/stage-july-2024-historical-import.ts",
     "stage:august-2024": "tsx src/scripts/stage-august-2024-historical-import.ts",
+    "stage:september-2024": "tsx src/scripts/stage-september-2024-historical-import.ts",
     "normalize:historical-custody": "tsx src/scripts/normalize-historical-custody.ts",
     "seed:custody": "tsx src/scripts/seed-custody-gateways.ts",
     "test:reinvestments": "tsx src/scripts/test-reinvestments.ts",
