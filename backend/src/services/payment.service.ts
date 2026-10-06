@@ -88,7 +88,7 @@ export class PaymentService {
     // Attach it once to that member's newest outstanding month.  If there is no
     // outstanding principal/penalty ledger, show a dedicated cash-out row.
     const cashoutAssigned = new Set<string>();
-    const rows = outstanding.map(({ ledger, member, principalDue, penaltyDue }) => {
+    const ledgerRows = outstanding.map(({ ledger, member, principalDue, penaltyDue }) => {
       const memberKey = String(member._id);
       const cashoutDue = cashoutAssigned.has(memberKey) ? 0 : money(Number(member.cashoutDue || 0));
       cashoutAssigned.add(memberKey);
@@ -96,6 +96,7 @@ export class PaymentService {
         _id: String(ledger._id), month: ledger.month, shareCount: ledger.shareCount,
         member: { _id: String(member._id), memberId: member.memberId, name: member.name, phone: member.phone },
         principalDue, penaltyDue, cashoutDue, totalDue: money(principalDue + penaltyDue + cashoutDue),
+        details: [{ month: ledger.month, shareCount: ledger.shareCount, principalDue, penaltyDue, penaltyWaived: Number(ledger.penaltyWaived || 0) }],
       };
     });
 
@@ -105,12 +106,25 @@ export class PaymentService {
       const memberKey = String(member._id);
       if (cashoutAssigned.has(memberKey) || !matchesSearch(member)) continue;
       const cashoutDue = money(Number(member.cashoutDue || 0));
-      rows.push({
+      ledgerRows.push({
         _id: `cashout-${memberKey}`, month: '', shareCount: 0,
         member: { _id: memberKey, memberId: member.memberId, name: member.name, phone: member.phone },
-        principalDue: 0, penaltyDue: 0, cashoutDue, totalDue: cashoutDue,
+        principalDue: 0, penaltyDue: 0, cashoutDue, totalDue: cashoutDue, details: [],
       });
     }
+
+    const rows = [...ledgerRows.reduce((grouped, row) => {
+      const key = row.member._id;
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.principalDue = money(existing.principalDue + row.principalDue);
+        existing.penaltyDue = money(existing.penaltyDue + row.penaltyDue);
+        existing.cashoutDue = money(existing.cashoutDue + row.cashoutDue);
+        existing.totalDue = money(existing.totalDue + row.totalDue);
+        existing.details.push(...row.details);
+      } else grouped.set(key, { ...row });
+      return grouped;
+    }, new Map<string, any>()).values()];
 
     const allPeriods = allLedgers.map((ledger) => ledger.month).filter(Boolean).sort();
     const referencePeriod = year && month ? `${year}-${month}` : allPeriods.at(-1) || toYearMonth(new Date());
@@ -125,8 +139,8 @@ export class PaymentService {
         principal: total('principalDue'),
         penalty: total('penaltyDue'),
         cashout: total('cashoutDue'),
-        currentPrincipal: currency(rows.filter((row) => row.month === referencePeriod).reduce((sum, row) => sum + row.principalDue, 0)),
-        previousPrincipal: currency(rows.filter((row) => row.month === previousPeriod).reduce((sum, row) => sum + row.principalDue, 0)),
+        currentPrincipal: currency(ledgerRows.filter((row) => row.month === referencePeriod).reduce((sum, row) => sum + row.principalDue, 0)),
+        previousPrincipal: currency(ledgerRows.filter((row) => row.month === previousPeriod).reduce((sum, row) => sum + row.principalDue, 0)),
       },
       rows,
     };
@@ -1211,6 +1225,20 @@ export class PaymentService {
     return PenaltyWaiver.find().populate('memberId', 'name memberId').sort({ month: -1 });
   }
 
+  static async updatePenaltyRule(id: string, input: { effectiveFrom: string; effectiveTo?: string | null; ratePerShare: number; graceDayOfMonth: number; description?: string }, actingUser: IUser) {
+    const before = await PenaltyRule.findById(id);
+    if (!before) throw createError('Penalty rule not found.', 404);
+    const rule = await PenaltyRule.findByIdAndUpdate(id, { ...input, effectiveTo: input.effectiveTo || null }, { new: true });
+    await AuditLog.create({ performedBy: (actingUser as unknown as { _id: Types.ObjectId })._id, action: 'UPDATE_PENALTY_RULE', entityName: 'PenaltyRule', entityId: rule!._id, beforeState: before.toObject(), afterState: rule!.toObject(), reason: `Updated penalty rule ${input.effectiveFrom}.` });
+    return rule;
+  }
+
+  static async deletePenaltyRule(id: string, actingUser: IUser) {
+    const rule = await PenaltyRule.findByIdAndDelete(id);
+    if (!rule) throw createError('Penalty rule not found.', 404);
+    await AuditLog.create({ performedBy: (actingUser as unknown as { _id: Types.ObjectId })._id, action: 'DELETE_PENALTY_RULE', entityName: 'PenaltyRule', entityId: rule._id, beforeState: rule.toObject(), reason: `Deleted penalty rule ${rule.effectiveFrom}.` });
+  }
+
   static async createPenaltyWaiver(
     input: {
       month: string;
@@ -1238,5 +1266,19 @@ export class PaymentService {
     });
 
     return waiver;
+  }
+
+  static async updatePenaltyWaiver(id: string, input: { month: string; isGlobal: boolean; memberId?: string; reason: string }, actingUser: IUser) {
+    const before = await PenaltyWaiver.findById(id);
+    if (!before) throw createError('Penalty waiver not found.', 404);
+    const waiver = await PenaltyWaiver.findByIdAndUpdate(id, { ...input, memberId: input.memberId || null }, { new: true });
+    await AuditLog.create({ performedBy: (actingUser as unknown as { _id: Types.ObjectId })._id, action: 'UPDATE_PENALTY_WAIVER', entityName: 'PenaltyWaiver', entityId: waiver!._id, beforeState: before.toObject(), afterState: waiver!.toObject(), reason: `Updated penalty waiver for ${input.month}.` });
+    return waiver;
+  }
+
+  static async deletePenaltyWaiver(id: string, actingUser: IUser) {
+    const waiver = await PenaltyWaiver.findByIdAndDelete(id);
+    if (!waiver) throw createError('Penalty waiver not found.', 404);
+    await AuditLog.create({ performedBy: (actingUser as unknown as { _id: Types.ObjectId })._id, action: 'DELETE_PENALTY_WAIVER', entityName: 'PenaltyWaiver', entityId: waiver._id, beforeState: waiver.toObject(), reason: `Deleted penalty waiver for ${waiver.month}.` });
   }
 }

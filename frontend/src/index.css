@@ -419,9 +419,21 @@ html[lang='bn'] body {
    no column is pinned so the full row remains available to review. */
 .member-list-container {
   overflow-x: auto;
-  overflow-y: hidden;
+  /* Keep the complete registry available inside this panel. The generic
+     table container hides vertical overflow, so override it here. */
+  overflow-y: auto;
+  max-height: min(70vh, 720px);
   overscroll-behavior-x: contain;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(96, 165, 250, 0.75) rgba(15, 23, 42, 0.85);
 }
+
+.member-list-container::-webkit-scrollbar { width: 12px; height: 12px; }
+.member-list-container::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.85); }
+.member-list-container::-webkit-scrollbar-thumb { background: rgba(96, 165, 250, 0.75); border: 3px solid rgba(15, 23, 42, 0.85); border-radius: 999px; }
+.member-list-container::-webkit-scrollbar-thumb:hover { background: rgba(147, 197, 253, 0.95); }
 
 .member-list-table { min-width: 1160px; }
 

@@ -102,6 +102,32 @@ export class SettingsController {
     }
   }
 
+  static async updatePenaltyRule(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const { effectiveFrom, effectiveTo, ratePerShare, graceDayOfMonth, description } = req.body;
+      if (!effectiveFrom || ratePerShare === undefined || graceDayOfMonth === undefined) return next(createError('effectiveFrom, ratePerShare, and graceDayOfMonth are required.', 400));
+      res.json({ success: true, data: await PaymentService.updatePenaltyRule(req.params.id, { effectiveFrom, effectiveTo, ratePerShare: Number(ratePerShare), graceDayOfMonth: Number(graceDayOfMonth), description }, req.user) });
+    } catch (error) { next(error); }
+  }
+
+  static async deletePenaltyRule(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try { if (!req.user) return next(createError('Authentication required.', 401)); await PaymentService.deletePenaltyRule(req.params.id, req.user); res.json({ success: true, message: 'Penalty rule deleted.' }); } catch (error) { next(error); }
+  }
+
+  static async updatePenaltyWaiver(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const { month, isGlobal, memberId, reason } = req.body;
+      if (!month || !reason) return next(createError('month and reason are required.', 400));
+      res.json({ success: true, data: await PaymentService.updatePenaltyWaiver(req.params.id, { month, isGlobal: isGlobal !== false, memberId, reason }, req.user) });
+    } catch (error) { next(error); }
+  }
+
+  static async deletePenaltyWaiver(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try { if (!req.user) return next(createError('Authentication required.', 401)); await PaymentService.deletePenaltyWaiver(req.params.id, req.user); res.json({ success: true, message: 'Penalty waiver deleted.' }); } catch (error) { next(error); }
+  }
+
   static async getGatewayRates(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
       res.status(200).json({ success: true, data: await getGatewayRateSettings() });

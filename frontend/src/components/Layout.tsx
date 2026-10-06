@@ -47,7 +47,7 @@ export const Layout: React.FC = () => {
     : location.pathname.startsWith('/preferences')
     ? 'Language & Appearance'
     : location.pathname.startsWith('/settings')
-    ? 'Organization Settings'
+    ? 'Settings'
     : location.pathname.startsWith('/migrations')
     ? 'Historical Migration'
     : location.pathname.startsWith('/governance')
@@ -87,7 +87,7 @@ export const Layout: React.FC = () => {
     ...(canAccess('PROJECT_WALLETS', 'view') ? [{ label: 'Project Wallets', path: '/reinvestments', icon: Repeat2, issue: '#9' }] : []),
     ...(canAccess('EXPENSES', 'view') ? [{ label: 'Expenses', path: '/expenses', icon: Receipt, issue: '#10' }] : []),
     { label: 'Language & Appearance', path: '/preferences', icon: Languages, badge: 'Settings', issue: '#16' },
-    ...(canAccess('SETTINGS', 'view') ? [{ label: 'Organization Settings', path: '/settings', icon: Settings2, badge: 'Admin', issue: '#15' }] : []),
+    ...(canAccess('SETTINGS', 'view') ? [{ label: 'Settings', path: '/settings', icon: Settings2, badge: 'Admin', issue: '#15' }] : []),
     ...(canAccess('GOVERNANCE', 'view') ? [{ label: 'Annual Governance', path: '/governance', icon: Scale, badge: 'Admin', issue: '#19' }] : []),
     ...(canAccess('AUDIT', 'view') ? [{ label: 'Audit & Security', path: '/audit', icon: Shield, badge: 'Admin', issue: '#13' }] : []),
     ...(canAccess('MIGRATIONS', 'view') ? [{ label: 'Historical Migration', path: '/migrations', icon: Database, badge: 'Admin', issue: '#17' }] : []),

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiRequest } from '../services/api';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   Upload,
   FileText,
@@ -102,6 +103,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
   onClose,
   isModalView = false,
 }) => {
+  const { t } = usePreferences();
   const [receipts, setReceipts] = useState<ReceiptItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -471,17 +473,16 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
               <Sparkles size={14} />
-              <span>Smart Optical Extraction</span>
+              <span>{t('Smart Optical Extraction')}</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Payment Receipt OCR &amp; Verification
+              {t('Payment Receipt OCR & Verification')}
             </h2>
             <p className="text-gray-400 text-sm max-w-xl">
-              Upload bKash, Nagad, or Bank deposit screenshots &amp; PDFs. The system auto-extracts TrxID, amounts, and
-              matches candidate members. Review and verify before authoritative posting.
+              {t('Upload bKash, Nagad, or Bank deposit screenshots and PDFs. The system reads the transaction ID and amount, suggests the matching member, then lets you review before posting the receipt.')}
             </p>
             <p className="text-amber-300/80 text-xs max-w-xl">
-              Unposted OCR files can be permanently removed. Posted receipts remain protected as financial evidence.
+              {t('You can permanently remove an OCR file before it is posted. Posted receipts stay protected as financial evidence.')}
             </p>
           </div>
 

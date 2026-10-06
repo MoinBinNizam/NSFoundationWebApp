@@ -16,8 +16,6 @@ import {
   Phone,
   Mail,
   Calendar,
-  ChevronLeft,
-  ChevronRight,
   RefreshCw,
 } from 'lucide-react';
 
@@ -56,26 +54,18 @@ interface MemberStats {
   totalShares: number;
 }
 
-interface PaginationMeta {
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
 
 export const MembersPage: React.FC = () => {
   const { user, canAccess } = useAuth();
   const { t, formatNumber, formatDate } = usePreferences();
   const [members, setMembers] = useState<MemberData[]>([]);
   const [stats, setStats] = useState<MemberStats>({ total: 0, active: 0, inactive: 0, dropped: 0, totalShares: 0 });
-  const [pagination, setPagination] = useState<PaginationMeta>({ total: 0, page: 1, limit: 10, totalPages: 1 });
   const [loading, setLoading] = useState<boolean>(true);
 
   // Filters
   const [search, setSearch] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [page, setPage] = useState<number>(1);
 
   // Modals state
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
@@ -108,7 +98,6 @@ export const MembersPage: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1);
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
@@ -118,8 +107,8 @@ export const MembersPage: React.FC = () => {
     setLoading(true);
     try {
       const queryParams = new URLSearchParams({
-        page: String(page),
-        limit: '10',
+        page: '1',
+        limit: '1000',
         search: debouncedSearch,
         status: statusFilter,
       });
@@ -131,9 +120,6 @@ export const MembersPage: React.FC = () => {
       ]);
 
       setMembers(membersRes.data || []);
-      if (membersRes.pagination) {
-        setPagination(membersRes.pagination);
-      }
       setStats(statsRes.data || { total: 0, active: 0, inactive: 0, dropped: 0, totalShares: 0 });
       setShareAmount(Number(shareSettingRes.data?.value) || 500);
     } catch (err) {
@@ -141,7 +127,7 @@ export const MembersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, statusFilter]);
+  }, [debouncedSearch, statusFilter]);
 
   useEffect(() => {
     fetchData();
@@ -458,7 +444,6 @@ export const MembersPage: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setStatusFilter(st);
-                  setPage(1);
                 }}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
                   statusFilter === st
@@ -473,7 +458,7 @@ export const MembersPage: React.FC = () => {
 
           <div className="text-xs text-gray-400 flex items-center">
             <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2" />
-            <span>{pagination.total} {t(pagination.total === 1 ? 'registered member' : 'registered members')}</span>
+            <span>{stats.total} {t(stats.total === 1 ? 'registered member' : 'registered members')}</span>
           </div>
         </div>
       </div>
@@ -484,7 +469,7 @@ export const MembersPage: React.FC = () => {
       </div>
 
       {/* Member List */}
-      <div className="table-container member-list-container glass-card">
+      <div className="table-container member-list-container glass-card max-h-[70vh] overflow-y-auto overscroll-contain">
         <table className="data-table member-list-table">
           <thead>
             <tr>
@@ -516,7 +501,7 @@ export const MembersPage: React.FC = () => {
               </tr>
             ) : (
               members.map((m, idx) => {
-                const serialNo = (pagination.page - 1) * pagination.limit + idx + 1;
+                const serialNo = idx + 1;
                 const badgeClass =
                   m.status === 'ACTIVE'
                     ? 'badge-active'
@@ -540,7 +525,7 @@ export const MembersPage: React.FC = () => {
                           <p className="font-semibold text-white text-sm whitespace-nowrap">{m.name}</p>
                           {m.designation && m.designation !== 'GENERAL_MEMBER' && (
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${DESIGNATION_CONFIG[m.designation]?.badgeClass || 'bg-blue-500/15 text-blue-300 border-blue-500/30'}`}>
-                              {DESIGNATION_CONFIG[m.designation]?.label || m.designation}
+                              {t(DESIGNATION_CONFIG[m.designation]?.label || m.designation)}
                             </span>
                           )}
                         </div>
@@ -621,32 +606,6 @@ export const MembersPage: React.FC = () => {
         </table>
       </div>
 
-      {/* Pagination Controls */}
-      <div className="flex items-center justify-between text-xs text-gray-400 pt-2">
-        <span>
-          Showing page <strong className="text-white">{pagination.page}</strong> of{' '}
-          <strong className="text-white">{pagination.totalPages}</strong> ({pagination.total} total members)
-        </span>
-
-        <div className="flex gap-2">
-          <button
-            className="btn btn-secondary btn-sm"
-            disabled={pagination.page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            <ChevronLeft size={16} />
-            <span>Previous</span>
-          </button>
-          <button
-            className="btn btn-secondary btn-sm"
-            disabled={pagination.page >= pagination.totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            <span>Next</span>
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
 
       {/* MODAL 1: ADD MEMBER */}
       {showAddModal && (
@@ -982,7 +941,7 @@ export const MembersPage: React.FC = () => {
               <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
                 <span className="text-gray-400 font-medium">Board Designation:</span>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${DESIGNATION_CONFIG[selectedMember.designation || 'GENERAL_MEMBER']?.badgeClass || 'bg-gray-500/20 text-gray-300'}`}>
-                  {DESIGNATION_CONFIG[selectedMember.designation || 'GENERAL_MEMBER']?.label || selectedMember.designation || 'General Member'}
+                  {t(DESIGNATION_CONFIG[selectedMember.designation || 'GENERAL_MEMBER']?.label || selectedMember.designation || 'General Member')}
                 </span>
               </div>
 

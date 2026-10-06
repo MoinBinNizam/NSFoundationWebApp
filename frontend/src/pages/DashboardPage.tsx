@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
+import { useNavigate } from 'react-router-dom';
 import {
   Activity,
   BarChart3,
@@ -126,6 +127,7 @@ const formatTimeAgo = (isoDate: string) => {
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const { t } = usePreferences();
+  const navigate = useNavigate();
   const isPrimary =
     user?.accountantType === 'PRIMARY' || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
@@ -143,6 +145,15 @@ export const DashboardPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [reportingYear, setReportingYear] = useState('ALL');
+  const [reportingMonth, setReportingMonth] = useState('ALL');
+  const applyReportingPeriod = (year: string, month: string) => {
+    setReportingYear(year); setReportingMonth(month);
+    if (year === 'ALL') { setStartDate(''); setEndDate(''); }
+    else if (month === 'ALL') { setStartDate(`${year}-01-01`); setEndDate(`${year}-12-31`); }
+    else { const padded = month.padStart(2, '0'); setStartDate(`${year}-${padded}-01`); setEndDate(`${year}-${padded}-${new Date(Number(year), Number(month), 0).getDate()}`); }
+    setPage(1);
+  };
   const [sortBy, setSortBy] = useState('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
@@ -325,28 +336,11 @@ export const DashboardPage: React.FC = () => {
               <Calendar size={14} className="text-blue-400" />
               <span>{t('Reporting Period:')}</span>
             </span>
-            <div className="grid w-full grid-cols-2 gap-1.5 sm:w-auto">
-              <input
-                type="date"
-                aria-label="Start date"
-                className="form-input min-w-0 px-2 py-1.5 text-xs sm:w-[142px]"
-                value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
-                  setPage(1);
-                }}
-              />
-              <input
-                type="date"
-                aria-label="End date"
-                className="form-input min-w-0 px-2 py-1.5 text-xs sm:w-[142px]"
-                value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
+            <select aria-label={t('Reporting year')} className="form-select min-w-[130px] px-2 py-1.5 text-xs" value={reportingYear} onChange={(e) => applyReportingPeriod(e.target.value, reportingMonth)}>
+              <option value="ALL">{t('All years')}</option>
+              {Array.from({ length: new Date().getFullYear() - 2024 + 1 }, (_, index) => 2024 + index).map((year) => <option key={year} value={year}>{year}</option>)}
+            </select>
+            <select aria-label={t('Reporting month')} disabled={reportingYear === 'ALL'} className="form-select min-w-[130px] px-2 py-1.5 text-xs disabled:opacity-50" value={reportingMonth} onChange={(e) => applyReportingPeriod(reportingYear, e.target.value)}><option value="ALL">{t('All months')}</option>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{t(new Date(2024, index, 1).toLocaleString('en', { month: 'long' }))}</option>)}</select>
           </div>
 
           {(startDate || endDate) && (
@@ -355,6 +349,8 @@ export const DashboardPage: React.FC = () => {
               onClick={() => {
                 setStartDate('');
                 setEndDate('');
+                setReportingYear('ALL');
+                setReportingMonth('ALL');
                 setPage(1);
               }}
               className="text-xs text-rose-400 hover:text-rose-300 font-semibold px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 transition-all flex items-center gap-1"
@@ -473,7 +469,7 @@ export const DashboardPage: React.FC = () => {
               </div>
 
               {/* Card 5: Total Dues */}
-              <button type="button" onClick={() => openReport('dues')} className="glass-card w-full p-5 text-left border-l-4 border-l-amber-500 hover:border-amber-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-amber-400/70">
+              <button type="button" onClick={() => navigate('/dues')} className="glass-card w-full p-5 text-left border-l-4 border-l-amber-500 hover:border-amber-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-amber-400/70" aria-label={t('View detailed dues list')}>
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
                   <span>{t('Total Dues')}</span>
                   <div className="p-2 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -503,7 +499,7 @@ export const DashboardPage: React.FC = () => {
             {/* 4. Middle Section: Recent System Activity & Custody Distribution */}
             <div className="order-4 grid grid-cols-1 lg:grid-cols-5 gap-6 sm:gap-8">
               {/* Recent System Activity Card */}
-              <div className="glass-card p-5 sm:p-6 space-y-4 lg:col-span-3">
+              <div className="glass-card p-5 sm:p-6 space-y-4 lg:col-span-3 order-2">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-4">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
@@ -588,7 +584,7 @@ export const DashboardPage: React.FC = () => {
               </div>
 
               {/* Custody Distribution Card */}
-              <div className="glass-card p-5 sm:p-6 space-y-4 lg:col-span-2">
+              <div className="glass-card p-5 sm:p-6 space-y-4 lg:col-span-2 order-1">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-4">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
@@ -1003,7 +999,9 @@ const FinancialTrendChart: React.FC<{
   onOpenReport: (type: ReportType) => void;
 }> = ({ trend, onOpenReport }) => {
   const { t, language } = usePreferences();
-  const width = 720;
+  // Reserve enough horizontal space for every month label instead of silently
+  // dropping labels from long reporting windows.
+  const width = Math.max(720, trend.length * 64);
   const height = 250;
   const padding = { top: 18, right: 16, bottom: 36, left: 14 };
   const values = trend.flatMap((item) => [item.collections, item.expenses, item.dues]);
@@ -1041,8 +1039,8 @@ const FinancialTrendChart: React.FC<{
         </span>
       </div>
 
-      <div className="mt-5" role="img" aria-label="Line chart of monthly collections, expenses, and outstanding dues">
-        <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" preserveAspectRatio="none">
+      <div className="mt-5 overflow-x-auto pb-2" role="img" aria-label="Line chart of monthly collections, expenses, and outstanding dues">
+        <svg viewBox={`0 0 ${width} ${height}`} className="h-auto min-w-[720px]" style={{ width }} preserveAspectRatio="none">
           {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
             const y = padding.top + graphHeight * ratio;
             return <line key={ratio} x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke="rgba(148,163,184,0.16)" strokeDasharray="4 5" />;
@@ -1057,13 +1055,12 @@ const FinancialTrendChart: React.FC<{
                 const [expenseX, expenseY] = point(item.expenses, index).split(',');
                 const [duesX, duesY] = point(item.dues, index).split(',');
                 const x = Number(collectionX);
-                const shouldLabel = trend.length <= 6 || index === 0 || index === trend.length - 1 || index % 2 === 0;
                 return (
                   <g key={item.month}>
                     <circle cx={collectionX} cy={collectionY} r="4" fill="#34D399"><title>{`${formatMonth(item.month)} collections: ${money(item.collections)}`}</title></circle>
                     <circle cx={expenseX} cy={expenseY} r="4" fill="#FB7185"><title>{`${formatMonth(item.month)} expenses: ${money(item.expenses)}`}</title></circle>
                     <circle cx={duesX} cy={duesY} r="4" fill="#FBBF24"><title>{`${formatMonth(item.month)} dues: ${money(item.dues)}`}</title></circle>
-                    {shouldLabel && <text x={x} y={height - 12} textAnchor="middle" fill="#94A3B8" fontSize="11">{formatMonth(item.month)}</text>}
+                    <text x={x} y={height - 12} textAnchor="middle" fill="#94A3B8" fontSize="11">{formatMonth(item.month)}</text>
                   </g>
                 );
               })}

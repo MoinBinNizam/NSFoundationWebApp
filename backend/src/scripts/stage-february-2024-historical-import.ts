@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { AuditLog, CustodyAccount, CustodyMovement, Member, MonthlyLedger, Payment, PaymentAllocation, User } from '../models/index.js';
 import { AccountType, AllocationType, CustodyChannel, MonthlyLedgerStatus, MovementSourceType, MovementType, PaymentMethod, PaymentStatus } from '../types/models.js';
 import { connectDatabase } from '../config/db.js';
+import { PaymentService } from '../services/payment.service.js';
 
 dotenv.config();
 type Ledger = { source_ref: string; member_id: string; month: string; share_count: number; principal_due: number; principal_paid: number; penalty_due: number; penalty_paid: number; advance_applied: number; excess_advance: number; status: 'PAID' | 'DUE'; comment: string };
@@ -69,15 +70,22 @@ async function main() {
     // principal; this prevents a receipt from being counted twice.
     for (const row of manifest.ledgers) {
       const member = membersByCode.get(row.member_id)!;
+      const isWaived = await PaymentService.isMonthWaived(row.month, member._id);
+      const rule = await PaymentService.getPenaltyRule(row.month);
+      const rawPenalty = Number(row.penalty_due || 0);
+      const penaltyDue = isWaived ? 0 : (rawPenalty || (row.status === 'DUE' && row.principal_due > row.principal_paid ? row.share_count * rule.ratePerShare : 0));
+      const penaltyWaived = isWaived && rawPenalty ? rawPenalty : 0;
+
       let ledger = await MonthlyLedger.findOne({ memberId: member._id, month: row.month });
       if (ledger) {
         ledger.shareCount = row.share_count;
         ledger.principalDue = row.principal_due;
-        ledger.penaltyDue = row.penalty_due;
+        ledger.penaltyDue = penaltyDue;
+        ledger.penaltyWaived = penaltyWaived;
         ledger.lastRebuiltAt = new Date();
         await ledger.save();
       } else {
-        ledger = await MonthlyLedger.create({ memberId: member._id, month: row.month, shareCount: row.share_count, principalDue: row.principal_due, principalPaid: 0, penaltyDue: row.penalty_due, penaltyPaid: 0, penaltyWaived: 0, advanceApplied: 0, excessAdvance: 0, status: MonthlyLedgerStatus.DUE, lastRebuiltAt: new Date() });
+        ledger = await MonthlyLedger.create({ memberId: member._id, month: row.month, shareCount: row.share_count, principalDue: row.principal_due, principalPaid: 0, penaltyDue, penaltyPaid: 0, penaltyWaived, advanceApplied: 0, excessAdvance: 0, status: MonthlyLedgerStatus.DUE, lastRebuiltAt: new Date() });
         createdLedgerIds.push(ledger._id);
       }
       touchedLedgerIds.add(String(ledger._id));

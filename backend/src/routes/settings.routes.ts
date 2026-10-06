@@ -24,6 +24,10 @@ router.get('/permissions', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), Se
 router.post('/share-amount', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.saveShareAmount);
 router.post('/penalty-rules', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.savePenaltyRule);
 router.post('/penalty-waivers', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.createPenaltyWaiver);
+router.put('/penalty-rules/:id', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.updatePenaltyRule);
+router.delete('/penalty-rules/:id', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.deletePenaltyRule);
+router.put('/penalty-waivers/:id', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.updatePenaltyWaiver);
+router.delete('/penalty-waivers/:id', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.deletePenaltyWaiver);
 router.post('/gateway-rates', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.saveGatewayRate);
 router.post('/operational-end-year', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.saveOperationalEndYear);
 router.put('/member-transparency', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.saveMemberTransparency);

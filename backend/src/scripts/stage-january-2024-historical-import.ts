@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { connectDatabase } from '../config/db.js';
 import { AuditLog, CustodyAccount, CustodyMovement, Member, MonthlyLedger, Payment, PaymentAllocation, User } from '../models/index.js';
 import { AccountType, AllocationType, CustodyChannel, MonthlyLedgerStatus, MovementSourceType, MovementType, PaymentMethod, PaymentStatus } from '../types/models.js';
+import { PaymentService } from '../services/payment.service.js';
 
 dotenv.config();
 
@@ -84,7 +85,12 @@ async function main(): Promise<void> {
     accounts = await CustodyAccount.find({ isActive: true }).select('_id name holderId channel').lean();
     for (const ledger of manifest.ledgers) {
       const member = memberByCode.get(ledger.member_id)!;
-      const createdLedger = await MonthlyLedger.create({ memberId: member._id, month: ledger.month, shareCount: amount(ledger.share_count), principalDue: amount(ledger.principal_due), principalPaid: amount(ledger.principal_paid), penaltyDue: 0, penaltyPaid: 0, penaltyWaived: 0, advanceApplied: amount(ledger.advance_applied), excessAdvance: amount(ledger.excess_advance), status: ledger.status === 'PAID' ? MonthlyLedgerStatus.PAID : MonthlyLedgerStatus.DUE, lastRebuiltAt: new Date() });
+      const isWaived = await PaymentService.isMonthWaived(ledger.month, member._id);
+      const rule = await PaymentService.getPenaltyRule(ledger.month);
+      const rawPenalty = amount(ledger.penalty_due);
+      const penaltyDue = isWaived ? 0 : (rawPenalty || (ledger.status === 'DUE' && amount(ledger.principal_due) > amount(ledger.principal_paid) ? amount(ledger.share_count) * rule.ratePerShare : 0));
+      const penaltyWaived = isWaived && rawPenalty ? rawPenalty : 0;
+      const createdLedger = await MonthlyLedger.create({ memberId: member._id, month: ledger.month, shareCount: amount(ledger.share_count), principalDue: amount(ledger.principal_due), principalPaid: amount(ledger.principal_paid), penaltyDue, penaltyPaid: 0, penaltyWaived, advanceApplied: amount(ledger.advance_applied), excessAdvance: amount(ledger.excess_advance), status: ledger.status === 'PAID' ? MonthlyLedgerStatus.PAID : MonthlyLedgerStatus.DUE, lastRebuiltAt: new Date() });
       insertedLedgerIds.push(createdLedger._id);
     }
     for (const originalRoute of mappedPayments) {
