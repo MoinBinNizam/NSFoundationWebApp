@@ -1,0 +1,11 @@
+{
+  "members": 35,
+  "payments": 27,
+  "allocations": 34,
+  "cash_received": 28740.0,
+  "april_principal_due": 8500.0,
+  "april_penalty_due": 340.0,
+  "march_arrear_principal_collected": 1000.0,
+  "march_arrear_penalty_collected": 40.0,
+  "april_penalty_collected": 200.0
+}
