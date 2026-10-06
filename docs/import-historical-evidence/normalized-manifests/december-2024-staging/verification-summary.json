@@ -1,0 +1,13 @@
+{
+  "month": "2024-12",
+  "members": 35,
+  "totalShares": 70,
+  "paymentsCount": 26,
+  "paymentsTotal": 47510.0,
+  "allocationsCount": 63,
+  "allocationsTotal": 47510.0,
+  "byReceiver": {
+    "Moin": 36340.0,
+    "Samrat": 11170.0
+  }
+}
