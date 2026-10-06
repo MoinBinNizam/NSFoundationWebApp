@@ -1,0 +1,18 @@
+{
+  "month": "2025-02",
+  "members": 35,
+  "totalShares": 70,
+  "paymentsCount": 21,
+  "paymentsTotal": 28000.0,
+  "allocationsCount": 24,
+  "allocationsTotal": 28000.0,
+  "byReceiver": {
+    "Moin": 21000.0,
+    "Samrat": 7000.0
+  },
+  "byGateway": {
+    "BANK": 11500.0,
+    "BKASH": 13500.0,
+    "NAGAD": 3000.0
+  }
+}
