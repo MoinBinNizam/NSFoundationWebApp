@@ -212,6 +212,20 @@ export class PaymentController {
     }
   }
 
+  /** GET /api/payments/dues */
+  static async getOutstandingDues(req: Request, res: Response, next: NextFunction) {
+    try {
+      const result = await PaymentService.getOutstandingDues({
+        year: req.query.year ? String(req.query.year) : undefined,
+        month: req.query.month ? String(req.query.month) : undefined,
+        search: req.query.search ? String(req.query.search) : undefined,
+      });
+      res.status(200).json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   /**
    * GET /api/payments/custody-accounts
    */

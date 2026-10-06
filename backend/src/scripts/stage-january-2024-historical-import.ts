@@ -67,7 +67,7 @@ async function main(): Promise<void> {
     ...mappedPayments.filter(({ account, canProvisionHistoricalCash }) => !account && !canProvisionHistoricalCash).map(({ payment }) => `No active ${payment.gateway} custody account belongs to ${payment.receiver_source} for ${payment.payment_ref}`),
   ];
   const existing = await Payment.countDocuments({ notes: { $regex: '\\[HIST-2024-01\\]' } });
-  console.log(JSON.stringify({ manifest: { ledgers: manifest.ledgers.length, payments: manifest.payments.length, allocations: manifest.allocations.length }, database: { membersFound: members.length, activeUsers: users.length, activeCustodyAccounts: accounts.length, existingJanuaryImportPayments: existing }, plannedCustodyProvision: mappedPayments.filter(({ canProvisionHistoricalCash }) => canProvisionHistoricalCash).map(({ payment, receiver }) => ({ receiver: receiver?.name, channel: payment.gateway, accountName: `${payment.receiver_source} Historical Cash Custody` })), mappingErrors, mappings: mappedPayments.map(({ payment, receiver, account }) => ({ paymentRef: payment.payment_ref, member: payment.member_id, receiver: receiver?.name || null, custodyAccount: account?.name || (payment.gateway === 'CASH' ? `${payment.receiver_source} Historical Cash Custody (will create)` : null), channel: payment.gateway })) }, null, 2));
+  console.log(JSON.stringify({ manifest: { ledgers: manifest.ledgers.length, payments: manifest.payments.length, allocations: manifest.allocations.length }, database: { membersFound: members.length, activeUsers: users.length, activeCustodyAccounts: accounts.length, existingJanuaryImportPayments: existing }, plannedCustodyProvision: mappedPayments.filter(({ canProvisionHistoricalCash }) => canProvisionHistoricalCash).map(({ payment, receiver }) => ({ receiver: receiver?.name, channel: payment.gateway, accountName: `${payment.receiver_source} Physical Petty Cash` })), mappingErrors, mappings: mappedPayments.map(({ payment, receiver, account }) => ({ paymentRef: payment.payment_ref, member: payment.member_id, receiver: receiver?.name || null, custodyAccount: account?.name || (payment.gateway === 'CASH' ? `${payment.receiver_source} Physical Petty Cash (will create)` : null), channel: payment.gateway })) }, null, 2));
   if (mappingErrors.length || existing) throw new Error('Historical staging validation failed. Resolve the reported mapping errors or existing import records before posting.');
   if (process.env.STAGE_JANUARY_2024 !== 'YES') {
     console.log('Dry run passed. Set STAGE_JANUARY_2024=YES to post this exact approved manifest.');
@@ -77,9 +77,9 @@ async function main(): Promise<void> {
   const insertedLedgerIds: Types.ObjectId[] = [];
   try {
     for (const route of mappedPayments.filter(({ canProvisionHistoricalCash }) => canProvisionHistoricalCash)) {
-      const name = `${route.payment.receiver_source} Historical Cash Custody`;
+      const name = `${route.payment.receiver_source} Physical Petty Cash`;
       const existingAccount = await CustodyAccount.findOne({ name });
-      if (!existingAccount) await CustodyAccount.create({ name, accountType: AccountType.ACCOUNTANT_CUSTODY, holderId: route.receiver!._id, channel: CustodyChannel.CASH, cachedBalance: 0, isActive: true, notes: 'Created for approved January 2024 historical self-cash collection staging.' });
+      if (!existingAccount) await CustodyAccount.create({ name, accountType: AccountType.ACCOUNTANT_CUSTODY, holderId: route.receiver!._id, channel: CustodyChannel.CASH, accountNumber: 'CASH-VAULT-02', cachedBalance: 0, isActive: true, notes: 'Physical petty cash custody created for approved January 2024 historical self-cash collection staging.' });
     }
     accounts = await CustodyAccount.find({ isActive: true }).select('_id name holderId channel').lean();
     for (const ledger of manifest.ledgers) {

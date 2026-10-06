@@ -54,6 +54,85 @@ function paymentMethodChannel(method: PaymentMethod): CustodyChannel {
 
 export class PaymentService {
   /**
+   * Member-facing outstanding dues projection.  This is deliberately derived
+   * from the live monthly ledgers and member cash-out balances instead of a
+   * separate cache, so a posted or voided receipt is reflected immediately.
+   */
+  static async getOutstandingDues(query: { year?: string; month?: string; search?: string }) {
+    const year = /^\d{4}$/.test(query.year || '') ? String(query.year) : undefined;
+    const monthNumber = Number(query.month);
+    const month = monthNumber >= 1 && monthNumber <= 12 ? String(monthNumber).padStart(2, '0') : undefined;
+    const ledgerFilter: Record<string, unknown> = {};
+    if (year && month) ledgerFilter.month = `${year}-${month}`;
+    else if (year) ledgerFilter.month = { $gte: `${year}-01`, $lte: `${year}-12` };
+
+    const allLedgers = await MonthlyLedger.find(ledgerFilter)
+      .populate('memberId', 'memberId name phone cashoutDue')
+      .sort({ month: -1, createdAt: -1 })
+      .lean();
+
+    const normalizedSearch = (query.search || '').trim().toLowerCase();
+    const matchesSearch = (member: any) => !normalizedSearch || [member?.memberId, member?.name, member?.phone]
+      .some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
+    const money = (value: number) => currency(Math.max(0, value));
+    const outstanding = allLedgers
+      .map((ledger: any) => ({
+        ledger,
+        member: ledger.memberId,
+        principalDue: money(Number(ledger.principalDue || 0) - Number(ledger.principalPaid || 0)),
+        penaltyDue: money(Number(ledger.penaltyDue || 0) - Number(ledger.penaltyPaid || 0) - Number(ledger.penaltyWaived || 0)),
+      }))
+      .filter(({ member, principalDue, penaltyDue }) => member && matchesSearch(member) && (principalDue > 0 || penaltyDue > 0));
+
+    // A cash-out balance belongs to the member, rather than a MonthlyLedger.
+    // Attach it once to that member's newest outstanding month.  If there is no
+    // outstanding principal/penalty ledger, show a dedicated cash-out row.
+    const cashoutAssigned = new Set<string>();
+    const rows = outstanding.map(({ ledger, member, principalDue, penaltyDue }) => {
+      const memberKey = String(member._id);
+      const cashoutDue = cashoutAssigned.has(memberKey) ? 0 : money(Number(member.cashoutDue || 0));
+      cashoutAssigned.add(memberKey);
+      return {
+        _id: String(ledger._id), month: ledger.month, shareCount: ledger.shareCount,
+        member: { _id: String(member._id), memberId: member.memberId, name: member.name, phone: member.phone },
+        principalDue, penaltyDue, cashoutDue, totalDue: money(principalDue + penaltyDue + cashoutDue),
+      };
+    });
+
+    const membersWithCashoutOnly = await Member.find({ cashoutDue: { $gt: 0 } })
+      .select('memberId name phone cashoutDue').lean();
+    for (const member of membersWithCashoutOnly) {
+      const memberKey = String(member._id);
+      if (cashoutAssigned.has(memberKey) || !matchesSearch(member)) continue;
+      const cashoutDue = money(Number(member.cashoutDue || 0));
+      rows.push({
+        _id: `cashout-${memberKey}`, month: '', shareCount: 0,
+        member: { _id: memberKey, memberId: member.memberId, name: member.name, phone: member.phone },
+        principalDue: 0, penaltyDue: 0, cashoutDue, totalDue: cashoutDue,
+      });
+    }
+
+    const allPeriods = allLedgers.map((ledger) => ledger.month).filter(Boolean).sort();
+    const referencePeriod = year && month ? `${year}-${month}` : allPeriods.at(-1) || toYearMonth(new Date());
+    const previousPeriod = addMonths(referencePeriod, -1);
+    const total = (field: 'principalDue' | 'penaltyDue' | 'cashoutDue') => currency(rows.reduce((sum, row) => sum + row[field], 0));
+
+    return {
+      filters: { year: year || 'ALL', month: month || 'ALL', referencePeriod, previousPeriod },
+      availableYears: [...new Set(allPeriods.map((period) => Number(period.slice(0, 4))))].sort((a, b) => b - a),
+      summary: {
+        total: currency(rows.reduce((sum, row) => sum + row.totalDue, 0)),
+        principal: total('principalDue'),
+        penalty: total('penaltyDue'),
+        cashout: total('cashoutDue'),
+        currentPrincipal: currency(rows.filter((row) => row.month === referencePeriod).reduce((sum, row) => sum + row.principalDue, 0)),
+        previousPrincipal: currency(rows.filter((row) => row.month === previousPeriod).reduce((sum, row) => sum + row.principalDue, 0)),
+      },
+      rows,
+    };
+  }
+
+  /**
    * Get member's active shares for a specific month
    */
   static async getMemberShareCount(memberId: string | Types.ObjectId, month: string): Promise<number> {

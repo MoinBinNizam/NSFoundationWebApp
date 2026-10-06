@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   X,
-  History,
   Info,
   Calendar,
   Layers,
@@ -38,30 +37,22 @@ interface MemberShareItem {
   } | null;
 }
 
-interface ShareHistoryEvent {
+interface DueRow {
   _id: string;
-  memberId: {
-    _id: string;
-    memberId: string;
-    name: string;
-    phone: string;
-  };
-  effectiveMonth: string;
+  month: string;
   shareCount: number;
-  previousShareCount: number;
-  eventType: 'TEMPORARY_CHANGE' | 'ANNUAL_FINALIZATION' | 'TRANSFER';
-  isAdministrativeOverride?: boolean;
-  notes?: string;
-  transferDetails?: {
-    fromMemberId?: { memberId: string; name: string };
-    toMemberId?: { memberId: string; name: string };
-    transferNote?: string;
-  };
-  changedBy: {
-    name: string;
-    role: string;
-  };
-  createdAt: string;
+  member: { _id: string; memberId: string; name: string; phone: string };
+  principalDue: number;
+  penaltyDue: number;
+  cashoutDue: number;
+  totalDue: number;
+}
+
+interface DuesOverview {
+  availableYears: number[];
+  summary: { total: number; principal: number; penalty: number; cashout: number; currentPrincipal: number; previousPrincipal: number };
+  filters: { referencePeriod: string; previousPeriod: string };
+  rows: DueRow[];
 }
 
 interface YearAccountItem {
@@ -93,10 +84,10 @@ interface ShareStats {
 
 const taka = (value: number) => `৳${Number(value || 0).toFixed(2)}`;
 
-export const SharesPage: React.FC = () => {
+export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual' }> = ({ initialTab = 'positions' }) => {
   const { user } = useAuth();
   const { t } = usePreferences();
-  const [activeTab, setActiveTab] = useState<'positions' | 'history' | 'annual'>('positions');
+  const [activeTab, setActiveTab] = useState<'positions' | 'dues' | 'annual'>(initialTab);
 
   // Stats
   const [stats, setStats] = useState<ShareStats>({
@@ -111,11 +102,12 @@ export const SharesPage: React.FC = () => {
   const [membersShares, setMembersShares] = useState<MemberShareItem[]>([]);
   const [loadingPositions, setLoadingPositions] = useState<boolean>(true);
 
-  // Tab 2: Share History
-  const [history, setHistory] = useState<ShareHistoryEvent[]>([]);
-  const [historyFilterType, setHistoryFilterType] = useState<string>('ALL');
-  const [historyMonthFilter, setHistoryMonthFilter] = useState<string>('ALL');
-  const [loadingHistory, setLoadingHistory] = useState<boolean>(false);
+  // Tab 2: Live outstanding dues
+  const [dues, setDues] = useState<DuesOverview | null>(null);
+  const [dueYear, setDueYear] = useState<string>('ALL');
+  const [dueMonth, setDueMonth] = useState<string>('ALL');
+  const [dueSearch, setDueSearch] = useState<string>('');
+  const [loadingDues, setLoadingDues] = useState<boolean>(false);
 
   // Tab 3: Annual Accounts
   const [yearAccounts, setYearAccounts] = useState<YearAccountItem[]>([]);
@@ -170,23 +162,23 @@ export const SharesPage: React.FC = () => {
     }
   }, []);
 
-  // Fetch History
-  const fetchHistory = useCallback(async () => {
-    setLoadingHistory(true);
+  // Fetch live dues. Payment posting, editing and deletion mutate these source
+  // ledgers, so this endpoint never serves a stale client-side calculation.
+  const fetchDues = useCallback(async () => {
+    setLoadingDues(true);
     try {
-      const params = new URLSearchParams({
-        eventType: historyFilterType,
-        effectiveMonth: historyMonthFilter,
-        limit: '50',
-      });
-      const res = await apiRequest<ShareHistoryEvent[]>(`/shares/history?${params.toString()}`);
-      setHistory(res.data || []);
+      const params = new URLSearchParams();
+      if (dueYear !== 'ALL') params.set('year', dueYear);
+      if (dueMonth !== 'ALL') params.set('month', dueMonth);
+      if (dueSearch.trim()) params.set('search', dueSearch.trim());
+      const res = await apiRequest<DuesOverview>(`/payments/dues?${params.toString()}`);
+      setDues(res.data);
     } catch (err) {
-      console.error('Error fetching share history:', err);
+      console.error('Error fetching outstanding dues:', err);
     } finally {
-      setLoadingHistory(false);
+      setLoadingDues(false);
     }
-  }, [historyFilterType, historyMonthFilter]);
+  }, [dueYear, dueMonth, dueSearch]);
 
   // Fetch Annual Accounts
   const fetchAnnual = useCallback(async () => {
@@ -206,9 +198,9 @@ export const SharesPage: React.FC = () => {
   }, [fetchPositions]);
 
   useEffect(() => {
-    if (activeTab === 'history') fetchHistory();
+    if (activeTab === 'dues') fetchDues();
     if (activeTab === 'annual') fetchAnnual();
-  }, [activeTab, fetchHistory, fetchAnnual]);
+  }, [activeTab, fetchDues, fetchAnnual]);
 
   // Handlers for Modals
   const handleOpenAdjust = (m?: MemberShareItem) => {
@@ -260,7 +252,7 @@ export const SharesPage: React.FC = () => {
       });
       setShowAdjustModal(false);
       fetchPositions();
-      if (activeTab === 'history') fetchHistory();
+      if (activeTab === 'dues') fetchDues();
     } catch (err: unknown) {
       setFormError((err as Error).message);
     } finally {
@@ -281,7 +273,7 @@ export const SharesPage: React.FC = () => {
       });
       setShowTransferModal(false);
       fetchPositions();
-      if (activeTab === 'history') fetchHistory();
+      if (activeTab === 'dues') fetchDues();
     } catch (err: unknown) {
       setFormError((err as Error).message);
     } finally {
@@ -424,15 +416,15 @@ export const SharesPage: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => setActiveTab('history')}
+          onClick={() => setActiveTab('dues')}
           className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-semibold transition-all border-b-2 ${
-            activeTab === 'history'
+            activeTab === 'dues'
               ? 'border-blue-500 text-white'
               : 'border-transparent text-gray-400 hover:text-white'
           }`}
         >
-          <History size={18} />
-          <span>Share Event Timeline</span>
+          <AlertTriangle size={18} />
+          <span>{t('Outstanding Dues')}</span>
         </button>
 
         <button
@@ -538,151 +530,70 @@ export const SharesPage: React.FC = () => {
         </div>
       )}
 
-      {/* TAB 2: SHARE EVENT TIMELINE */}
-      {activeTab === 'history' && (
+      {/* TAB 2: LIVE OUTSTANDING DUES */}
+      {activeTab === 'dues' && (
         <div className="space-y-4">
-          {/* History Filters */}
-          <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex gap-1.5 items-center flex-wrap">
-              <span className="text-xs font-semibold text-gray-400 mr-2 uppercase tracking-wider">
-                Event:
-              </span>
-              {['ALL', 'TEMPORARY_CHANGE', 'TRANSFER', 'ANNUAL_FINALIZATION'].map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setHistoryFilterType(type)}
-                  className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
-                    historyFilterType === type
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                      : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  {type}
-                </button>
-              ))}
+          <div className="glass-card p-4 space-y-4">
+            <div>
+              <h2 className="text-lg font-bold text-white">{t('Outstanding Dues')}</h2>
+              <p className="text-sm text-gray-400 mt-1">{t('Live member-level balance of unpaid principal, penalties, and gateway cash-out charges.')}</p>
             </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Month:
-              </span>
-              <input
-                type="month"
-                className="form-input text-xs w-40 py-1.5 px-3"
-                value={historyMonthFilter === 'ALL' ? '' : historyMonthFilter}
-                onChange={(e) => setHistoryMonthFilter(e.target.value || 'ALL')}
-              />
-              {historyMonthFilter !== 'ALL' && (
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm text-xs py-1"
-                  onClick={() => setHistoryMonthFilter('ALL')}
-                >
-                  Clear
-                </button>
-              )}
+            <div className="flex flex-col lg:flex-row gap-3">
+              <input value={dueSearch} onChange={(event) => setDueSearch(event.target.value)} className="form-input flex-1" placeholder={t('Search member ID, name, or phone...')} />
+              <select value={dueYear} onChange={(event) => setDueYear(event.target.value)} className="form-select lg:w-36">
+                <option value="ALL">{t('All years')}</option>
+                {(dues?.availableYears || []).map((year) => <option key={year} value={year}>{year}</option>)}
+              </select>
+              <select value={dueMonth} onChange={(event) => setDueMonth(event.target.value)} className="form-select lg:w-40">
+                <option value="ALL">{t('All months')}</option>
+                {Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{t(new Date(2024, index, 1).toLocaleString('en', { month: 'long' }))}</option>)}
+              </select>
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {[
+              [t('Total Due'), dues?.summary.total || 0, 'text-rose-300'],
+              [t('Total principal due'), dues?.summary.principal || 0, 'text-blue-300'],
+              [`${t('Current-period principal')} (${dues?.filters.referencePeriod || '—'})`, dues?.summary.currentPrincipal || 0, 'text-cyan-300'],
+              [`${t('Previous-period principal')} (${dues?.filters.previousPeriod || '—'})`, dues?.summary.previousPrincipal || 0, 'text-indigo-300'],
+              [t('Penalty due'), dues?.summary.penalty || 0, 'text-amber-300'],
+              [t('Cash-out due'), dues?.summary.cashout || 0, 'text-fuchsia-300'],
+            ].map(([label, amount, color]) => (
+              <div key={String(label)} className="glass-card p-4">
+                <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold">{label}</p>
+                <p className={`text-2xl font-extrabold mt-2 ${color}`}>{taka(Number(amount))}</p>
+              </div>
+            ))}
+          </div>
+
           <div className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
-            <table className="data-table min-w-[960px]">
+            <table className="data-table min-w-[900px]">
               <thead>
                 <tr>
-                  <th>Effective Month</th>
-                  <th>Member</th>
-                  <th>Event Type</th>
-                  <th>Previous</th>
-                  <th>New Shares</th>
-                  <th>Transfer Details / Notes</th>
-                  <th>Recorded By</th>
+                  <th>{t('Month')}</th><th>{t('Member')}</th><th>{t('Shares')}</th><th>{t('Principal due')}</th><th>{t('Penalty due')}</th><th>{t('Cash-out due')}</th><th>{t('Total Due')}</th>
                 </tr>
               </thead>
               <tbody>
-                {loadingHistory ? (
+                {loadingDues ? (
                   <tr>
                     <td colSpan={7} className="text-center py-12 text-gray-400">
                       <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
-                      <span>Loading share history...</span>
+                      <span>{t('Loading outstanding dues...')}</span>
                     </td>
                   </tr>
-                ) : history.length === 0 ? (
+                ) : !dues?.rows.length ? (
                   <tr>
                     <td colSpan={7} className="text-center py-12 text-gray-400">
-                      No share history events found.
+                      {t('No outstanding dues match the selected filters.')}
                     </td>
                   </tr>
                 ) : (
-                  history.map((ev) => {
-                    const isIncrease = ev.shareCount > ev.previousShareCount;
-                    const diff = ev.shareCount - ev.previousShareCount;
-
-                    return (
-                      <tr key={ev._id} className="hover:bg-white/[0.02] transition-colors">
-                        <td>
-                          <span className="font-mono font-bold text-xs text-blue-400">
-                            {ev.effectiveMonth}
-                          </span>
-                        </td>
-                        <td>
-                          <p className="font-semibold text-white text-sm">{ev.memberId?.name}</p>
-                          <span className="font-mono text-xs text-gray-400">
-                            {ev.memberId?.memberId}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className="badge text-[10px]"
-                            style={{
-                              background:
-                                ev.eventType === 'TRANSFER'
-                                  ? 'rgba(245, 158, 11, 0.15)'
-                                  : ev.eventType === 'ANNUAL_FINALIZATION'
-                                  ? 'rgba(99, 102, 241, 0.15)'
-                                  : 'rgba(59, 130, 246, 0.15)',
-                              color:
-                                ev.eventType === 'TRANSFER'
-                                  ? '#FBBF24'
-                                  : ev.eventType === 'ANNUAL_FINALIZATION'
-                                  ? '#A5B4FC'
-                                  : '#60A5FA',
-                            }}
-                          >
-                            {ev.eventType}
-                          </span>
-                          {ev.isAdministrativeOverride && (
-                            <span className="badge text-[10px] bg-rose-500/15 text-rose-400 ml-1">
-                              Admin Override
-                            </span>
-                          )}
-                        </td>
-                        <td>
-                          <span className="text-gray-400 text-sm">{ev.previousShareCount}</span>
-                        </td>
-                        <td>
-                          <span className="font-bold text-white text-sm">{ev.shareCount}</span>
-                          <span
-                            className={`text-xs font-bold ml-1.5 ${
-                              isIncrease ? 'text-emerald-400' : 'text-rose-400'
-                            }`}
-                          >
-                            ({diff > 0 ? `+${diff}` : diff})
-                          </span>
-                        </td>
-                        <td>
-                          <p className="text-xs text-gray-300">
-                            {ev.transferDetails?.transferNote || ev.notes || '—'}
-                          </p>
-                        </td>
-                        <td>
-                          <p className="text-xs text-gray-200 font-medium">{ev.changedBy?.name}</p>
-                          <span className="text-[11px] text-gray-500">
-                            {new Date(ev.createdAt).toLocaleDateString()}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
+                  dues.rows.map((row) => <tr key={row._id} className="hover:bg-white/[0.02] transition-colors">
+                    <td className="font-mono text-xs text-blue-300">{row.month || t('Cash-out balance')}</td>
+                    <td><p className="font-semibold text-white text-sm">{row.member.name}</p><span className="font-mono text-xs text-gray-400">{row.member.memberId}</span></td>
+                    <td>{row.shareCount || '—'}</td><td className="font-semibold text-blue-200">{taka(row.principalDue)}</td><td className="font-semibold text-amber-200">{taka(row.penaltyDue)}</td><td className="font-semibold text-fuchsia-200">{taka(row.cashoutDue)}</td><td className="font-extrabold text-rose-200">{taka(row.totalDue)}</td>
+                  </tr>)
                 )}
               </tbody>
             </table>

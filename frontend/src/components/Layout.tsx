@@ -68,6 +68,8 @@ export const Layout: React.FC = () => {
     ? 'Accountant Custody Ledger'
     : location.pathname.startsWith('/payments')
     ? 'Contributions & Payments'
+    : location.pathname.startsWith('/dues')
+    ? 'Outstanding Dues'
     : location.pathname.startsWith('/shares')
     ? 'Shares & Annual Account'
     : 'Member Management';
@@ -79,6 +81,7 @@ export const Layout: React.FC = () => {
     ...(canAccess('MEMBERS', 'view') ? [{ label: 'Member Management', path: '/members', icon: Users, issue: '#4' }] : []),
     ...(canAccess('SHARES', 'view') ? [{ label: 'Shares & Annual Account', path: '/shares', icon: PieChart, issue: '#5' }] : []),
     ...(canAccess('PAYMENTS', 'view') ? [{ label: 'Contributions & Payments', path: '/payments', icon: CreditCard, issue: '#6' }] : []),
+    ...(canAccess('PAYMENTS', 'view') ? [{ label: 'Outstanding Dues', path: '/dues', icon: Activity, issue: '#26' }] : []),
     ...(canAccess('CUSTODY', 'view') ? [{ label: 'Accountant Custody', path: '/custody', icon: Wallet, issue: '#7' }] : []),
     ...(canAccess('INVESTMENTS', 'view') ? [{ label: 'Investments', path: '/investments', icon: TrendingUp, issue: '#8' }] : []),
     ...(canAccess('PROJECT_WALLETS', 'view') ? [{ label: 'Project Wallets', path: '/reinvestments', icon: Repeat2, issue: '#9' }] : []),

@@ -26,7 +26,9 @@ const dates = (query: Record<string, unknown>, field: string) => {
 const currentMonth = () => new Date().toISOString().slice(0, 7);
 const monthRange = (query: Record<string, unknown>) => {
   const end = query.endDate ? new Date(String(query.endDate)) : new Date();
-  const start = query.startDate ? new Date(String(query.startDate)) : new Date(end.getFullYear(), end.getMonth() - 5, 1);
+  // Historical dashboard reporting starts when the society's recorded
+  // financial history starts. A caller may still narrow the period explicitly.
+  const start = query.startDate ? new Date(String(query.startDate)) : new Date(2024, 0, 1);
   const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
   const last = new Date(end.getFullYear(), end.getMonth(), 1);
   const months: string[] = [];
@@ -34,7 +36,7 @@ const monthRange = (query: Record<string, unknown>) => {
     months.push(`${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`);
     cursor.setMonth(cursor.getMonth() + 1);
   }
-  return months.slice(-12);
+  return months;
 };
 const monthBounds = (month: string) => {
   const [year, monthNumber] = month.split('-').map(Number);

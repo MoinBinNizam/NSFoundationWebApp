@@ -16,6 +16,7 @@ router.use(authenticate);
 
 // Public/Staff reading routes
 router.get('/stats', PaymentController.getContributionStats);
+router.get('/dues', requireModuleAccess('PAYMENTS', 'view'), PaymentController.getOutstandingDues);
 router.get('/collection-members', requireAccountant(AccountantType.PRIMARY, AccountantType.ASSISTANT), requireModuleAccess('PAYMENTS', 'edit'), PaymentController.getCollectionMembers);
 router.get('/custody-accounts', PaymentController.getCustodyAccounts);
 router.get('/gateway-rates', PaymentController.getGatewayRates);
