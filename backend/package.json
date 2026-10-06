@@ -15,6 +15,7 @@
     "reset-payment-data": "tsx src/scripts/reset-payment-data-for-historical-import.ts",
     "stage:january-2024": "tsx src/scripts/stage-january-2024-historical-import.ts",
     "stage:february-2024": "tsx src/scripts/stage-february-2024-historical-import.ts",
+    "stage:march-2024": "tsx src/scripts/stage-march-2024-historical-import.ts",
     "normalize:historical-custody": "tsx src/scripts/normalize-historical-custody.ts",
     "seed:custody": "tsx src/scripts/seed-custody-gateways.ts",
     "test:reinvestments": "tsx src/scripts/test-reinvestments.ts",
