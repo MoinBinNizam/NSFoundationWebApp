@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   TrendingUp,
   Plus,
@@ -127,7 +128,12 @@ interface InvestmentStats {
 
 export const InvestmentsPage: React.FC = () => {
   const { user } = useAuth();
-  const isAccountant = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
+  const { t } = usePreferences();
+  const isAccountant =
+    user?.role === 'ADMIN' ||
+    user?.role === 'SUPER_ADMIN' ||
+    user?.role === 'ACCOUNTANT' ||
+    user?.role === 'INVESTMENT_MANAGER';
 
   // Navigation Tabs
   const [activeTab, setActiveTab] = useState<'portfolio' | 'fundings' | 'returns'>('portfolio');
@@ -522,11 +528,11 @@ export const InvestmentsPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
               <TrendingUp className="w-7 h-7 text-emerald-400" />
-              Investment Management
+              {t('Investment Management')}
             </h1>
           </div>
           <p className="text-sm text-gray-400 mt-1">
-            Common pooled project investments, multi-accountant co-funding, maturity returns, and wallet reinvestments.
+            {t('Common pooled project investments, multi-accountant co-funding, maturity returns, and wallet reinvestments.')}
           </p>
         </div>
 
@@ -536,10 +542,10 @@ export const InvestmentsPage: React.FC = () => {
             onClick={() => fetchOverviewData()}
             disabled={loading}
             className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-medium transition-colors border border-gray-700 flex items-center gap-1.5"
-            title="Refresh Investment Data"
+            title={t('Refresh')}
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('Refresh')}
           </button>
 
           {isAccountant && (
@@ -549,7 +555,7 @@ export const InvestmentsPage: React.FC = () => {
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium transition-all shadow-lg shadow-emerald-600/20 flex items-center gap-2"
               >
                 <Plus className="w-4 h-4" />
-                New Project
+                {t('New Project')}
               </button>
 
               <button
@@ -557,7 +563,7 @@ export const InvestmentsPage: React.FC = () => {
                 className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2"
               >
                 <ArrowDownLeft className="w-4 h-4" />
-                Fund Project
+                {t('Fund Project')}
               </button>
 
               <button
@@ -565,16 +571,16 @@ export const InvestmentsPage: React.FC = () => {
                 className="px-3.5 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
               >
                 <ArrowUpRight className="w-4 h-4" />
-                Record Return
+                {t('Record Return')}
               </button>
 
               <button
                 onClick={() => setShowReinvestModal(true)}
                 className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
-                title="Reinvest Wallet Proceeds"
+                title={t('Reinvest')}
               >
                 <Repeat className="w-4 h-4 text-emerald-400" />
-                Reinvest
+                {t('Reinvest')}
               </button>
             </>
           )}
@@ -588,7 +594,7 @@ export const InvestmentsPage: React.FC = () => {
           <div className="p-4 rounded-xl bg-gradient-to-br from-[#12231c] to-[#0d1a15] border border-emerald-500/20 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Total Capital Invested
+                {t('Total Capital Invested')}
               </span>
               <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">
                 <TrendingUp className="w-4 h-4" />
@@ -601,7 +607,7 @@ export const InvestmentsPage: React.FC = () => {
             </div>
             <div className="mt-2 text-xs text-emerald-400 flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
-              {`Across ${stats.totalProjectsCount} projects (${stats.activeProjectsCount} Active)`}
+              {t(`Across ${stats.totalProjectsCount} projects (${stats.activeProjectsCount} Active)`)}
             </div>
           </div>
 
@@ -609,7 +615,7 @@ export const InvestmentsPage: React.FC = () => {
           <div className="p-4 rounded-xl bg-gradient-to-br from-[#171e2e] to-[#0f1422] border border-blue-500/20 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Active Capital Deployed
+                {t('Active Capital Deployed')}
               </span>
               <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
                 <Building2 className="w-4 h-4" />
@@ -621,7 +627,7 @@ export const InvestmentsPage: React.FC = () => {
               </span>
             </div>
             <div className="mt-2 text-xs text-gray-400">
-              Unreturned principal in live projects
+              {t('Unreturned principal in live projects')}
             </div>
           </div>
 
@@ -629,7 +635,7 @@ export const InvestmentsPage: React.FC = () => {
           <div className="p-4 rounded-xl bg-gradient-to-br from-[#1e1b2e] to-[#131124] border border-purple-500/20 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Principal Returned
+                {t('Principal Returned')}
               </span>
               <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
                 <Layers className="w-4 h-4" />
@@ -690,7 +696,7 @@ export const InvestmentsPage: React.FC = () => {
             }`}
           >
             <Building2 className="w-4 h-4" />
-            Projects Portfolio ({projects.length})
+            {t(`Projects Portfolio (${projects.length})`)}
           </button>
         </div>
       </div>
@@ -705,7 +711,7 @@ export const InvestmentsPage: React.FC = () => {
               type="text"
               value={searchFilter}
               onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder="Search by ID, name, partner..."
+              placeholder={t('Search by ID, name, partner...')}
               className="w-full bg-[#1F2937] border border-gray-700 rounded-lg pl-9 pr-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 placeholder-gray-500"
             />
           </div>
@@ -717,11 +723,11 @@ export const InvestmentsPage: React.FC = () => {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="">All Statuses</option>
-              <option value="ACTIVE">Active Projects</option>
-              <option value="PROPOSED">Proposed</option>
-              <option value="MATURED">Matured / Realized</option>
-              <option value="CLOSED">Closed</option>
+              <option value="">{t('All Statuses')}</option>
+              <option value="ACTIVE">{t('Active')}</option>
+              <option value="PROPOSED">{t('Proposed')}</option>
+              <option value="MATURED">{t('Matured')}</option>
+              <option value="CLOSED">{t('Closed')}</option>
             </select>
           </div>
 

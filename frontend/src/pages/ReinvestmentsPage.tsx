@@ -71,7 +71,11 @@ const today = () => new Date().toISOString().slice(0, 10);
 export const ReinvestmentsPage: React.FC = () => {
   const { user } = useAuth();
   const { t } = usePreferences();
-  const canOperate = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';
+  const canOperate =
+    user?.role === 'ADMIN' ||
+    user?.role === 'SUPER_ADMIN' ||
+    user?.role === 'ACCOUNTANT' ||
+    user?.role === 'INVESTMENT_MANAGER';
   const [tab, setTab] = useState<'wallets' | 'chains' | 'audit'>('wallets');
   const [stats, setStats] = useState<Stats | null>(null);
   const [wallets, setWallets] = useState<Wallet[]>([]);

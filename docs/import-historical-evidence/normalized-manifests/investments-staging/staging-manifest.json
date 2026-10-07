@@ -1,0 +1,710 @@
+{
+  "projects": [
+    {
+      "sourceRow": 3,
+      "serialNo": 1,
+      "projectId": "PRJ-01",
+      "name": "G9 Banaa - 02",
+      "invoiceNo": "#1094",
+      "invoiceTo": "Shuvo",
+      "category": "Agriculture",
+      "externalEntity": "GrowUp",
+      "startDate": "2024-04-21",
+      "maturityDate": "2024-10-18",
+      "duration": "6 month",
+      "targetPrincipal": 26400.0,
+      "totalFunded": 26400.0,
+      "expectedROI": 5119.0,
+      "status": "MATURED",
+      "fundings": [
+        {
+          "source": "SAMRAT_CUSTODY",
+          "channel": "NAGAD",
+          "amount": 26400.0,
+          "notes": "Historical funding from Samrat custody (Nagad)"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2024-10-18",
+          "principalReturned": 26400.0,
+          "actualProfit": 5119.0,
+          "actualLoss": 0.0,
+          "totalReturn": 31519.0,
+          "destinationType": "EXTERNAL_WALLET",
+          "notes": "Historical return recorded for G9 Banaa - 02 per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 4,
+      "serialNo": 2,
+      "projectId": "PRJ-02",
+      "name": "Biofloc fish farming-2",
+      "invoiceNo": "#1268",
+      "invoiceTo": "Shuvo",
+      "category": "Agriculture",
+      "externalEntity": "GrowUp",
+      "startDate": "2024-05-12",
+      "maturityDate": "2024-10-09",
+      "duration": "",
+      "targetPrincipal": 10800.0,
+      "totalFunded": 10800.0,
+      "expectedROI": 1664.0,
+      "status": "MATURED",
+      "fundings": [
+        {
+          "source": "SAMRAT_CUSTODY",
+          "channel": "NAGAD",
+          "amount": 10800.0,
+          "notes": "Historical funding from Samrat custody (Nagad)"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2024-10-09",
+          "principalReturned": 10800.0,
+          "actualProfit": 1664.0,
+          "actualLoss": 0.0,
+          "totalReturn": 12464.0,
+          "destinationType": "EXTERNAL_WALLET",
+          "notes": "Historical return recorded for Biofloc fish farming-2 per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 5,
+      "serialNo": 3,
+      "projectId": "PRJ-03",
+      "name": "special project (export) 4",
+      "invoiceNo": "#1287",
+      "invoiceTo": "Shuvo",
+      "category": "Commodity Trading",
+      "externalEntity": "GrowUp",
+      "startDate": "2024-05-12",
+      "maturityDate": "2024-08-10",
+      "duration": "",
+      "targetPrincipal": 20000.0,
+      "totalFunded": 20000.0,
+      "expectedROI": 1750.0,
+      "status": "MATURED",
+      "fundings": [
+        {
+          "source": "MOIN_CUSTODY",
+          "channel": "BANK",
+          "amount": 20000.0,
+          "notes": "Historical funding from Moin custody (Bank)"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2024-08-10",
+          "principalReturned": 20000.0,
+          "actualProfit": 1750.0,
+          "actualLoss": 0.0,
+          "totalReturn": 21750.0,
+          "destinationType": "ACCOUNTANT_CUSTODY",
+          "notes": "Historical return recorded for special project (export) 4 per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 6,
+      "serialNo": 4,
+      "projectId": "PRJ-04",
+      "name": "G9 Banaa - 03",
+      "invoiceNo": "#1457",
+      "invoiceTo": "Shuvo",
+      "category": "Agriculture",
+      "externalEntity": "GrowUp",
+      "startDate": "2024-05-20",
+      "maturityDate": "2024-11-16",
+      "duration": "",
+      "targetPrincipal": 12800.0,
+      "totalFunded": 12800.0,
+      "expectedROI": 2482.14,
+      "status": "MATURED",
+      "fundings": [
+        {
+          "source": "MOIN_CUSTODY",
+          "channel": "BKASH",
+          "amount": 5000.0,
+          "notes": "Historical funding from Moin custody ()"
+        },
+        {
+          "source": "SAMRAT_CUSTODY",
+          "channel": "BKASH",
+          "amount": 7800.0,
+          "notes": "Historical funding from Samrat custody ()"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2024-11-16",
+          "principalReturned": 12800.0,
+          "actualProfit": 2482.14,
+          "actualLoss": 0.0,
+          "totalReturn": 15282.14,
+          "destinationType": "EXTERNAL_WALLET",
+          "notes": "Historical return recorded for G9 Banaa - 03 per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 7,
+      "serialNo": 5,
+      "projectId": "PRJ-05",
+      "name": "Restaurant",
+      "invoiceNo": "",
+      "invoiceTo": "Moin",
+      "category": "Food & Beverage",
+      "externalEntity": "Hungry Birds Barisal",
+      "startDate": "2024-07-17",
+      "maturityDate": "2025-07-17",
+      "duration": "",
+      "targetPrincipal": 60000.0,
+      "totalFunded": 60000.0,
+      "expectedROI": 8500.0,
+      "status": "ACTIVE",
+      "fundings": [
+        {
+          "source": "MOIN_CUSTODY",
+          "channel": "BKASH",
+          "amount": 50000.0,
+          "notes": "Historical funding from Moin custody (Cash)"
+        },
+        {
+          "source": "SAMRAT_CUSTODY",
+          "channel": "BKASH",
+          "amount": 10000.0,
+          "notes": "Historical funding from Samrat custody (Cash)"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2025-07-17",
+          "principalReturned": 60000.0,
+          "actualProfit": 8500.0,
+          "actualLoss": 0.0,
+          "totalReturn": 68500.0,
+          "destinationType": "ACCOUNTANT_CUSTODY",
+          "notes": "Historical return recorded for Restaurant per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 8,
+      "serialNo": 6,
+      "projectId": "PRJ-06",
+      "name": "Papaya 3",
+      "invoiceNo": "#2607",
+      "invoiceTo": "Shuvo",
+      "category": "Agriculture",
+      "externalEntity": "GrowUp",
+      "startDate": "2024-09-10",
+      "maturityDate": "2025-03-09",
+      "duration": "",
+      "targetPrincipal": 39710.0,
+      "totalFunded": 39710.0,
+      "expectedROI": 7545.0,
+      "status": "MATURED",
+      "fundings": [
+        {
+          "source": "MOIN_CUSTODY",
+          "channel": "BANK",
+          "amount": 17960.0,
+          "notes": "Historical funding from Moin custody (Bank+Baksh)"
+        },
+        {
+          "source": "PARTNER_WALLET",
+          "channel": "WALLET",
+          "amount": 21750.0,
+          "notes": "Historical reinvestment from GrowUp Partner Wallet"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2025-03-09",
+          "principalReturned": 39710.0,
+          "actualProfit": 7545.0,
+          "actualLoss": 0.0,
+          "totalReturn": 47255.0,
+          "destinationType": "EXTERNAL_WALLET",
+          "notes": "Historical return recorded for Papaya 3 per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 9,
+      "serialNo": 7,
+      "projectId": "PRJ-07",
+      "name": "Goat 3",
+      "invoiceNo": "#2788",
+      "invoiceTo": "Shuvo",
+      "category": "Livestock",
+      "externalEntity": "GrowUp",
+      "startDate": "2024-09-12",
+      "maturityDate": "2025-06-09",
+      "duration": "",
+      "targetPrincipal": 12000.0,
+      "totalFunded": 12000.0,
+      "expectedROI": 3407.0,
+      "status": "MATURED",
+      "fundings": [
+        {
+          "source": "MOIN_CUSTODY",
+          "channel": "BKASH",
+          "amount": 5000.0,
+          "notes": "Historical funding from Moin custody (bKash)"
+        },
+        {
+          "source": "SAMRAT_CUSTODY",
+          "channel": "BKASH",
+          "amount": 7000.0,
+          "notes": "Historical funding from Samrat custody (bKash)"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2025-06-09",
+          "principalReturned": 12000.0,
+          "actualProfit": 3407.0,
+          "actualLoss": 0.0,
+          "totalReturn": 15407.0,
+          "destinationType": "EXTERNAL_WALLET",
+          "notes": "Historical return recorded for Goat 3 per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 10,
+      "serialNo": 8,
+      "projectId": "PRJ-08",
+      "name": "Dry Fish-3",
+      "invoiceNo": "#3124",
+      "invoiceTo": "Shuvo",
+      "category": "Fisheries",
+      "externalEntity": "GrowUp",
+      "startDate": "2024-10-10",
+      "maturityDate": "2025-02-07",
+      "duration": "",
+      "targetPrincipal": 15200.0,
+      "totalFunded": 15200.0,
+      "expectedROI": 1824.0,
+      "status": "MATURED",
+      "fundings": [
+        {
+          "source": "MOIN_CUSTODY",
+          "channel": "BKASH",
+          "amount": 8200.0,
+          "notes": "Historical funding from Moin custody (bKash)"
+        },
+        {
+          "source": "SAMRAT_CUSTODY",
+          "channel": "BKASH",
+          "amount": 7000.0,
+          "notes": "Historical funding from Samrat custody (bKash)"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2025-02-07",
+          "principalReturned": 15200.0,
+          "actualProfit": 1824.0,
+          "actualLoss": 0.0,
+          "totalReturn": 17024.0,
+          "destinationType": "EXTERNAL_WALLET",
+          "notes": "Historical return recorded for Dry Fish-3 per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 11,
+      "serialNo": 9,
+      "projectId": "PRJ-09",
+      "name": "Cattle Ranch-4",
+      "invoiceNo": "#3263",
+      "invoiceTo": "Shuvo",
+      "category": "Livestock",
+      "externalEntity": "GrowUp",
+      "startDate": "2024-10-10",
+      "maturityDate": "2025-05-08",
+      "duration": "",
+      "targetPrincipal": 12464.0,
+      "totalFunded": 12464.0,
+      "expectedROI": 2822.5,
+      "status": "MATURED",
+      "fundings": [
+        {
+          "source": "PARTNER_WALLET",
+          "channel": "WALLET",
+          "amount": 12464.0,
+          "notes": "Historical reinvestment from GrowUp Partner Wallet"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2025-05-08",
+          "principalReturned": 12464.0,
+          "actualProfit": 2822.5,
+          "actualLoss": 0.0,
+          "totalReturn": 15286.5,
+          "destinationType": "EXTERNAL_WALLET",
+          "notes": "Historical return recorded for Cattle Ranch-4 per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 12,
+      "serialNo": 10,
+      "projectId": "PRJ-10",
+      "name": "Onion Preservation - 3",
+      "invoiceNo": "#3594",
+      "invoiceTo": "Shuvo",
+      "category": "Agriculture",
+      "externalEntity": "GrowUp",
+      "startDate": "2024-10-27",
+      "maturityDate": "2025-06-28",
+      "duration": "",
+      "targetPrincipal": 31519.0,
+      "totalFunded": 31519.0,
+      "expectedROI": 8195.0,
+      "status": "MATURED",
+      "fundings": [
+        {
+          "source": "PARTNER_WALLET",
+          "channel": "WALLET",
+          "amount": 31519.0,
+          "notes": "Historical reinvestment from GrowUp Partner Wallet"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2025-06-28",
+          "principalReturned": 31519.0,
+          "actualProfit": 8195.0,
+          "actualLoss": 0.0,
+          "totalReturn": 39714.0,
+          "destinationType": "EXTERNAL_WALLET",
+          "notes": "Historical return recorded for Onion Preservation - 3 per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 13,
+      "serialNo": 11,
+      "projectId": "PRJ-11",
+      "name": "Qurbani Cow-1",
+      "invoiceNo": "#4478",
+      "invoiceTo": "Shuvo",
+      "category": "Livestock",
+      "externalEntity": "GrowUp",
+      "startDate": "2024-12-10",
+      "maturityDate": "2025-08-08",
+      "duration": "8 Month",
+      "targetPrincipal": 115280.0,
+      "totalFunded": 115280.0,
+      "expectedROI": 30741.0,
+      "status": "MATURED",
+      "fundings": [
+        {
+          "source": "MOIN_CUSTODY",
+          "channel": "BKASH",
+          "amount": 80000.0,
+          "notes": "Historical funding from Moin custody (Wallet)"
+        },
+        {
+          "source": "SAMRAT_CUSTODY",
+          "channel": "BKASH",
+          "amount": 20000.0,
+          "notes": "Historical funding from Samrat custody (Wallet)"
+        },
+        {
+          "source": "PARTNER_WALLET",
+          "channel": "WALLET",
+          "amount": 15280.0,
+          "notes": "Historical reinvestment from GrowUp Partner Wallet"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2025-08-08",
+          "principalReturned": 115280.0,
+          "actualProfit": 30741.0,
+          "actualLoss": 0.0,
+          "totalReturn": 146021.0,
+          "destinationType": "EXTERNAL_WALLET",
+          "notes": "Historical return recorded for Qurbani Cow-1 per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 14,
+      "serialNo": 12,
+      "projectId": "PRJ-12",
+      "name": "Sugar Cane Export-2",
+      "invoiceNo": "#5791",
+      "invoiceTo": "Shuvo",
+      "category": "Agriculture",
+      "externalEntity": "GrowUp",
+      "startDate": "2025-02-12",
+      "maturityDate": "2025-10-10",
+      "duration": "8 Month",
+      "targetPrincipal": 60000.0,
+      "totalFunded": 60000.0,
+      "expectedROI": 16000.8,
+      "status": "MATURED",
+      "fundings": [
+        {
+          "source": "MOIN_CUSTODY",
+          "channel": "BANK",
+          "amount": 50000.0,
+          "notes": "Historical funding from Moin custody (Bank+Bkash)"
+        },
+        {
+          "source": "SAMRAT_CUSTODY",
+          "channel": "BKASH",
+          "amount": 10000.0,
+          "notes": "Historical funding from Samrat custody (Bank+Bkash)"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2025-10-10",
+          "principalReturned": 60000.0,
+          "actualProfit": 16000.8,
+          "actualLoss": 0.0,
+          "totalReturn": 76000.8,
+          "destinationType": "EXTERNAL_WALLET",
+          "notes": "Historical return recorded for Sugar Cane Export-2 per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 15,
+      "serialNo": 13,
+      "projectId": "PRJ-13",
+      "name": "Banana-4",
+      "invoiceNo": "#7224 #7210",
+      "invoiceTo": "Shuvo",
+      "category": "Agriculture",
+      "externalEntity": "GrowUp",
+      "startDate": "2025-03-14",
+      "maturityDate": "2025-11-09",
+      "duration": "8 Month",
+      "targetPrincipal": 36024.0,
+      "totalFunded": 36024.0,
+      "expectedROI": 9474.0,
+      "status": "MATURED",
+      "fundings": [
+        {
+          "source": "MOIN_CUSTODY",
+          "channel": "BANK",
+          "amount": 19000.0,
+          "notes": "Historical funding from Moin custody (Wallet+Bank)"
+        },
+        {
+          "source": "PARTNER_WALLET",
+          "channel": "WALLET",
+          "amount": 17024.0,
+          "notes": "Historical reinvestment from GrowUp Partner Wallet"
+        }
+      ],
+      "returns": [
+        {
+          "maturityDate": "2025-11-09",
+          "principalReturned": 36024.0,
+          "actualProfit": 9474.0,
+          "actualLoss": 0.0,
+          "totalReturn": 45498.0,
+          "destinationType": "EXTERNAL_WALLET",
+          "notes": "Historical return recorded for Banana-4 per authoritative Investment workbook."
+        }
+      ]
+    },
+    {
+      "sourceRow": 16,
+      "serialNo": 14,
+      "projectId": "PRJ-14",
+      "name": "Qurbani Cow-3",
+      "invoiceNo": "#18257",
+      "invoiceTo": "Shuvo",
+      "category": "Livestock",
+      "externalEntity": "GrowUp",
+      "startDate": "2025-10-20",
+      "maturityDate": "2026-06-20",
+      "duration": "8 Month",
+      "targetPrincipal": 200000.0,
+      "totalFunded": 200000.0,
+      "expectedROI": null,
+      "status": "ACTIVE",
+      "fundings": [
+        {
+          "source": "PARTNER_WALLET",
+          "channel": "WALLET",
+          "amount": 200000.0,
+          "notes": "Historical reinvestment from GrowUp Partner Wallet"
+        }
+      ],
+      "returns": []
+    },
+    {
+      "sourceRow": 17,
+      "serialNo": 15,
+      "projectId": "PRJ-15",
+      "name": "Land Trading -4",
+      "invoiceNo": "#0169",
+      "invoiceTo": "Shuvo",
+      "category": "Land & Property",
+      "externalEntity": "Zayn Farm",
+      "startDate": "2025-10-13",
+      "maturityDate": "2026-04-13",
+      "duration": "6 Month",
+      "targetPrincipal": 100000.0,
+      "totalFunded": 100000.0,
+      "expectedROI": null,
+      "status": "ACTIVE",
+      "fundings": [
+        {
+          "source": "PARTNER_WALLET",
+          "channel": "WALLET",
+          "amount": 100000.0,
+          "notes": "Historical reinvestment from Zayn Farm Partner Wallet"
+        }
+      ],
+      "returns": []
+    },
+    {
+      "sourceRow": 18,
+      "serialNo": 16,
+      "projectId": "PRJ-16",
+      "name": "Land Trading -6",
+      "invoiceNo": "#804",
+      "invoiceTo": "Shuvo",
+      "category": "Land & Property",
+      "externalEntity": "Zayn Farm",
+      "startDate": "2026-01-15",
+      "maturityDate": "2026-07-15",
+      "duration": "6 Month",
+      "targetPrincipal": 80000.0,
+      "totalFunded": 80000.0,
+      "expectedROI": null,
+      "status": "ACTIVE",
+      "fundings": [
+        {
+          "source": "MOIN_CUSTODY",
+          "channel": "BANK",
+          "amount": 80000.0,
+          "notes": "Historical funding from Moin custody (Bank)"
+        }
+      ],
+      "returns": []
+    },
+    {
+      "sourceRow": 19,
+      "serialNo": 17,
+      "projectId": "PRJ-17",
+      "name": "Agro Stock",
+      "invoiceNo": "#PIW-831-18778",
+      "invoiceTo": "Shuvo",
+      "category": "Commodity Trading",
+      "externalEntity": "GrowUp",
+      "startDate": "2026-03-26",
+      "maturityDate": "2026-09-24",
+      "duration": "6 Month",
+      "targetPrincipal": 35000.0,
+      "totalFunded": 35000.0,
+      "expectedROI": null,
+      "status": "ACTIVE",
+      "fundings": [
+        {
+          "source": "MOIN_CUSTODY",
+          "channel": "BANK",
+          "amount": 15000.0,
+          "notes": "Historical funding from Moin custody (Bank)"
+        },
+        {
+          "source": "SAMRAT_CUSTODY",
+          "channel": "BKASH",
+          "amount": 20000.0,
+          "notes": "Historical funding from Samrat custody (Bank)"
+        }
+      ],
+      "returns": []
+    },
+    {
+      "sourceRow": 20,
+      "serialNo": 18,
+      "projectId": "PRJ-18",
+      "name": "Integrated Agro Project - 1",
+      "invoiceNo": "INV-2026-P9FFX9GC",
+      "invoiceTo": "Shuvo",
+      "category": "General Agriculture",
+      "externalEntity": "Zayn Farm",
+      "startDate": "2026-04-30",
+      "maturityDate": "2026-07-30",
+      "duration": "3 Month+",
+      "targetPrincipal": 150000.0,
+      "totalFunded": 150000.0,
+      "expectedROI": null,
+      "status": "ACTIVE",
+      "fundings": [
+        {
+          "source": "MOIN_CUSTODY",
+          "channel": "BANK",
+          "amount": 30000.0,
+          "notes": "Historical funding from Moin custody (Bank)"
+        },
+        {
+          "source": "PARTNER_WALLET",
+          "channel": "WALLET",
+          "amount": 120000.0,
+          "notes": "Historical reinvestment from Zayn Farm Partner Wallet"
+        }
+      ],
+      "returns": []
+    },
+    {
+      "sourceRow": 21,
+      "serialNo": 19,
+      "projectId": "PRJ-19",
+      "name": "Sugar Cane-5",
+      "invoiceNo": "#PIW-831-18781",
+      "invoiceTo": "Shuvo",
+      "category": "Agriculture",
+      "externalEntity": "GrowUp",
+      "startDate": "2026-07-16",
+      "maturityDate": "2027-01-15",
+      "duration": "6 Month",
+      "targetPrincipal": 253341.0,
+      "totalFunded": 253341.0,
+      "expectedROI": null,
+      "status": "ACTIVE",
+      "fundings": [
+        {
+          "source": "PARTNER_WALLET",
+          "channel": "WALLET",
+          "amount": 253341.0,
+          "notes": "Historical reinvestment from GrowUp Partner Wallet"
+        }
+      ],
+      "returns": []
+    }
+  ],
+  "metadata": {
+    "sourceFile": "Investment.xlsx",
+    "sourceSheet": "Investment",
+    "totalProjects": 19,
+    "maturedProjects": 12,
+    "activeProjects": 7,
+    "totalTargetPrincipal": 1270538.0,
+    "totalFunded": 1270538.0,
+    "fundingDistribution": {
+      "moinCustody": 380160.0,
+      "samratCustody": 119000.0,
+      "partnerWallets": 771378.0
+    },
+    "totalRealizedProfit": 99524.44,
+    "totalReturned": 551721.44
+  }
+}
