@@ -108,13 +108,18 @@ export enum MovementSourceType {
 export enum ProjectStatus {
   PROPOSED = 'PROPOSED',
   ACTIVE = 'ACTIVE',
+  DURATION_COMPLETED = 'DURATION_COMPLETED',
+  PRINCIPAL_PARTIALLY_RETURNED = 'PRINCIPAL_PARTIALLY_RETURNED',
+  OVERDUE_PRINCIPAL = 'OVERDUE_PRINCIPAL',
   MATURED = 'MATURED',
+  FULLY_SETTLED = 'FULLY_SETTLED',
   CLOSED = 'CLOSED',
   DEFAULTED = 'DEFAULTED',
 }
 
 export enum ReturnDestinationType {
   EXTERNAL_WALLET = 'EXTERNAL_WALLET',
+  PROJECT_WALLET = 'PROJECT_WALLET',
   ACCOUNTANT_CUSTODY = 'ACCOUNTANT_CUSTODY',
 }
 
@@ -402,15 +407,21 @@ export interface IFundTransfer {
 export interface IInvestmentProject {
   projectId: string; // e.g. "PRJ-001"
   name: string;
-  description?: string;
+  invoiceNo?: string;
+  invoiceTo?: string;
+  externalEntity?: string; // NGO / partner name (e.g. "GrowUp", "Hungry Birds Barisal", "Zayn Farm")
   category?: string;
+  description?: string;
   startDate: Date;
-  maturityDate?: Date;
-  expectedROI?: number;
+  plannedDuration?: string; // e.g. "6 months"
+  maturityDate?: Date; // planned completion date
+  expectedAnnualRoiPercent?: number; // project-specific expected annual ROI %
+  expectedROI?: number; // alias for backwards compatibility
   targetPrincipal: number;
   totalFunded: number;
   status: ProjectStatus;
-  externalEntity?: string;
+  createdBy?: Types.ObjectId;
+  updatedBy?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -439,8 +450,10 @@ export interface IInvestmentReturn {
   destinationType: ReturnDestinationType;
   destinationCustodyAccountId?: Types.ObjectId | null;
   custodyMovementId?: Types.ObjectId | null;
+  transactionRef?: string;
   notes?: string;
   recordedBy: Types.ObjectId;
+  idempotencyKey?: string;
   createdAt: Date;
 }
 

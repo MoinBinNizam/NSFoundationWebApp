@@ -28,13 +28,23 @@ const investmentProjectSchema = new Schema<IInvestmentProject>(
     startDate: {
       type: Date,
       required: [true, 'Project start date is required'],
+      index: true,
+    },
+    plannedDuration: {
+      type: String,
+      trim: true,
     },
     maturityDate: {
       type: Date,
+      index: true,
+    },
+    expectedAnnualRoiPercent: {
+      type: Number,
+      min: [0, 'Expected annual ROI percent cannot be negative'],
     },
     expectedROI: {
       type: Number,
-      // Stored separately from actual profit/return
+      min: [0, 'Expected ROI cannot be negative'],
     },
     targetPrincipal: {
       type: Number,
@@ -54,7 +64,25 @@ const investmentProjectSchema = new Schema<IInvestmentProject>(
     },
     externalEntity: {
       type: String,
-      trim: true, // e.g. "GrowUp", "Zayan"
+      trim: true, // e.g. "GrowUp", "Zayan", "Hungry Birds Barisal"
+      index: true,
+    },
+    invoiceNo: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    invoiceTo: {
+      type: String,
+      trim: true,
+    },
+    createdBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    updatedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
     },
   },
   {

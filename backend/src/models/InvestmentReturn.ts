@@ -51,6 +51,16 @@ const investmentReturnSchema = new Schema<IInvestmentReturn>(
       ref: 'CustodyMovement',
       default: null,
     },
+    transactionRef: {
+      type: String,
+      trim: true,
+    },
+    idempotencyKey: {
+      type: String,
+      trim: true,
+      index: true,
+      sparse: true,
+    },
     notes: {
       type: String,
       trim: true,
