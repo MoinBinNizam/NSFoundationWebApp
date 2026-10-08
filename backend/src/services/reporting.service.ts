@@ -207,8 +207,8 @@ export class ReportingService {
 
   static async investments(query: Record<string, unknown>, user: IUser) {
     if (!canAccessInvestments(user)) throw createError('Investment reports are restricted to administrators and the primary accountant.', 403);
-    const projects = await InvestmentService.getProjects({ search: query.search ? String(query.search) : undefined, status: query.status ? String(query.status) : undefined });
-    const rows = projects.map((item: any) => ({ projectId: item.projectId, name: item.name, partner: item.externalEntity || '', status: item.status, targetPrincipal: item.targetPrincipal, totalFunded: item.totalFunded, principalReturned: item.metrics?.totalPrincipalReturned || 0, profit: item.metrics?.netRealizedProfit || 0, outstanding: item.metrics?.netOutstandingCapital || 0, date: item.startDate }));
+    const projectsResult = await InvestmentService.getProjects({ search: query.search ? String(query.search) : undefined, status: query.status ? String(query.status) : undefined });
+    const rows = projectsResult.items.map((item: any) => ({ projectId: item.projectId, name: item.name, partner: item.externalEntity || '', status: item.status, targetPrincipal: item.targetPrincipal, totalFunded: item.totalFunded, principalReturned: item.metrics?.totalPrincipalReturned || 0, profit: item.metrics?.netRealizedProfit || 0, outstanding: item.metrics?.netOutstandingCapital || 0, date: item.startDate }));
     return { type: 'investments', ...paginate(rows, query) };
   }
 

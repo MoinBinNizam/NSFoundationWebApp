@@ -37,7 +37,7 @@ async function run() {
     try { await ReportingService.getReport('investments', { page: 1, limit: 10 }, samrat as any); } catch (error: any) { samratBlocked = error?.statusCode === 403; }
     if (!samratBlocked) throw new Error('Assistant accountant was not blocked from investment report access.');
     const investment = await ReportingService.getReport('investments', { page: 1, limit: 10 }, moin as any);
-    const csv = ReportingService.csv(collection.rows);
+    const csv = ReportingService.csv(collection.rows as Array<Record<string, unknown>>);
     if (!csv.includes('\n') && collection.rows.length) throw new Error('CSV report output is invalid.');
 
     // Exercise the actual Express route and authorization middleware, rather

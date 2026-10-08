@@ -7,6 +7,7 @@ import { CustodyAccount } from '../models/CustodyAccount.js';
 import { CustodyMovement } from '../models/CustodyMovement.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { CustodyService } from './custody.service.js';
+import { InvestmentCalculationService } from './investment-calculation.service.js';
 import {
   ProjectStatus,
   ReturnDestinationType,
@@ -33,8 +34,12 @@ export class InvestmentService {
       description?: string;
       category?: string;
       externalEntity?: string;
+      invoiceNo?: string;
+      invoiceTo?: string;
+      plannedDuration?: string;
       startDate: string | Date;
       maturityDate?: string | Date;
+      expectedAnnualRoiPercent?: number;
       expectedROI?: number;
       targetPrincipal: number;
       initialFundings?: Array<{
@@ -64,22 +69,33 @@ export class InvestmentService {
       }
     }
 
+    const roi =
+      input.expectedAnnualRoiPercent !== undefined
+        ? Number(input.expectedAnnualRoiPercent)
+        : input.expectedROI !== undefined
+        ? Number(input.expectedROI)
+        : undefined;
+
+    const actingUserId = (actingUser as unknown as { _id: Types.ObjectId })._id;
+
     const project = await InvestmentProject.create({
       projectId,
       name: input.name.trim(),
       description: input.description?.trim() || '',
       category: input.category?.trim() || 'General',
       externalEntity: input.externalEntity?.trim() || '',
+      invoiceNo: input.invoiceNo?.trim() || undefined,
+      invoiceTo: input.invoiceTo?.trim() || undefined,
+      plannedDuration: input.plannedDuration?.trim() || undefined,
       startDate,
       maturityDate: input.maturityDate ? new Date(input.maturityDate) : undefined,
-      expectedROI: input.expectedROI !== undefined ? Number(input.expectedROI) : undefined,
+      expectedAnnualRoiPercent: roi,
+      expectedROI: roi,
       targetPrincipal: Number(input.targetPrincipal),
       totalFunded: 0,
       status: ProjectStatus.PROPOSED,
+      createdBy: actingUserId,
     });
-
-    const actingUserId = (actingUser as unknown as { _id: Types.ObjectId })._id;
-
     // Log project creation audit
     await AuditLog.create({
       performedBy: actingUserId,
@@ -252,6 +268,8 @@ export class InvestmentService {
       destinationType: ReturnDestinationType;
       destinationCustodyAccountId?: string;
       notes?: string;
+      transactionRef?: string;
+      idempotencyKey?: string;
     },
     actingUser: IUser
   ) {
@@ -260,13 +278,62 @@ export class InvestmentService {
       throw createError('Investment project not found', 404);
     }
 
+    // Validation 1: Negative returns rejected
+    if (input.principalReturned !== undefined && Number(input.principalReturned) < 0) {
+      throw createError('Principal return amount cannot be negative', 400);
+    }
+    if (input.actualProfit !== undefined && Number(input.actualProfit) < 0) {
+      throw createError('Profit return amount cannot be negative', 400);
+    }
+    if (input.actualLoss !== undefined && Number(input.actualLoss) < 0) {
+      throw createError('Loss return amount cannot be negative', 400);
+    }
+
+    // Validation 2: Idempotency check to prevent duplicate submissions
+    if (input.idempotencyKey && input.idempotencyKey.trim()) {
+      const existing = await InvestmentReturn.findOne({ idempotencyKey: input.idempotencyKey.trim() });
+      if (existing) {
+        return {
+          project,
+          investmentReturn: existing,
+          inMovement: null,
+          totalReturn: existing.totalReturn,
+          isDuplicate: true,
+        };
+      }
+    }
+
     const principalReturned = Math.max(0, Number(input.principalReturned) || 0);
     const actualProfit = Math.max(0, Number(input.actualProfit) || 0);
     const actualLoss = Math.max(0, Number(input.actualLoss) || 0);
     const totalReturn = principalReturned + actualProfit - actualLoss;
 
+    // Validation 3: Non-zero return required
     if (totalReturn <= 0 && principalReturned === 0 && actualLoss === 0) {
-      throw createError('Return amount or loss must be specified', 400);
+      throw createError('Return amount or loss must be specified and greater than 0', 400);
+    }
+
+    const maturityDate = input.maturityDate ? new Date(input.maturityDate) : new Date();
+
+    // Validation 4: Return date earlier than project start date rejected
+    if (project.startDate && maturityDate < new Date(project.startDate)) {
+      throw createError('Return date cannot be earlier than project start date', 400);
+    }
+
+    // Validation 5: Principal returned cannot exceed outstanding principal
+    const existingReturns = await InvestmentReturn.find({ projectId: project._id });
+    const totalPreviousPrincipalReturned = existingReturns.reduce(
+      (sum, r) => sum + (Number(r.principalReturned) || 0),
+      0
+    );
+    const originalPrincipal = project.totalFunded > 0 ? project.totalFunded : project.targetPrincipal;
+    const currentOutstandingPrincipal = Math.max(0, originalPrincipal - totalPreviousPrincipalReturned);
+
+    if (principalReturned > currentOutstandingPrincipal) {
+      throw createError(
+        `Principal return amount (৳${principalReturned.toLocaleString()}) cannot exceed outstanding principal (৳${currentOutstandingPrincipal.toLocaleString()})`,
+        400
+      );
     }
 
     let destinationAccount = null;
@@ -275,9 +342,10 @@ export class InvestmentService {
       if (!destinationAccount || !destinationAccount.isActive) {
         throw createError('Destination custody account not found or inactive', 400);
       }
+    } else if (input.destinationType === ReturnDestinationType.ACCOUNTANT_CUSTODY) {
+      throw createError('Destination custody account is required for accountant custody return', 400);
     }
 
-    const maturityDate = input.maturityDate ? new Date(input.maturityDate) : new Date();
     const actingUserId = (actingUser as unknown as { _id: Types.ObjectId })._id;
 
     // 1. Create InvestmentReturn record
@@ -291,10 +359,12 @@ export class InvestmentService {
       destinationType: input.destinationType,
       destinationCustodyAccountId: destinationAccount ? destinationAccount._id : null,
       notes: input.notes || '',
+      transactionRef: input.transactionRef?.trim() || undefined,
+      idempotencyKey: input.idempotencyKey?.trim() || undefined,
       recordedBy: actingUserId,
     });
 
-    // 2. If funds deposited into an accountant custody account or external wallet, create CustodyMovement (IN)
+    // 2. If funds deposited into an accountant custody account, create CustodyMovement (IN)
     let inMovement = null;
     if (destinationAccount && totalReturn > 0) {
       inMovement = await CustodyMovement.create({
@@ -317,8 +387,9 @@ export class InvestmentService {
       await destinationAccount.save();
     }
 
-    // 3. Update project status to MATURED
-    project.status = ProjectStatus.MATURED;
+    // 3. Recalculate derived status and update project
+    const calculation = await InvestmentCalculationService.calculateExpectedProfit(project._id, maturityDate);
+    project.status = calculation.derivedStatus;
     if (!project.maturityDate) {
       project.maturityDate = maturityDate;
     }
@@ -338,6 +409,7 @@ export class InvestmentService {
         actualLoss,
         totalReturn,
         destination: destinationAccount?.name || input.destinationType,
+        derivedStatus: calculation.derivedStatus,
       },
       reason: `Recorded return for ${project.name}: Principal ৳${principalReturned.toLocaleString()}, Profit ৳${actualProfit.toLocaleString()}`,
     });
@@ -347,6 +419,7 @@ export class InvestmentService {
       investmentReturn: returnDoc,
       inMovement,
       totalReturn,
+      calculation,
     };
   }
 
@@ -518,13 +591,16 @@ export class InvestmentService {
   }
 
   /**
-   * List projects with dynamic funding and return aggregates
+   * List projects with dynamic funding, segmented profit calculations, search, and pagination
    */
   static async getProjects(filters?: {
     status?: string;
     category?: string;
     externalEntity?: string;
     search?: string;
+    page?: number;
+    limit?: number;
+    asOfDate?: string | Date;
   }) {
     const query: Record<string, unknown> = {};
 
@@ -540,6 +616,7 @@ export class InvestmentService {
     if (filters?.search && filters.search.trim()) {
       const term = filters.search.trim();
       query.$or = [
+        { invoiceNo: { $regex: term, $options: 'i' } },
         { projectId: { $regex: term, $options: 'i' } },
         { name: { $regex: term, $options: 'i' } },
         { externalEntity: { $regex: term, $options: 'i' } },
@@ -547,50 +624,73 @@ export class InvestmentService {
       ];
     }
 
-    const projects = await InvestmentProject.find(query).sort({ startDate: -1, createdAt: -1 });
+    const total = await InvestmentProject.countDocuments(query);
+    const page = Math.max(1, Number(filters?.page) || 1);
+    const limit = filters?.limit !== undefined ? Math.max(0, Number(filters.limit)) : 0;
 
-    // Attach computed returns and financial aggregates for each project
-    const projectsWithMetrics = await Promise.all(
+    let projectQuery = InvestmentProject.find(query).sort({ startDate: -1, createdAt: -1 });
+    if (limit > 0) {
+      const skip = (page - 1) * limit;
+      projectQuery = projectQuery.skip(skip).limit(limit);
+    }
+
+    const projects = await projectQuery.exec();
+
+    // Attach computed segmented calculation & metrics for each project
+    const items = await Promise.all(
       projects.map(async (prj) => {
-        const returns = await InvestmentReturn.find({ projectId: prj._id });
-
-        const totalPrincipalReturned = returns.reduce((sum, r) => sum + r.principalReturned, 0);
-        const totalProfitRealized = returns.reduce((sum, r) => sum + r.actualProfit, 0);
-        const totalLosses = returns.reduce((sum, r) => sum + r.actualLoss, 0);
-        const totalReturnReceived = returns.reduce((sum, r) => sum + r.totalReturn, 0);
-
-        const netOutstandingCapital = Math.max(0, prj.totalFunded - totalPrincipalReturned);
-        const netRealizedProfit = totalProfitRealized - totalLosses;
-        const actualROI = prj.totalFunded > 0 ? (netRealizedProfit / prj.totalFunded) * 100 : 0;
+        const calculation = await InvestmentCalculationService.calculateExpectedProfit(
+          prj._id,
+          filters?.asOfDate
+        );
+        const originalPrincipal = prj.totalFunded > 0 ? prj.totalFunded : prj.targetPrincipal;
+        const netRealizedProfit = calculation.actualProfitReturned;
+        const actualROI = originalPrincipal > 0 ? (netRealizedProfit / originalPrincipal) * 100 : 0;
 
         return {
           ...prj.toObject(),
+          status: calculation.derivedStatus,
+          calculation,
           metrics: {
-            totalPrincipalReturned,
-            totalProfitRealized,
-            totalLosses,
-            totalReturnReceived,
-            netOutstandingCapital,
+            totalPrincipalReturned: calculation.totalPrincipalReturned,
+            outstandingPrincipal: calculation.outstandingPrincipal,
+            expectedProfitAccrued: calculation.expectedProfitAccrued,
+            actualProfitReturned: calculation.actualProfitReturned,
+            expectedProfitOutstanding: calculation.expectedProfitOutstanding,
+            totalReturnReceived: calculation.totalReturnReceived,
+            netOutstandingCapital: calculation.outstandingPrincipal,
+            totalProfitRealized: calculation.actualProfitReturned,
+            totalLosses: 0,
             netRealizedProfit,
             actualROI: Math.round(actualROI * 100) / 100,
+            isOverdue: calculation.isOverdue,
+            overdueDays: calculation.overdueDays,
           },
         };
       })
     );
 
-    return projectsWithMetrics;
+    const totalPages = limit > 0 ? Math.ceil(total / limit) : 1;
+
+    return {
+      items,
+      total,
+      page,
+      limit: limit > 0 ? limit : total,
+      totalPages,
+    };
   }
 
   /**
-   * Get single project detail with complete funding & return breakdowns
+   * Get single project detail with complete funding & return breakdowns and calculation
    */
-  static async getProjectById(projectId: string | Types.ObjectId) {
+  static async getProjectById(projectId: string | Types.ObjectId, asOfDate?: string | Date) {
     const project = await InvestmentProject.findById(projectId);
     if (!project) {
       throw createError('Investment project not found', 404);
     }
 
-    const [fundings, returns, reinvestments] = await Promise.all([
+    const [fundings, returns, reinvestments, calculation] = await Promise.all([
       InvestmentFunding.find({ projectId: project._id })
         .populate({
           path: 'custodyAccountId',
@@ -615,30 +715,34 @@ export class InvestmentService {
         .populate('walletAccountId', 'name channel')
         .populate('approvedBy', 'name email')
         .sort({ date: -1 }),
+      InvestmentCalculationService.calculateExpectedProfit(project._id, asOfDate),
     ]);
 
-    const totalPrincipalReturned = returns.reduce((sum, r) => sum + r.principalReturned, 0);
-    const totalProfitRealized = returns.reduce((sum, r) => sum + r.actualProfit, 0);
-    const totalLosses = returns.reduce((sum, r) => sum + r.actualLoss, 0);
-    const totalReturnReceived = returns.reduce((sum, r) => sum + r.totalReturn, 0);
-
-    const netOutstandingCapital = Math.max(0, project.totalFunded - totalPrincipalReturned);
-    const netRealizedProfit = totalProfitRealized - totalLosses;
-    const actualROI = project.totalFunded > 0 ? (netRealizedProfit / project.totalFunded) * 100 : 0;
+    const originalPrincipal = project.totalFunded > 0 ? project.totalFunded : project.targetPrincipal;
+    const actualROI = originalPrincipal > 0 ? (calculation.actualProfitReturned / originalPrincipal) * 100 : 0;
 
     return {
       project: {
         ...project.toObject(),
+        status: calculation.derivedStatus,
+        calculation,
         metrics: {
-          totalPrincipalReturned,
-          totalProfitRealized,
-          totalLosses,
-          totalReturnReceived,
-          netOutstandingCapital,
-          netRealizedProfit,
+          totalPrincipalReturned: calculation.totalPrincipalReturned,
+          outstandingPrincipal: calculation.outstandingPrincipal,
+          expectedProfitAccrued: calculation.expectedProfitAccrued,
+          actualProfitReturned: calculation.actualProfitReturned,
+          expectedProfitOutstanding: calculation.expectedProfitOutstanding,
+          totalReturnReceived: calculation.totalReturnReceived,
+          netOutstandingCapital: calculation.outstandingPrincipal,
+          totalProfitRealized: calculation.actualProfitReturned,
+          totalLosses: 0,
+          netRealizedProfit: calculation.actualProfitReturned,
           actualROI: Math.round(actualROI * 100) / 100,
+          isOverdue: calculation.isOverdue,
+          overdueDays: calculation.overdueDays,
         },
       },
+      calculation,
       fundings,
       returns,
       reinvestments,
