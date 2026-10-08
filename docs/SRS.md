@@ -2648,5 +2648,210 @@ MEMBER DISTRIBUTION ACCORDING TO FINAL SHARE POLICY
 
 These boundaries are mandatory unless the organization explicitly approves a change.
 
-# END OF FINAL SYSTEM REQUIREMENTS SPECIFICATION v2.0
+---
+
+# 73. INVESTMENT MODULE — FINAL BUSINESS RULES & IMPLEMENTATION SPECIFICATION (v2.1 / PRODUCTION SPEC)
+
+## 73.1 Objective
+Implement the Investment Module so that NS Foundation can accurately track:
+- Investment projects
+- Principal invested
+- Project-specific expected annual ROI
+- Planned investment duration
+- Expected profit over time
+- Actual profit returned
+- Principal returned
+- Outstanding principal
+- Outstanding expected profit
+- Multiple partial return transactions
+- Return destinations (Accountant Custody vs Project Wallet)
+- Reinvestment from matured/returned funds
+- Investment status (derived from financial state)
+- Investment search with debouncing and server-side filtering & pagination
+
+The implementation MUST follow the existing NS Foundation pooled-fund architecture.
+**Do not introduce member-level ownership of investment projects.** Investment funding is for operational custody/accountability only; it does NOT represent economic ownership by individual members.
+
+---
+
+## 73.2 Core Business Principle
+Principal and profit are two separate financial dimensions.
+The system MUST NOT treat:
+`principal returned` and `profit returned` as the same event.
+
+An investment may have:
+- principal partially returned
+- profit partially returned
+- profit fully returned while principal remains outstanding
+- principal partially returned while profit remains outstanding
+- multiple principal/profit returns
+- return of principal and profit in the same transaction
+- return to accountant custody
+- return to project wallet
+- subsequent reinvestment
+
+Therefore, the Investment module MUST use separate cumulative calculations for:
+1. **Original Principal**
+2. **Principal Returned**
+3. **Outstanding Principal**
+4. **Expected Profit Accrued**
+5. **Actual Profit Returned**
+6. **Outstanding Expected Profit**
+
+---
+
+## 73.3 Project-Specific ROI (Strict Prohibition of Hardcoded 40%)
+**DO NOT hardcode 40% ROI.** The 40% example is only an example.
+Each `InvestmentProject` MUST have its own expected annual ROI stored/configured as a numeric percentage (e.g. `expectedAnnualRoiPercent`: 40, 25, 60, 14.17).
+The calculation engine MUST read the project-specific configured ROI. The backend/business logic MUST NEVER contain `ROI = 40` or equivalent hardcoded project ROI assumptions.
+
+---
+
+## 73.4 Investment Project Core Fields & Source-of-Truth
+InvestmentProject model contains:
+- `projectId`: Unique business ID (e.g., `PRJ-202404-0001` or `PRJ-01`)
+- `invoiceNo`: Invoice reference (e.g., `#1094`, `#PIW-831-18778`)
+- `name` / `projectName`: Name of the investment project
+- `externalEntity` / `partnerName`: Partner NGO / enterprise (e.g., `GrowUp`, `Hungry Birds Barisal`, `Zayn Farm`)
+- `category`: Investment category (e.g., `Agriculture`, `Livestock`, `Food & Beverage`, or custom)
+- `description`: Project scope and terms
+- `startDate`: Project start date (Dhaka timezone)
+- `plannedDuration`: Planned duration string/months (e.g. `6 months`)
+- `maturityDate` / `plannedEndDate`: Planned completion date
+- `expectedAnnualRoiPercent` (stored alias `expectedROI`): Project-specific annual ROI percentage
+- `targetPrincipal` / `originalPrincipal`: Committed principal capital
+- `totalFunded`: Disbursed capital from custody accounts
+- `status`: Financial status (`PROPOSED`, `ACTIVE`, `DURATION_COMPLETED`, `PRINCIPAL_PARTIALLY_RETURNED`, `OVERDUE_PRINCIPAL`, `FULLY_SETTLED`, `CLOSED`)
+- `createdBy`, `updatedBy`
+- `createdAt`, `updatedAt`
+
+*Source of truth rule*: Do not duplicate calculated financial values as independent sources of truth unless documented as cached projections. The transactions (`InvestmentFunding`, `InvestmentReturn`) remain the authoritative source.
+
+---
+
+## 73.5 Investment Duration & Time-Based Expected Profit Calculation
+Each investment has a planned duration.
+**CRITICAL BUSINESS RULE**: The planned end date does **NOT** automatically stop expected profit accrual if principal remains outstanding.
+If principal remains outstanding after the planned end date, expected profit **continues to accrue** at the project's configured annual ROI rate.
+
+Expected profit is time-based:
+For a constant outstanding principal:
+$$\text{Expected Profit} = \text{Outstanding Principal} \times \frac{\text{Annual ROI Percent}}{100} \times \frac{\text{Elapsed Days}}{365}$$
+
+The exact implementation uses day-based calculation in `Asia/Dhaka` timezone so partial months and leap periods are handled deterministically.
+
+---
+
+## 73.6 Date-Sensitive Principal Reduction (Calculation Segmentation)
+Expected profit MUST NOT be calculated only from current outstanding principal multiplied by total duration.
+When principal is returned over time, expected profit is calculated in **time segments**:
+$$\text{Total Expected Profit} = \sum_{i=1}^{n} \left( \text{Outstanding Principal}_i \times \frac{\text{Annual ROI}}{100} \times \frac{\text{Days in Segment}_i}{365} \right)$$
+
+- **Segment 1**: From `startDate` to `Principal Return #1 Date` (using initial principal).
+- **Segment 2**: From `Return #1 Date` to `Principal Return #2 Date` (using reduced principal).
+- **Segment N**: From latest return date to `asOfDate` (using remaining outstanding principal).
+- When `Outstanding Principal` reaches `0`, expected profit stops accruing.
+
+---
+
+## 73.7 Separation of Profit Returns & Principal Returns
+- **Profit returns DO NOT reduce principal**: A return of ৳10,000 profit leaves outstanding principal unchanged.
+- **Principal returns DO NOT equal profit**: A return of ৳30,000 principal reduces outstanding capital by ৳30,000 and increases principal returned by ৳30,000; it does not count as profit.
+- **Formulas**:
+  $$\text{Outstanding Principal} = \text{Original Funded Principal} - \sum \text{Principal Returned}$$
+  $$\text{Actual Profit Returned} = \sum \text{Actual Profit in Returns}$$
+  $$\text{Expected Profit Outstanding} = \max(0, \text{Expected Profit Accrued} - \text{Actual Profit Returned})$$
+
+---
+
+## 73.8 Multiple Investment Return Transactions (`InvestmentReturn`)
+A project supports unlimited return transactions over time.
+Each `InvestmentReturn` record stores:
+- `projectId`: Associated project
+- `maturityDate` / `returnDate`: Effective return date
+- `principalReturned`: Amount reducing principal
+- `actualProfit`: Profit realized
+- `actualLoss`: Any recognized capital loss (default 0)
+- `totalReturn`: Strict validation $\text{totalReturn} = \text{principalReturned} + \text{actualProfit} - \text{actualLoss}$
+- `destinationType`: `ACCOUNTANT_CUSTODY` or `PROJECT_WALLET` (external partner wallet)
+- `destinationCustodyAccountId`: Custody account receiving proceeds
+- `transactionRef`: Reference or voucher ID
+- `notes`: Audit narration
+- `recordedBy`: User recording the return
+- `custodyMovementId`: Atomic custody movement reference
+
+---
+
+## 73.9 Return Destination & Custody Integration
+- **Accountant Custody Return**: Creates a synchronous `CustodyMovement` with type `IN` and source `INVESTMENT_RETURN` into the specific accountant's account, updating cached balance.
+- **Project Wallet Return**: Funds go to the partner's wallet account (`CustodyAccount` of type `EXTERNAL_WALLET`). It does **NOT** touch or artificially inflate accountant personal custody.
+- **No Automatic Transfer**: Movement from Project Wallet to Accountant Custody requires an explicit authorized fund transfer.
+
+---
+
+## 73.10 Reinvestment Rules
+- Reinvestment from Project Wallet into a new/subsequent project transfers pooled funds without generating artificial income.
+- **Reinvestment With Top-up**: If a reinvestment uses ৳80,000 from wallet and ৳20,000 new cash from accountant custody, only the ৳20,000 is an `OUT` movement from accountant custody.
+
+---
+
+## 73.11 Derived Investment Statuses
+Investment status is derived from financial reality:
+1. `PLANNED` / `PROPOSED`: Created, not yet funded.
+2. `ACTIVE`: Outstanding Principal > 0 and Current Date < Planned End Date.
+3. `DURATION_COMPLETED` / `OVERDUE_PRINCIPAL`: Planned End Date reached, but Outstanding Principal > 0. Expected ROI continues accruing!
+4. `PRINCIPAL_PARTIALLY_RETURNED`: $0 < \text{Principal Returned} < \text{Original Principal}$.
+5. `FULLY_SETTLED` / `MATURED`: Outstanding Principal = 0.
+
+---
+
+## 73.12 Backend Validations & Authorization
+1. Principal return cannot exceed remaining outstanding principal.
+2. Negative principal or profit returns rejected.
+3. Total return consistency validation: $\text{totalReturn} = \text{principalReturned} + \text{actualProfit}$.
+4. Return date cannot precede project start date.
+5. Destination account must be active.
+6. Idempotency protection against duplicate submissions.
+7. Only `SUPER_ADMIN`, `ADMIN`, `ACCOUNTANT`, or `INVESTMENT_MANAGER` can perform mutations. All mutations logged in `AuditLog`.
+
+---
+
+## 73.13 Server-Side Search, Debounce & Pagination
+- **Server-side search** on `invoiceNo`, `name`, `externalEntity`, `projectId`.
+- **Debounced search** (300ms–500ms, standard 400ms) with request cancellation (`AbortController`) to avoid stale responses overwriting newer search results.
+- **Server-side pagination** returning `{ items, total, page, limit, totalPages }`.
+
+---
+
+## 73.14 Dedicated Calculation Service Interface
+```typescript
+interface SegmentedProfitCalculation {
+  asOfDate: Date;
+  originalPrincipal: number;
+  totalPrincipalReturned: number;
+  outstandingPrincipal: number;
+  expectedAnnualRoiPercent: number;
+  plannedDurationDays: number;
+  isOverdue: boolean;
+  overdueDays: number;
+  expectedProfitAccrued: number;
+  actualProfitReturned: number;
+  expectedProfitOutstanding: number;
+  totalReturnReceived: number;
+  segments: Array<{
+    segmentIndex: number;
+    startDate: Date;
+    endDate: Date;
+    days: number;
+    principal: number;
+    annualRoiPercent: number;
+    segmentProfit: number;
+  }>;
+}
+
+calculateExpectedProfit(projectId: string | Types.ObjectId, asOfDate?: Date): Promise<SegmentedProfitCalculation>;
+```
+
+# END OF SYSTEM REQUIREMENTS SPECIFICATION v2.1
+
 
