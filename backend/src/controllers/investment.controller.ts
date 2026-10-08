@@ -28,18 +28,32 @@ export class InvestmentController {
    */
   static async listProjects(req: Request, res: Response, next: NextFunction) {
     try {
-      const { status, category, externalEntity, search } = req.query;
+      const { status, category, externalEntity, search, page, limit, asOfDate } = req.query;
 
-      const projects = await InvestmentService.getProjects({
+      const result = await InvestmentService.getProjects({
         status: status ? String(status) : undefined,
         category: category ? String(category) : undefined,
         externalEntity: externalEntity ? String(externalEntity) : undefined,
         search: search ? String(search) : undefined,
+        page: page !== undefined ? Number(page) : undefined,
+        limit: limit !== undefined ? Number(limit) : undefined,
+        asOfDate: asOfDate ? String(asOfDate) : undefined,
       });
 
       res.status(200).json({
         success: true,
-        data: projects,
+        data: result.items,
+        items: result.items,
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+        pagination: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          totalPages: result.totalPages,
+        },
       });
     } catch (error) {
       next(error);
@@ -52,7 +66,11 @@ export class InvestmentController {
   static async getProjectDetails(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const details = await InvestmentService.getProjectById(id);
+      const { asOfDate } = req.query;
+      const details = await InvestmentService.getProjectById(
+        id,
+        asOfDate ? String(asOfDate) : undefined
+      );
 
       res.status(200).json({
         success: true,
@@ -74,8 +92,12 @@ export class InvestmentController {
         description,
         category,
         externalEntity,
+        invoiceNo,
+        invoiceTo,
+        plannedDuration,
         startDate,
         maturityDate,
+        expectedAnnualRoiPercent,
         expectedROI,
         targetPrincipal,
         initialFundings,
@@ -96,8 +118,12 @@ export class InvestmentController {
           description,
           category,
           externalEntity,
+          invoiceNo,
+          invoiceTo,
+          plannedDuration,
           startDate,
           maturityDate,
+          expectedAnnualRoiPercent,
           expectedROI,
           targetPrincipal: Number(targetPrincipal),
           initialFundings,
@@ -166,15 +192,19 @@ export class InvestmentController {
         destinationType,
         destinationCustodyAccountId,
         notes,
+        transactionRef,
+        idempotencyKey,
       } = req.body;
 
       if (!destinationType) {
-        return next(createError('destinationType is required (ACCOUNTANT_CUSTODY or EXTERNAL_WALLET)', 400));
+        return next(createError('destinationType is required (ACCOUNTANT_CUSTODY, PROJECT_WALLET, or EXTERNAL_WALLET)', 400));
       }
 
       if (!req.user) {
         return next(createError('Authentication required', 401));
       }
+
+      const key = (idempotencyKey || req.headers['idempotency-key'] || req.headers['x-idempotency-key']) as string | undefined;
 
       const result = await InvestmentService.recordProjectReturn(
         {
@@ -186,6 +216,8 @@ export class InvestmentController {
           destinationType,
           destinationCustodyAccountId,
           notes,
+          transactionRef,
+          idempotencyKey: key,
         },
         req.user
       );
