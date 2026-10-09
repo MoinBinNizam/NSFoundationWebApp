@@ -169,7 +169,7 @@ export class PaymentController {
    */
   static async listPayments(req: Request, res: Response, next: NextFunction) {
     try {
-      const { page, limit, search, receiverId, paymentMethod, year, month } = req.query;
+      const { page, limit, search, receiverId, paymentMethod, year, month, day, memberId } = req.query;
       const result = await PaymentService.getPayments({
         page: page ? Number(page) : undefined,
         limit: limit ? Number(limit) : undefined,
@@ -178,12 +178,29 @@ export class PaymentController {
         paymentMethod: paymentMethod ? String(paymentMethod) : undefined,
         year: year ? String(year) : undefined,
         month: month ? String(month) : undefined,
+        day: day ? String(day) : undefined,
+        memberId: memberId ? String(memberId) : undefined,
       });
 
       res.status(200).json({
         success: true,
         data: result.payments,
         pagination: result.pagination,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/payments/member-summary/:memberId
+   */
+  static async getMemberPaymentSummary(req: Request, res: Response, next: NextFunction) {
+    try {
+      const summary = await PaymentService.getMemberPaymentSummary(req.params.memberId);
+      res.status(200).json({
+        success: true,
+        data: summary,
       });
     } catch (error) {
       next(error);

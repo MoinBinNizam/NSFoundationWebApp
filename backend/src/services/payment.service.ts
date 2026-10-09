@@ -915,6 +915,8 @@ export class PaymentService {
     paymentMethod?: string;
     year?: string;
     month?: string;
+    day?: string;
+    memberId?: string;
   }) {
     const page = Math.max(1, Number(query.page) || 1);
     const limit = Math.max(1, Math.min(100, Number(query.limit) || 15));
@@ -924,6 +926,10 @@ export class PaymentService {
     // shown in the active payment-history list or its totals.
     const filter: Record<string, unknown> = { status: { $ne: PaymentStatus.CANCELLED } };
 
+    if (query.memberId) {
+      filter.memberId = query.memberId;
+    }
+
     if (query.receiverId && query.receiverId !== 'ALL') {
       filter.receiverId = query.receiverId;
     }
@@ -932,7 +938,13 @@ export class PaymentService {
       filter.paymentMethod = query.paymentMethod;
     }
 
-    if (query.month) {
+    if (query.day && /^\d{4}-\d{2}-\d{2}$/.test(query.day)) {
+      const [y, m, d] = query.day.split('-').map(Number);
+      filter.paymentDate = {
+        $gte: new Date(y, m - 1, d),
+        $lt: new Date(y, m - 1, d + 1),
+      };
+    } else if (query.month) {
       const [y, m] = query.month.split('-').map(Number);
       filter.paymentDate = {
         $gte: new Date(y, m - 1, 1),
@@ -1280,5 +1292,75 @@ export class PaymentService {
     const waiver = await PenaltyWaiver.findByIdAndDelete(id);
     if (!waiver) throw createError('Penalty waiver not found.', 404);
     await AuditLog.create({ performedBy: (actingUser as unknown as { _id: Types.ObjectId })._id, action: 'DELETE_PENALTY_WAIVER', entityName: 'PenaltyWaiver', entityId: waiver._id, beforeState: waiver.toObject(), reason: `Deleted penalty waiver for ${waiver.month}.` });
+  }
+
+  /**
+   * Get comprehensive financial position and historical totals for a member
+   * (Total Payments, Total Dues, Total Penalty Paid, Total Penalty Due).
+   */
+  static async getMemberPaymentSummary(memberIdentifier: string) {
+    const isObjectId = Types.ObjectId.isValid(memberIdentifier);
+    const member = await Member.findOne({
+      $or: [
+        ...(isObjectId ? [{ _id: new Types.ObjectId(memberIdentifier) }] : []),
+        { memberId: memberIdentifier },
+      ],
+    }).lean();
+
+    if (!member) {
+      throw createError('Member not found', 404);
+    }
+
+    const [share, payments, ledgers] = await Promise.all([
+      ShareHistory.findOne({ memberId: member._id }).sort({ effectiveMonth: -1, createdAt: -1 }).lean(),
+      Payment.find({ memberId: member._id, status: { $ne: PaymentStatus.CANCELLED } })
+        .populate('receiverId', 'name email accountantType')
+        .populate('custodyAccountId', 'name channel accountNumber')
+        .sort({ paymentDate: -1, createdAt: -1 })
+        .lean(),
+      MonthlyLedger.find({ memberId: member._id }).sort({ month: -1 }).lean(),
+    ]);
+
+    const totalPayments = payments.reduce((sum, p) => sum + Number(p.totalAmount || 0), 0);
+    const totalPrincipalPaid = payments.reduce((sum, p) => sum + Number(p.principalAmount || 0), 0);
+    const totalPenaltyPaid = ledgers.reduce((sum, l) => sum + Number(l.penaltyPaid || 0), 0);
+    const totalPrincipalDue = ledgers.reduce((sum, l) => sum + Math.max(0, Number(l.principalDue || 0) - Number(l.principalPaid || 0)), 0);
+    const totalPenaltyDue = ledgers.reduce((sum, l) => sum + Math.max(0, Number(l.penaltyDue || 0) - Number(l.penaltyPaid || 0) - Number(l.penaltyWaived || 0)), 0);
+    const cashoutDue = Number(member.cashoutDue || 0);
+    const totalDues = totalPrincipalDue + totalPenaltyDue + cashoutDue;
+    const currentShares = share?.shareCount || 1;
+
+    return {
+      member: {
+        _id: member._id,
+        memberId: member.memberId,
+        name: member.name,
+        phone: member.phone,
+        currentShares,
+        status: member.status,
+        cashoutDue,
+      },
+      summary: {
+        totalPayments,
+        totalDues,
+        totalPenaltyPaid,
+        totalPenaltyDue,
+        totalPrincipalDue,
+        totalPrincipalPaid,
+        cashoutDue,
+        paymentCount: payments.length,
+      },
+      recentPayments: payments.slice(0, 50).map((p) => ({
+        _id: p._id,
+        receiptNumber: p.receiptNumber,
+        paymentDate: p.paymentDate,
+        paymentMethod: p.paymentMethod,
+        totalAmount: p.totalAmount,
+        principalAmount: p.principalAmount,
+        penaltyAmount: p.penaltyAmount,
+        advanceAmount: p.advanceAmount || 0,
+        status: p.status,
+      })),
+    };
   }
 }

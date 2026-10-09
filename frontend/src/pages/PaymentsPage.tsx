@@ -25,7 +25,13 @@ import {
   Printer,
   Pencil,
   Trash2,
+  Image as ImageIcon,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  Users,
 } from 'lucide-react';
+import { downloadMemberReportImage } from '../utils/report-image';
 import { ReceiptOcrManager } from '../components/ReceiptOcrManager';
 
 interface CustodyAccountItem {
@@ -265,6 +271,15 @@ export const PaymentsPage: React.FC = () => {
   const [ledgerSearch, setLedgerSearch] = useState<string>('');
   const [ledgerYear, setLedgerYear] = useState<string>('');
   const [ledgerMonth, setLedgerMonth] = useState<string>('');
+  const [ledgerDay, setLedgerDay] = useState<string>('');
+  const [ledgerTimeframe, setLedgerTimeframe] = useState<'all' | 'daily' | 'monthly' | 'yearly'>('all');
+  const [ledgerMemberId, setLedgerMemberId] = useState<string>('');
+  const [selectedMemberSummary, setSelectedMemberSummary] = useState<{
+    member: { _id?: string; memberId: string; name: string; phone: string; currentShares?: number; status?: string };
+    summary: { totalPayments: number; totalDues: number; totalPenaltyPaid: number; totalPenaltyDue: number; totalPrincipalDue?: number; totalPrincipalPaid?: number };
+    recentPayments?: any[];
+  } | null>(null);
+  const [loadingMemberSummary, setLoadingMemberSummary] = useState<boolean>(false);
   const [ledgerPage, setLedgerPage] = useState<number>(1);
   const [ledgerTotalPages, setLedgerTotalPages] = useState<number>(1);
   const [ledgerTotalCount, setLedgerTotalCount] = useState<number>(0);
@@ -415,8 +430,10 @@ export const PaymentsPage: React.FC = () => {
         search: ledgerSearch,
         receiverId: accountantFilter,
         paymentMethod: methodFilter,
-        year: ledgerYear,
-        month: ledgerMonth,
+        ...(ledgerYear ? { year: ledgerYear } : {}),
+        ...(ledgerMonth ? { month: ledgerMonth } : {}),
+        ...(ledgerDay ? { day: ledgerDay } : {}),
+        ...(ledgerMemberId ? { memberId: ledgerMemberId } : {}),
       });
       const res = await apiRequest<PaymentItem[]>(`/payments?${params.toString()}`);
       setPayments(res.data || []);
@@ -429,7 +446,31 @@ export const PaymentsPage: React.FC = () => {
     } finally {
       setLoadingPayments(false);
     }
-  }, [ledgerPage, ledgerSearch, accountantFilter, methodFilter, ledgerYear, ledgerMonth]);
+  }, [ledgerPage, ledgerSearch, accountantFilter, methodFilter, ledgerYear, ledgerMonth, ledgerDay, ledgerMemberId]);
+
+  // Fetch Member Summary when a member is selected in Ledger
+  useEffect(() => {
+    if (!ledgerMemberId) {
+      setSelectedMemberSummary(null);
+      return;
+    }
+    setLoadingMemberSummary(true);
+    apiRequest<{
+      member: { _id?: string; memberId: string; name: string; phone: string; currentShares?: number; status?: string };
+      summary: { totalPayments: number; totalDues: number; totalPenaltyPaid: number; totalPenaltyDue: number; totalPrincipalDue?: number; totalPrincipalPaid?: number };
+      recentPayments?: any[];
+    }>(`/payments/member-summary/${ledgerMemberId}`)
+      .then((res) => {
+        setSelectedMemberSummary(res.data);
+      })
+      .catch((err) => {
+        console.error('Error loading member summary:', err);
+        setSelectedMemberSummary(null);
+      })
+      .finally(() => {
+        setLoadingMemberSummary(false);
+      });
+  }, [ledgerMemberId]);
 
   const refreshAnalyticsAfterPayment = useCallback(async (payment: Pick<PaymentItem, 'paymentDate'>) => {
     const analyticsDate = analyticsDateForPayment(payment.paymentDate || formData.paymentDate, timeframe);
@@ -905,68 +946,176 @@ export const PaymentsPage: React.FC = () => {
           )}
           {/* Filter Bar */}
           <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-4">
-            {/* Timeframe selector: Daily | Monthly | Yearly */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                Interval:
+            {/* Redesigned Timeframe & Date Picker */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Calendar size={14} className="text-blue-400" />
+                সময়কাল (Period):
               </span>
-              <div className="bg-slate-900/80 p-1 rounded-xl border border-white/10 flex gap-1">
-                {(['all', 'daily', 'monthly', 'yearly'] as const).map((t) => (
+              <div className="bg-slate-900/90 p-1 rounded-xl border border-white/10 flex gap-1 shadow-inner">
+                {([
+                  { key: 'all', label: 'সকল সময়' },
+                  { key: 'daily', label: 'দৈনিক' },
+                  { key: 'monthly', label: 'মাসিক' },
+                  { key: 'yearly', label: 'বাৎসরিক' },
+                ] as const).map(({ key, label }) => (
                   <button
-                    key={t}
+                    key={key}
                     type="button"
                     onClick={() => {
-                      setTimeframe(t);
-                      if (t === 'all') setFilterDate('');
-                      else if (t === 'daily') setFilterDate(new Date().toISOString().split('T')[0]);
-                      else if (t === 'yearly') setFilterDate(String(new Date().getFullYear()));
+                      setTimeframe(key);
+                      if (key === 'all') setFilterDate('');
+                      else if (key === 'daily') setFilterDate(new Date().toISOString().split('T')[0]);
+                      else if (key === 'yearly') setFilterDate(String(new Date().getFullYear()));
                       else {
                         const d = new Date();
                         setFilterDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
                       }
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase transition-all ${
-                      timeframe === t
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                        : 'text-gray-400 hover:text-white'
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      timeframe === key
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 ring-1 ring-blue-400/50'
+                        : 'text-gray-400 hover:text-white hover:bg-slate-800/60'
                     }`}
                   >
-                    {t === 'all' ? 'All time' : t}
+                    {label}
                   </button>
                 ))}
               </div>
 
-              {/* Date Input based on timeframe */}
+              {/* Daily Controls */}
               {timeframe === 'daily' && (
-                <input
-                  type="date"
-                  className="form-input text-xs py-1.5 px-3 max-w-[150px]"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                />
+                <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
+                  <button
+                    type="button"
+                    title="আগের দিন (Previous Day)"
+                    onClick={() => {
+                      const d = new Date(filterDate || new Date().toISOString().split('T')[0]);
+                      d.setDate(d.getDate() - 1);
+                      setFilterDate(d.toISOString().split('T')[0]);
+                    }}
+                    className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <input
+                    type="date"
+                    className="form-input text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium"
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    title="পরের দিন (Next Day)"
+                    onClick={() => {
+                      const d = new Date(filterDate || new Date().toISOString().split('T')[0]);
+                      d.setDate(d.getDate() + 1);
+                      setFilterDate(d.toISOString().split('T')[0]);
+                    }}
+                    className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterDate(new Date().toISOString().split('T')[0])}
+                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition"
+                  >
+                    আজ
+                  </button>
+                </div>
               )}
 
+              {/* Monthly Controls */}
               {timeframe === 'monthly' && (
-                <input
-                  type="month"
-                  className="form-input text-xs py-1.5 px-3 max-w-[150px]"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                />
+                <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
+                  <button
+                    type="button"
+                    title="আগের মাস (Previous Month)"
+                    onClick={() => {
+                      const [y, m] = (filterDate || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`).split('-').map(Number);
+                      const d = new Date(y, m - 2, 1);
+                      setFilterDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                    }}
+                    className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <input
+                    type="month"
+                    className="form-input text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium"
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    title="পরের মাস (Next Month)"
+                    onClick={() => {
+                      const [y, m] = (filterDate || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`).split('-').map(Number);
+                      const d = new Date(y, m, 1);
+                      setFilterDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                    }}
+                    className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      setFilterDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                    }}
+                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition"
+                  >
+                    চলতি মাস
+                  </button>
+                </div>
               )}
 
+              {/* Yearly Controls */}
               {timeframe === 'yearly' && (
-                <select
-                  className="form-select text-xs py-1.5 px-3 max-w-[120px]"
-                  value={filterDate}
-                  onChange={(e) => setFilterDate(e.target.value)}
-                >
-                  {[2024, 2025, 2026, 2027].map((yr) => (
-                    <option key={yr} value={String(yr)}>
-                      {yr}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
+                  <button
+                    type="button"
+                    title="আগের বছর (Previous Year)"
+                    onClick={() => {
+                      const yr = Number(filterDate || new Date().getFullYear()) - 1;
+                      setFilterDate(String(yr));
+                    }}
+                    className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <select
+                    className="form-select text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[90px]"
+                    value={filterDate}
+                    onChange={(e) => setFilterDate(e.target.value)}
+                  >
+                    {[2024, 2025, 2026, 2027, 2028].map((yr) => (
+                      <option key={yr} value={String(yr)}>
+                        {yr}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    title="পরের বছর (Next Year)"
+                    onClick={() => {
+                      const yr = Number(filterDate || new Date().getFullYear()) + 1;
+                      setFilterDate(String(yr));
+                    }}
+                    className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterDate(String(new Date().getFullYear()))}
+                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition"
+                  >
+                    চলতি বছর
+                  </button>
+                </div>
               )}
             </div>
 
@@ -1202,70 +1351,415 @@ export const PaymentsPage: React.FC = () => {
             <h2 className="text-xl font-extrabold text-white">Payment History</h2>
             <p className="mt-1 text-sm text-gray-400">Review member payment receipts by a chosen month and year, or search the complete ledger.</p>
           </div>
-          {/* Search bar & count */}
-          <div className="glass-card flex flex-wrap items-center gap-3 p-3 lg:flex-nowrap">
-            <div className="relative min-w-[220px] flex-1">
-              <Search
-                size={18}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
-              />
-              <input
-                type="text"
-                className="form-input pl-10 text-sm"
-                placeholder="Search receipts by receipt #, member name, ID, or phone..."
-                value={ledgerSearch}
-                onChange={(e) => {
-                  setLedgerSearch(e.target.value);
-                  setLedgerPage(1);
-                }}
-              />
+          {/* Search bar, Member filter & Redesigned Date Picker */}
+          <div className="glass-card p-4 space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search text input */}
+              <div className="relative min-w-[240px] flex-1">
+                <Search
+                  size={18}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+                />
+                <input
+                  type="text"
+                  className="form-input pl-10 text-sm"
+                  placeholder="রশিদ নং, সদস্যের নাম, আইডি বা ফোন দিয়ে খুঁজুন..."
+                  value={ledgerSearch}
+                  onChange={(e) => {
+                    setLedgerSearch(e.target.value);
+                    setLedgerPage(1);
+                  }}
+                />
+              </div>
+
+              {/* Member Selector Dropdown */}
+              <div className="flex items-center gap-2 min-w-[220px]">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                  সদস্য (Member):
+                </label>
+                <select
+                  aria-label="Filter by Member"
+                  className="form-select text-xs py-2 px-3 bg-slate-900 border-gray-700 rounded-lg text-white flex-1"
+                  value={ledgerMemberId}
+                  onChange={(e) => {
+                    setLedgerMemberId(e.target.value);
+                    setLedgerPage(1);
+                  }}
+                >
+                  <option value="">সকল সদস্য (All Members)</option>
+                  {membersList.map((m) => (
+                    <option key={m._id} value={m._id}>
+                      {m.memberId} — {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <span className="shrink-0 text-xs font-semibold text-gray-400">
+                রেকর্ড: {payments.length} / {ledgerTotalCount} টি
+              </span>
             </div>
 
-            <div className="flex shrink-0 items-center gap-2 whitespace-nowrap">
-              <label className="sr-only" htmlFor="payment-history-year">Year</label>
-              <select
-                id="payment-history-year"
-                aria-label="Year"
-                className="form-input h-9 w-[106px] py-1 text-sm"
-                value={ledgerYear}
-                onChange={(e) => {
-                  setLedgerYear(e.target.value);
-                  setLedgerMonth('');
-                  setLedgerPage(1);
-                }}
-              >
-                <option value="">All years</option>
-                {[2024, 2025, 2026, 2027, 2028].map((year) => <option key={year} value={year}>{year}</option>)}
-              </select>
-              <label className="sr-only" htmlFor="payment-history-month">Month</label>
-              <select
-                id="payment-history-month"
-                aria-label="Month"
-                className="form-input h-9 w-[126px] py-1 text-sm"
-                value={ledgerMonth}
-                disabled={!ledgerYear}
-                onChange={(e) => {
-                  setLedgerMonth(e.target.value);
-                  setLedgerPage(1);
-                }}
-              >
-                <option value="">All months</option>
-                {[
-                  'January', 'February', 'March', 'April', 'May', 'June',
-                  'July', 'August', 'September', 'October', 'November', 'December',
-                ].map((month, index) => <option key={month} value={`${ledgerYear}-${String(index + 1).padStart(2, '0')}`}>{month}</option>)}
-              </select>
-              {(ledgerYear || ledgerMonth) && (
-                <button type="button" className="btn btn-secondary btn-sm h-9 px-2" onClick={() => { setLedgerYear(''); setLedgerMonth(''); setLedgerPage(1); }}>
-                  Clear
-                </button>
-              )}
-            </div>
+            {/* Redesigned Date Filtering for Payment History */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Calendar size={14} className="text-blue-400" />
+                  সময়কাল ফিল্টার:
+                </span>
+                <div className="bg-slate-900/90 p-1 rounded-xl border border-white/10 flex gap-1 shadow-inner">
+                  {([
+                    { key: 'all', label: 'সকল সময়' },
+                    { key: 'daily', label: 'দৈনিক' },
+                    { key: 'monthly', label: 'মাসিক' },
+                    { key: 'yearly', label: 'বাৎসরিক' },
+                  ] as const).map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setLedgerTimeframe(key);
+                        setLedgerPage(1);
+                        if (key === 'all') {
+                          setLedgerDay('');
+                          setLedgerMonth('');
+                          setLedgerYear('');
+                        } else if (key === 'daily') {
+                          setLedgerDay(new Date().toISOString().split('T')[0]);
+                          setLedgerMonth('');
+                          setLedgerYear('');
+                        } else if (key === 'monthly') {
+                          const d = new Date();
+                          setLedgerYear(String(d.getFullYear()));
+                          setLedgerMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                          setLedgerDay('');
+                        } else if (key === 'yearly') {
+                          setLedgerYear(String(new Date().getFullYear()));
+                          setLedgerMonth('');
+                          setLedgerDay('');
+                        }
+                      }}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        ledgerTimeframe === key
+                          ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 ring-1 ring-blue-400/50'
+                          : 'text-gray-400 hover:text-white hover:bg-slate-800/60'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
 
-            <span className="shrink-0 text-xs font-semibold text-gray-400">
-              Showing {payments.length} of {ledgerTotalCount} records
-            </span>
+                {/* Daily mode controls */}
+                {ledgerTimeframe === 'daily' && (
+                  <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
+                    <button
+                      type="button"
+                      title="আগের দিন"
+                      onClick={() => {
+                        const d = new Date(ledgerDay || new Date().toISOString().split('T')[0]);
+                        d.setDate(d.getDate() - 1);
+                        setLedgerDay(d.toISOString().split('T')[0]);
+                        setLedgerPage(1);
+                      }}
+                      className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <input
+                      type="date"
+                      className="form-input text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium"
+                      value={ledgerDay}
+                      onChange={(e) => {
+                        setLedgerDay(e.target.value);
+                        setLedgerPage(1);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      title="পরের দিন"
+                      onClick={() => {
+                        const d = new Date(ledgerDay || new Date().toISOString().split('T')[0]);
+                        d.setDate(d.getDate() + 1);
+                        setLedgerDay(d.toISOString().split('T')[0]);
+                        setLedgerPage(1);
+                      }}
+                      className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLedgerDay(new Date().toISOString().split('T')[0]);
+                        setLedgerPage(1);
+                      }}
+                      className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition"
+                    >
+                      আজ
+                    </button>
+                  </div>
+                )}
+
+                {/* Monthly mode controls */}
+                {ledgerTimeframe === 'monthly' && (
+                  <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
+                    <button
+                      type="button"
+                      title="আগের মাস"
+                      onClick={() => {
+                        const [y, m] = (ledgerMonth || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`).split('-').map(Number);
+                        const d = new Date(y, m - 2, 1);
+                        const newM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        setLedgerMonth(newM);
+                        setLedgerYear(String(d.getFullYear()));
+                        setLedgerPage(1);
+                      }}
+                      className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <input
+                      type="month"
+                      className="form-input text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium"
+                      value={ledgerMonth}
+                      onChange={(e) => {
+                        setLedgerMonth(e.target.value);
+                        setLedgerYear(e.target.value ? e.target.value.slice(0, 4) : '');
+                        setLedgerPage(1);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      title="পরের মাস"
+                      onClick={() => {
+                        const [y, m] = (ledgerMonth || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`).split('-').map(Number);
+                        const d = new Date(y, m, 1);
+                        const newM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        setLedgerMonth(newM);
+                        setLedgerYear(String(d.getFullYear()));
+                        setLedgerPage(1);
+                      }}
+                      className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const d = new Date();
+                        setLedgerMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                        setLedgerYear(String(d.getFullYear()));
+                        setLedgerPage(1);
+                      }}
+                      className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition"
+                    >
+                      চলতি মাস
+                    </button>
+                  </div>
+                )}
+
+                {/* Yearly mode controls */}
+                {ledgerTimeframe === 'yearly' && (
+                  <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
+                    <button
+                      type="button"
+                      title="আগের বছর"
+                      onClick={() => {
+                        const yr = Number(ledgerYear || new Date().getFullYear()) - 1;
+                        setLedgerYear(String(yr));
+                        setLedgerMonth('');
+                        setLedgerPage(1);
+                      }}
+                      className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <select
+                      className="form-select text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[90px]"
+                      value={ledgerYear}
+                      onChange={(e) => {
+                        setLedgerYear(e.target.value);
+                        setLedgerMonth('');
+                        setLedgerPage(1);
+                      }}
+                    >
+                      {[2024, 2025, 2026, 2027, 2028].map((yr) => (
+                        <option key={yr} value={String(yr)}>
+                          {yr}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      title="পরের বছর"
+                      onClick={() => {
+                        const yr = Number(ledgerYear || new Date().getFullYear()) + 1;
+                        setLedgerYear(String(yr));
+                        setLedgerMonth('');
+                        setLedgerPage(1);
+                      }}
+                      className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLedgerYear(String(new Date().getFullYear()));
+                        setLedgerMonth('');
+                        setLedgerPage(1);
+                      }}
+                      className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition"
+                    >
+                      চলতি বছর
+                    </button>
+                  </div>
+                )}
+
+                {(ledgerYear || ledgerMonth || ledgerDay || ledgerMemberId || ledgerSearch) && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm h-8 px-2.5 text-xs flex items-center gap-1"
+                    onClick={() => {
+                      setLedgerTimeframe('all');
+                      setLedgerYear('');
+                      setLedgerMonth('');
+                      setLedgerDay('');
+                      setLedgerMemberId('');
+                      setLedgerSearch('');
+                      setSelectedMemberSummary(null);
+                      setLedgerPage(1);
+                    }}
+                  >
+                    <X size={13} /> ফিল্টার সাফ
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
+
+          {/* MEMBER FINANCIAL POSITION SUMMARY CARD (LOCATED DIRECTLY BEFORE PAYMENT HISTORY LIST) */}
+          {loadingMemberSummary ? (
+            <div className="glass-card p-6 animate-pulse text-center text-sm text-gray-400">
+              সদস্যের আর্থিক বিবরণী ও মোট হিসাব লোড হচ্ছে...
+            </div>
+          ) : selectedMemberSummary ? (
+            <div className="rounded-2xl border border-blue-500/30 bg-gradient-to-br from-slate-900/95 via-blue-950/20 to-slate-900/95 p-5 shadow-xl space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold text-lg">
+                    {selectedMemberSummary.member.name.charAt(0)}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-white">{selectedMemberSummary.member.name}</h3>
+                      <span className="badge badge-active text-xs">{selectedMemberSummary.member.status || 'ACTIVE'}</span>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      আইডি: <span className="font-mono text-blue-300 font-semibold">{selectedMemberSummary.member.memberId}</span> · মোবাইল: {selectedMemberSummary.member.phone || 'N/A'} · শেয়ার: <span className="font-semibold text-white">{selectedMemberSummary.member.currentShares || 1}টি</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      downloadMemberReportImage({
+                        member: selectedMemberSummary.member,
+                        summary: selectedMemberSummary.summary,
+                        payments: payments.filter(
+                          (p) =>
+                            String((p.memberId as any)?._id || (p.memberId as any)) ===
+                            String(selectedMemberSummary.member._id)
+                        ),
+                        logo,
+                      });
+                    }}
+                    className="btn btn-primary btn-sm flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md shadow-blue-500/20"
+                  >
+                    <ImageIcon size={15} />
+                    রিপোর্ট ছবি ডাউনলোড (Download Image)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLedgerMemberId('');
+                      setSelectedMemberSummary(null);
+                    }}
+                    className="btn btn-secondary btn-sm"
+                    title="সকল সদস্যের তালিকায় ফিরুন"
+                  >
+                    <X size={15} /> ফিল্টার মুছুন
+                  </button>
+                </div>
+              </div>
+
+              {/* 4 Total Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                      মোট পরিশোধিত (Total Paid)
+                    </span>
+                    <CheckCircle2 size={16} className="text-emerald-400" />
+                  </div>
+                  <p className="text-2xl font-black text-white mt-2">
+                    ৳ {(selectedMemberSummary.summary.totalPayments || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-[11px] text-emerald-300/80 mt-1">সর্বমোট জমাকৃত চাঁদা ও পেমেন্ট</p>
+                </div>
+
+                <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-rose-400 uppercase tracking-wider">
+                      মোট বকেয়া (Total Dues)
+                    </span>
+                    <AlertCircle size={16} className="text-rose-400" />
+                  </div>
+                  <p className="text-2xl font-black text-white mt-2">
+                    ৳ {(selectedMemberSummary.summary.totalDues || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-[11px] text-rose-300/80 mt-1">মূল চাঁদা বকেয়া + জরিমানা</p>
+                </div>
+
+                <div className="rounded-xl border border-blue-500/30 bg-blue-950/20 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
+                      পরিশোধিত জরিমানা (Penalty Paid)
+                    </span>
+                    <Clock size={16} className="text-blue-400" />
+                  </div>
+                  <p className="text-2xl font-black text-white mt-2">
+                    ৳ {(selectedMemberSummary.summary.totalPenaltyPaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-[11px] text-blue-300/80 mt-1">দেরির কারণে ইতিমধ্যে প্রদত্ত জরিমানা</p>
+                </div>
+
+                <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
+                      বকেয়া জরিমানা (Penalty Due)
+                    </span>
+                    <AlertCircle size={16} className="text-amber-400" />
+                  </div>
+                  <p className="text-2xl font-black text-white mt-2">
+                    ৳ {(selectedMemberSummary.summary.totalPenaltyDue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-[11px] text-amber-300/80 mt-1">অনাদায়ী বিলম্ব জরিমানার পরিমাণ</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="px-4 py-2.5 rounded-xl border border-blue-500/20 bg-blue-500/5 flex items-center justify-between text-xs text-blue-200">
+              <span className="flex items-center gap-2">
+                <Users size={15} className="text-blue-400" />
+                নির্দিষ্ট সদস্যের মোট পরিশোধিত, বকেয়া ও জরিমানার হিসাব এবং রিপোর্ট ছবি ডাউনলোড দেখতে উপরের ড্রপডাউন থেকে সদস্য নির্বাচন করুন অথবা নিচের তালিকা থেকে সদস্যের নামে ক্লিক করুন।
+              </span>
+            </div>
+          )}
+
           {ledgerActionError && (
             <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
               {ledgerActionError}
@@ -1317,14 +1811,24 @@ export const PaymentsPage: React.FC = () => {
                         </div>
                       </td>
                       <td>
-                        <div>
-                          <p className="font-semibold text-white text-sm">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (p.memberId?._id) {
+                              setLedgerMemberId(p.memberId._id);
+                              setLedgerPage(1);
+                            }
+                          }}
+                          className="text-left group cursor-pointer"
+                          title="এই সদস্যের মোট চাঁদা ও বকেয়া বিবরণী দেখুন"
+                        >
+                          <p className="font-semibold text-white text-sm group-hover:text-blue-400 transition underline-offset-2 group-hover:underline">
                             {p.memberId?.name || 'Unknown'}
                           </p>
-                          <span className="text-[11px] text-gray-400 font-mono">
+                          <span className="text-[11px] text-gray-400 font-mono group-hover:text-blue-300">
                             {p.memberId?.memberId}
                           </span>
-                        </div>
+                        </button>
                       </td>
                       <td>
                         <div>

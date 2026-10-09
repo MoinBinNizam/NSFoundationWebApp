@@ -15,9 +15,32 @@ export async function getMyPortal(req: AuthRequest, res: Response, next: NextFun
       Payment.find({ memberId: member._id }).select('receiptNumber paymentDate totalAmount principalAmount penaltyAmount advanceAmount cashoutCharge paymentMethod status').sort({ paymentDate: -1 }).limit(50).lean(),
       MonthlyLedger.find({ memberId: member._id }).sort({ month: -1 }).limit(24).lean(),
     ]);
-    const due = ledgers.filter((item) => item.status === 'DUE' || item.status === 'PARTIAL').reduce((sum, item) => sum + Math.max(0, item.principalDue + item.penaltyDue - item.principalPaid - item.penaltyPaid - (item.penaltyWaived || 0)), 0);
+    const nonCancelledPayments = payments.filter((p) => p.status !== 'CANCELLED');
+    const totalPayments = nonCancelledPayments.reduce((sum, p) => sum + Number(p.totalAmount || 0), 0);
+    const totalPenaltyPaid = ledgers.reduce((sum, l) => sum + Number(l.penaltyPaid || 0), 0);
+    const totalPenaltyDue = ledgers.reduce((sum, l) => sum + Math.max(0, Number(l.penaltyDue || 0) - Number(l.penaltyPaid || 0) - Number(l.penaltyWaived || 0)), 0);
+    const totalPrincipalDue = ledgers.reduce((sum, l) => sum + Math.max(0, Number(l.principalDue || 0) - Number(l.principalPaid || 0)), 0);
+    const totalDues = totalPrincipalDue + totalPenaltyDue + Number(member.cashoutDue || 0);
     const advance = ledgers.reduce((sum, item) => sum + Number(item.excessAdvance || 0), 0);
-    res.json({ success: true, data: { member, currentShares: share?.shareCount || 1, due, advance, payments, ledgers } });
+
+    res.json({
+      success: true,
+      data: {
+        member,
+        currentShares: share?.shareCount || 1,
+        due: totalDues,
+        advance,
+        payments,
+        ledgers,
+        summary: {
+          totalPayments,
+          totalDues,
+          totalPenaltyPaid,
+          totalPenaltyDue,
+          totalPrincipalDue,
+        },
+      },
+    });
   } catch (error) { next(error); }
 }
 
