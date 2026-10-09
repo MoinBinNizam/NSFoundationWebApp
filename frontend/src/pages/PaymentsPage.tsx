@@ -240,10 +240,27 @@ const analyticsDateForPayment = (paymentDate: string, timeframe: 'all' | 'daily'
   return calendarDate.slice(0, 7);
 };
 
+const MONTH_OPTIONS = [
+  { value: '01', en: 'January', bn: 'জানুয়ারি' },
+  { value: '02', en: 'February', bn: 'ফেব্রুয়ারি' },
+  { value: '03', en: 'March', bn: 'মার্চ' },
+  { value: '04', en: 'April', bn: 'এপ্রিল' },
+  { value: '05', en: 'May', bn: 'মে' },
+  { value: '06', en: 'June', bn: 'জুন' },
+  { value: '07', en: 'July', bn: 'জুলাই' },
+  { value: '08', en: 'August', bn: 'আগস্ট' },
+  { value: '09', en: 'September', bn: 'সেপ্টেম্বর' },
+  { value: '10', en: 'October', bn: 'অক্টোবর' },
+  { value: '11', en: 'November', bn: 'নভেম্বর' },
+  { value: '12', en: 'December', bn: 'ডিসেম্বর' },
+];
+
+const AVAILABLE_YEARS = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
+
 export const PaymentsPage: React.FC = () => {
   const { logo } = useLogo();
   const { user, canAccess } = useAuth();
-  const { t } = usePreferences();
+  const { t, language } = usePreferences();
   const canEdit = canAccess('PAYMENTS', 'edit');
   const isAdmin = (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && canEdit;
 
@@ -888,7 +905,7 @@ export const PaymentsPage: React.FC = () => {
               className="btn btn-primary shrink-0 self-start sm:self-auto shadow-lg shadow-blue-500/20"
             >
               <Plus size={18} />
-              <span>Collect Payment</span>
+              <span>{t('Collect Payment')}</span>
             </button>
           </div>
         )}
@@ -905,7 +922,7 @@ export const PaymentsPage: React.FC = () => {
           }`}
         >
           <TrendingUp size={16} />
-          <span>Collection Analytics</span>
+          <span>{t('Collection Analytics')}</span>
         </button>
 
         <button
@@ -917,7 +934,7 @@ export const PaymentsPage: React.FC = () => {
           }`}
         >
           <Receipt size={16} />
-          <span>Receipts & Payment History</span>
+          <span>{t('Receipts & Payment History')}</span>
         </button>
 
         <button
@@ -929,7 +946,7 @@ export const PaymentsPage: React.FC = () => {
           }`}
         >
           <Sparkles size={16} />
-          <span>Receipt OCR Queue</span>
+          <span>{t('Receipt OCR Queue')}</span>
         </button>
       </div>
 
@@ -950,15 +967,15 @@ export const PaymentsPage: React.FC = () => {
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                 <Calendar size={14} className="text-blue-400" />
-                সময়কাল (Period):
+                {t('Period:')}
               </span>
               <div className="bg-slate-900/90 p-1 rounded-xl border border-white/10 flex gap-1 shadow-inner">
                 {([
-                  { key: 'all', label: 'সকল সময়' },
-                  { key: 'daily', label: 'দৈনিক' },
-                  { key: 'monthly', label: 'মাসিক' },
-                  { key: 'yearly', label: 'বাৎসরিক' },
-                ] as const).map(({ key, label }) => (
+                  { key: 'all', labelKey: 'All Time' },
+                  { key: 'daily', labelKey: 'Daily' },
+                  { key: 'monthly', labelKey: 'Monthly' },
+                  { key: 'yearly', labelKey: 'Yearly' },
+                ] as const).map(({ key, labelKey }) => (
                   <button
                     key={key}
                     type="button"
@@ -978,7 +995,7 @@ export const PaymentsPage: React.FC = () => {
                         : 'text-gray-400 hover:text-white hover:bg-slate-800/60'
                     }`}
                   >
-                    {label}
+                    {t(labelKey)}
                   </button>
                 ))}
               </div>
@@ -988,7 +1005,8 @@ export const PaymentsPage: React.FC = () => {
                 <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
                   <button
                     type="button"
-                    title="আগের দিন (Previous Day)"
+                    title={t('Previous Day')}
+                    aria-label={t('Previous Day')}
                     onClick={() => {
                       const d = new Date(filterDate || new Date().toISOString().split('T')[0]);
                       d.setDate(d.getDate() - 1);
@@ -1000,13 +1018,15 @@ export const PaymentsPage: React.FC = () => {
                   </button>
                   <input
                     type="date"
+                    aria-label={t('Daily')}
                     className="form-input text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium"
                     value={filterDate}
                     onChange={(e) => setFilterDate(e.target.value)}
                   />
                   <button
                     type="button"
-                    title="পরের দিন (Next Day)"
+                    title={t('Next Day')}
+                    aria-label={t('Next Day')}
                     onClick={() => {
                       const d = new Date(filterDate || new Date().toISOString().split('T')[0]);
                       d.setDate(d.getDate() + 1);
@@ -1019,65 +1039,99 @@ export const PaymentsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setFilterDate(new Date().toISOString().split('T')[0])}
-                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition"
+                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition whitespace-nowrap"
                   >
-                    আজ
+                    {t('Today')}
                   </button>
                 </div>
               )}
 
-              {/* Monthly Controls */}
-              {timeframe === 'monthly' && (
-                <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
-                  <button
-                    type="button"
-                    title="আগের মাস (Previous Month)"
-                    onClick={() => {
-                      const [y, m] = (filterDate || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`).split('-').map(Number);
-                      const d = new Date(y, m - 2, 1);
-                      setFilterDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-                    }}
-                    className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <input
-                    type="month"
-                    className="form-input text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium"
-                    value={filterDate}
-                    onChange={(e) => setFilterDate(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    title="পরের মাস (Next Month)"
-                    onClick={() => {
-                      const [y, m] = (filterDate || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`).split('-').map(Number);
-                      const d = new Date(y, m, 1);
-                      setFilterDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-                    }}
-                    className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const d = new Date();
-                      setFilterDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-                    }}
-                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition"
-                  >
-                    চলতি মাস
-                  </button>
-                </div>
-              )}
+              {/* Monthly Controls - Redesigned with Separate Month and Year Select Options */}
+              {timeframe === 'monthly' && (() => {
+                const curYear = filterDate && filterDate.includes('-')
+                  ? filterDate.slice(0, 4)
+                  : String(new Date().getFullYear());
+                const curMonth = filterDate && filterDate.includes('-')
+                  ? filterDate.slice(5, 7)
+                  : String(new Date().getMonth() + 1).padStart(2, '0');
+
+                return (
+                  <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10 flex-wrap">
+                    <button
+                      type="button"
+                      title={t('Previous Month')}
+                      aria-label={t('Previous Month')}
+                      onClick={() => {
+                        const y = Number(curYear);
+                        const m = Number(curMonth);
+                        const d = new Date(y, m - 2, 1);
+                        setFilterDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                      }}
+                      className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    {/* Month Select Dropdown */}
+                    <select
+                      aria-label={t('Month')}
+                      className="form-select text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[110px]"
+                      value={curMonth}
+                      onChange={(e) => setFilterDate(`${curYear}-${e.target.value}`)}
+                    >
+                      {MONTH_OPTIONS.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {language === 'bn' ? m.bn : m.en}
+                        </option>
+                      ))}
+                    </select>
+                    {/* Year Select Dropdown */}
+                    <select
+                      aria-label={t('Year')}
+                      className="form-select text-xs py-1 px-2 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[80px]"
+                      value={curYear}
+                      onChange={(e) => setFilterDate(`${e.target.value}-${curMonth}`)}
+                    >
+                      {AVAILABLE_YEARS.map((yr) => (
+                        <option key={yr} value={String(yr)}>
+                          {yr}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      title={t('Next Month')}
+                      aria-label={t('Next Month')}
+                      onClick={() => {
+                        const y = Number(curYear);
+                        const m = Number(curMonth);
+                        const d = new Date(y, m, 1);
+                        setFilterDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                      }}
+                      className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const d = new Date();
+                        setFilterDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                      }}
+                      className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition whitespace-nowrap"
+                    >
+                      {t('Current Month')}
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* Yearly Controls */}
               {timeframe === 'yearly' && (
                 <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
                   <button
                     type="button"
-                    title="আগের বছর (Previous Year)"
+                    title={t('Previous Year')}
+                    aria-label={t('Previous Year')}
                     onClick={() => {
                       const yr = Number(filterDate || new Date().getFullYear()) - 1;
                       setFilterDate(String(yr));
@@ -1087,11 +1141,12 @@ export const PaymentsPage: React.FC = () => {
                     <ChevronLeft size={16} />
                   </button>
                   <select
+                    aria-label={t('Year')}
                     className="form-select text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[90px]"
-                    value={filterDate}
+                    value={filterDate || String(new Date().getFullYear())}
                     onChange={(e) => setFilterDate(e.target.value)}
                   >
-                    {[2024, 2025, 2026, 2027, 2028].map((yr) => (
+                    {AVAILABLE_YEARS.map((yr) => (
                       <option key={yr} value={String(yr)}>
                         {yr}
                       </option>
@@ -1099,7 +1154,8 @@ export const PaymentsPage: React.FC = () => {
                   </select>
                   <button
                     type="button"
-                    title="পরের বছর (Next Year)"
+                    title={t('Next Year')}
+                    aria-label={t('Next Year')}
                     onClick={() => {
                       const yr = Number(filterDate || new Date().getFullYear()) + 1;
                       setFilterDate(String(yr));
@@ -1111,9 +1167,9 @@ export const PaymentsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setFilterDate(String(new Date().getFullYear()))}
-                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition"
+                    className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition whitespace-nowrap"
                   >
-                    চলতি বছর
+                    {t('Current Year')}
                   </button>
                 </div>
               )}
@@ -1123,14 +1179,15 @@ export const PaymentsPage: React.FC = () => {
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                  Receiver:
+                  {t('Receiver:')}
                 </span>
                 <select
+                  aria-label={t('Receiver:')}
                   className="form-select text-xs py-1.5 px-3 min-w-[140px]"
                   value={accountantFilter}
                   onChange={(e) => setAccountantFilter(e.target.value)}
                 >
-                  <option value="ALL">All Accountants (Admin)</option>
+                  <option value="ALL">{t('All Accountants (Admin)')}</option>
                   {custodyAccounts
                     .filter((c) => c.holderId)
                     .map((c) => c.holderId!)
@@ -1146,18 +1203,19 @@ export const PaymentsPage: React.FC = () => {
               {/* Method Filter */}
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-                  Method:
+                  {t('Method:')}
                 </span>
                 <select
+                  aria-label={t('Method:')}
                   className="form-select text-xs py-1.5 px-3 min-w-[110px]"
                   value={methodFilter}
                   onChange={(e) => setMethodFilter(e.target.value)}
                 >
-                  <option value="ALL">All Methods</option>
+                  <option value="ALL">{t('All Methods')}</option>
                   <option value="BKASH">bKash</option>
                   <option value="NAGAD">Nagad</option>
-                  <option value="CASH">Physical Cash</option>
-                  <option value="BANK_TRANSFER">Bank</option>
+                  <option value="CASH">{t('Physical Cash')}</option>
+                  <option value="BANK_TRANSFER">{t('Bank')}</option>
                 </select>
               </div>
             </div>
@@ -1167,62 +1225,62 @@ export const PaymentsPage: React.FC = () => {
           <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 transition-opacity duration-200 ${loadingStats ? 'opacity-50' : 'opacity-100'}`}>
             <div className="glass-card p-5 border-l-4 border-l-blue-500">
               <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase">
-                <span>Total In</span>
+                <span>{t('Total In')}</span>
                 <DollarSign size={18} className="text-blue-400" />
               </div>
               <p className="text-2xl sm:text-3xl font-extrabold text-white mt-2">
                 ৳ {(stats?.totals.totalReceived || 0).toLocaleString()}
               </p>
               <span className="text-[11px] text-gray-500 mt-1 block">
-                {stats?.totals.count || 0} total receipts
+                {stats?.totals.count || 0} {language === 'bn' ? 'টি মোট রশিদ' : 'total receipts'}
               </span>
             </div>
 
             <div className="glass-card p-5 border-l-4 border-l-emerald-500">
               <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase">
-                <span>{timeframe === 'monthly' ? 'Monthly Principal' : 'Principal Collected'}</span>
+                <span>{timeframe === 'monthly' ? t('Monthly Principal') : t('Principal Collected')}</span>
                 <Layers size={18} className="text-emerald-400" />
               </div>
               <p className="text-2xl sm:text-3xl font-extrabold text-emerald-400 mt-2">
                 ৳ {(stats?.totals.totalPrincipal || 0).toLocaleString()}
               </p>
               <span className="text-[11px] text-gray-500 mt-1 block">
-                {timeframe === 'monthly' ? 'Monthly share dues settled' : 'Share dues settled in this view'}
+                {timeframe === 'monthly' ? (language === 'bn' ? 'মাসিক পরিশোধিত শেয়ার কিস্তি' : 'Monthly share dues settled') : (language === 'bn' ? 'এই ভিউতে পরিশোধিত শেয়ার কিস্তি' : 'Share dues settled in this view')}
               </span>
             </div>
 
             <div className="glass-card p-5 border-l-4 border-l-rose-500">
               <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase">
-                <span>Penalties Collected</span>
+                <span>{t('Penalties Collected')}</span>
                 <AlertTriangle size={18} className="text-rose-400" />
               </div>
               <p className="text-2xl sm:text-3xl font-extrabold text-rose-400 mt-2">
                 ৳ {(stats?.totals.totalPenalty || 0).toLocaleString()}
               </p>
-              <span className="text-[11px] text-gray-500 mt-1 block">Late payment fines</span>
+              <span className="text-[11px] text-gray-500 mt-1 block">{language === 'bn' ? 'বিলম্ব জরিমানা আদায়' : 'Late payment fines'}</span>
             </div>
 
             <div className="glass-card p-5 border-l-4 border-l-purple-500">
               <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase">
-                <span>Advance Prepayments</span>
+                <span>{t('Advance Prepayments')}</span>
                 <Sparkles size={18} className="text-purple-400" />
               </div>
               <p className="text-2xl sm:text-3xl font-extrabold text-purple-400 mt-2">
                 ৳ {(stats?.totals.totalAdvance || 0).toLocaleString()}
               </p>
-              <span className="text-[11px] text-gray-500 mt-1 block">Prepaid future months</span>
+              <span className="text-[11px] text-gray-500 mt-1 block">{language === 'bn' ? 'ভবিষ্যৎ মাসের অগ্রিম চাঁদা' : 'Prepaid future months'}</span>
             </div>
 
             <div className="glass-card p-5 border-l-4 border-l-amber-500">
               <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase">
-                <span>Cashout Paid</span>
+                <span>{t('Cashout Paid')}</span>
                 <CreditCard size={18} className="text-amber-400" />
               </div>
               <p className="text-2xl sm:text-3xl font-extrabold text-amber-400 mt-2">
                 ৳ {(stats?.totals.totalCashoutCharge || 0).toLocaleString()}
               </p>
               <span className="text-[11px] text-gray-500 mt-1 block">
-                ৳ {stats?.totals.totalUnpaidCashout || 0} unpaid due
+                ৳ {stats?.totals.totalUnpaidCashout || 0} {language === 'bn' ? 'অপরিশোধিত বকেয়া' : 'unpaid due'}
               </span>
             </div>
           </div>
@@ -1230,24 +1288,26 @@ export const PaymentsPage: React.FC = () => {
           <section className="glass-card p-5" aria-label="Outstanding member dues">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div>
-                <h2 className="text-sm font-bold text-white uppercase tracking-wider">Total Outstanding Dues</h2>
-                <p className="mt-1 text-xs text-gray-400">Live organization-wide balance: unpaid principal, penalties, and gateway cash-out charges.</p>
+                <h2 className="text-sm font-bold text-white uppercase tracking-wider">{t('Total Outstanding Dues')}</h2>
+                <p className="mt-1 text-xs text-gray-400">{t('Live organization-wide balance: unpaid principal, penalties, and gateway cash-out charges.')}</p>
               </div>
               <p className="text-xl font-extrabold text-amber-300">৳ {(stats?.dueSummary.total || 0).toLocaleString()}</p>
             </div>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-blue-400/20 bg-blue-500/10 p-3">
-                <p className="text-xs font-semibold text-blue-200">Principal Due</p>
+                <p className="text-xs font-semibold text-blue-200">{t('Principal Due')}</p>
                 <p className="mt-1 text-lg font-extrabold text-white">৳ {(stats?.dueSummary.principal || 0).toLocaleString()}</p>
               </div>
               <div className="rounded-xl border border-rose-400/20 bg-rose-500/10 p-3">
-                <p className="text-xs font-semibold text-rose-200">Penalty Due</p>
+                <p className="text-xs font-semibold text-rose-200">{t('Penalty Due')}</p>
                 <p className="mt-1 text-lg font-extrabold text-white">৳ {(stats?.dueSummary.penalty || 0).toLocaleString()}</p>
               </div>
               <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 p-3">
-                <p className="text-xs font-semibold text-amber-200">Cash-out Charges Due</p>
+                <p className="text-xs font-semibold text-amber-200">{t('Cash-out Charges Due')}</p>
                 <p className="mt-1 text-lg font-extrabold text-white">৳ {(stats?.dueSummary.cashout || 0).toLocaleString()}</p>
-                <p className="mt-1 text-[11px] text-amber-100/70">{stats?.dueSummary.cashoutMemberCount || 0} affected members</p>
+                <p className="mt-1 text-[11px] text-amber-100/70">
+                  {stats?.dueSummary.cashoutMemberCount || 0} {language === 'bn' ? 'জন সদস্য প্রভাবিত' : 'affected members'}
+                </p>
               </div>
             </div>
           </section>
@@ -1258,7 +1318,7 @@ export const PaymentsPage: React.FC = () => {
             <div className="glass-card p-6 space-y-4">
               <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                 <CreditCard size={16} className="text-blue-400" />
-                <span>Collection by Payment Method</span>
+                <span>{t('Collection by Payment Method')}</span>
               </h2>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
@@ -1281,14 +1341,14 @@ export const PaymentsPage: React.FC = () => {
                     >
                       <div>
                         <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
-                          {m.label}
+                          {t(m.label)}
                         </span>
                         <p className="text-lg font-extrabold text-white mt-1">
                           ৳ {data.total.toLocaleString()}
                         </p>
                       </div>
                       <div className="mt-3 flex items-center justify-between text-[10px] text-gray-500">
-                        <span>{data.count} receipts</span>
+                        <span>{data.count} {language === 'bn' ? 'টি রশিদ' : 'receipts'}</span>
                         <span className="font-bold text-blue-400">{pct}%</span>
                       </div>
                     </div>
@@ -1348,8 +1408,8 @@ export const PaymentsPage: React.FC = () => {
       {activeTab === 'ledger' && (
         <div className="space-y-4">
           <div>
-            <h2 className="text-xl font-extrabold text-white">Payment History</h2>
-            <p className="mt-1 text-sm text-gray-400">Review member payment receipts by a chosen month and year, or search the complete ledger.</p>
+            <h2 className="text-xl font-extrabold text-white">{t('Payment History')}</h2>
+            <p className="mt-1 text-sm text-gray-400">{t('Review member payment receipts by a chosen month and year, or search the complete ledger.')}</p>
           </div>
           {/* Search bar, Member filter & Redesigned Date Picker */}
           <div className="glass-card p-4 space-y-3">
@@ -1363,7 +1423,7 @@ export const PaymentsPage: React.FC = () => {
                 <input
                   type="text"
                   className="form-input pl-10 text-sm"
-                  placeholder="রশিদ নং, সদস্যের নাম, আইডি বা ফোন দিয়ে খুঁজুন..."
+                  placeholder={t('Search by receipt #, member name, ID, or phone...')}
                   value={ledgerSearch}
                   onChange={(e) => {
                     setLedgerSearch(e.target.value);
@@ -1375,10 +1435,10 @@ export const PaymentsPage: React.FC = () => {
               {/* Member Selector Dropdown */}
               <div className="flex items-center gap-2 min-w-[220px]">
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                  সদস্য (Member):
+                  {t('Member:')}
                 </label>
                 <select
-                  aria-label="Filter by Member"
+                  aria-label={t('Member:')}
                   className="form-select text-xs py-2 px-3 bg-slate-900 border-gray-700 rounded-lg text-white flex-1"
                   value={ledgerMemberId}
                   onChange={(e) => {
@@ -1386,7 +1446,7 @@ export const PaymentsPage: React.FC = () => {
                     setLedgerPage(1);
                   }}
                 >
-                  <option value="">সকল সদস্য (All Members)</option>
+                  <option value="">{t('All Members')}</option>
                   {membersList.map((m) => (
                     <option key={m._id} value={m._id}>
                       {m.memberId} — {m.name}
@@ -1396,7 +1456,7 @@ export const PaymentsPage: React.FC = () => {
               </div>
 
               <span className="shrink-0 text-xs font-semibold text-gray-400">
-                রেকর্ড: {payments.length} / {ledgerTotalCount} টি
+                {t('Records')}: {payments.length} / {ledgerTotalCount} {language === 'bn' ? 'টি' : ''}
               </span>
             </div>
 
@@ -1405,15 +1465,15 @@ export const PaymentsPage: React.FC = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Calendar size={14} className="text-blue-400" />
-                  সময়কাল ফিল্টার:
+                  {t('Period Filter:')}
                 </span>
                 <div className="bg-slate-900/90 p-1 rounded-xl border border-white/10 flex gap-1 shadow-inner">
                   {([
-                    { key: 'all', label: 'সকল সময়' },
-                    { key: 'daily', label: 'দৈনিক' },
-                    { key: 'monthly', label: 'মাসিক' },
-                    { key: 'yearly', label: 'বাৎসরিক' },
-                  ] as const).map(({ key, label }) => (
+                    { key: 'all', labelKey: 'All Time' },
+                    { key: 'daily', labelKey: 'Daily' },
+                    { key: 'monthly', labelKey: 'Monthly' },
+                    { key: 'yearly', labelKey: 'Yearly' },
+                  ] as const).map(({ key, labelKey }) => (
                     <button
                       key={key}
                       type="button"
@@ -1445,7 +1505,7 @@ export const PaymentsPage: React.FC = () => {
                           : 'text-gray-400 hover:text-white hover:bg-slate-800/60'
                       }`}
                     >
-                      {label}
+                      {t(labelKey)}
                     </button>
                   ))}
                 </div>
@@ -1455,7 +1515,8 @@ export const PaymentsPage: React.FC = () => {
                   <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
                     <button
                       type="button"
-                      title="আগের দিন"
+                      title={t('Previous Day')}
+                      aria-label={t('Previous Day')}
                       onClick={() => {
                         const d = new Date(ledgerDay || new Date().toISOString().split('T')[0]);
                         d.setDate(d.getDate() - 1);
@@ -1468,6 +1529,7 @@ export const PaymentsPage: React.FC = () => {
                     </button>
                     <input
                       type="date"
+                      aria-label={t('Daily')}
                       className="form-input text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium"
                       value={ledgerDay}
                       onChange={(e) => {
@@ -1477,7 +1539,8 @@ export const PaymentsPage: React.FC = () => {
                     />
                     <button
                       type="button"
-                      title="পরের দিন"
+                      title={t('Next Day')}
+                      aria-label={t('Next Day')}
                       onClick={() => {
                         const d = new Date(ledgerDay || new Date().toISOString().split('T')[0]);
                         d.setDate(d.getDate() + 1);
@@ -1494,77 +1557,113 @@ export const PaymentsPage: React.FC = () => {
                         setLedgerDay(new Date().toISOString().split('T')[0]);
                         setLedgerPage(1);
                       }}
-                      className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition"
+                      className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition whitespace-nowrap"
                     >
-                      আজ
+                      {t('Today')}
                     </button>
                   </div>
                 )}
 
-                {/* Monthly mode controls */}
-                {ledgerTimeframe === 'monthly' && (
-                  <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
-                    <button
-                      type="button"
-                      title="আগের মাস"
-                      onClick={() => {
-                        const [y, m] = (ledgerMonth || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`).split('-').map(Number);
-                        const d = new Date(y, m - 2, 1);
-                        const newM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                        setLedgerMonth(newM);
-                        setLedgerYear(String(d.getFullYear()));
-                        setLedgerPage(1);
-                      }}
-                      className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
-                    >
-                      <ChevronLeft size={16} />
-                    </button>
-                    <input
-                      type="month"
-                      className="form-input text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium"
-                      value={ledgerMonth}
-                      onChange={(e) => {
-                        setLedgerMonth(e.target.value);
-                        setLedgerYear(e.target.value ? e.target.value.slice(0, 4) : '');
-                        setLedgerPage(1);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      title="পরের মাস"
-                      onClick={() => {
-                        const [y, m] = (ledgerMonth || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`).split('-').map(Number);
-                        const d = new Date(y, m, 1);
-                        const newM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-                        setLedgerMonth(newM);
-                        setLedgerYear(String(d.getFullYear()));
-                        setLedgerPage(1);
-                      }}
-                      className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
-                    >
-                      <ChevronRight size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const d = new Date();
-                        setLedgerMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
-                        setLedgerYear(String(d.getFullYear()));
-                        setLedgerPage(1);
-                      }}
-                      className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition"
-                    >
-                      চলতি মাস
-                    </button>
-                  </div>
-                )}
+                {/* Monthly mode controls - Redesigned with Separate Month and Year Select Options */}
+                {ledgerTimeframe === 'monthly' && (() => {
+                  const curY = ledgerYear || (ledgerMonth ? ledgerMonth.slice(0, 4) : String(new Date().getFullYear()));
+                  const curM = ledgerMonth && ledgerMonth.length >= 7 ? ledgerMonth.slice(5, 7) : String(new Date().getMonth() + 1).padStart(2, '0');
+
+                  return (
+                    <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10 flex-wrap">
+                      <button
+                        type="button"
+                        title={t('Previous Month')}
+                        aria-label={t('Previous Month')}
+                        onClick={() => {
+                          const y = Number(curY);
+                          const m = Number(curM);
+                          const d = new Date(y, m - 2, 1);
+                          const newM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                          setLedgerMonth(newM);
+                          setLedgerYear(String(d.getFullYear()));
+                          setLedgerPage(1);
+                        }}
+                        className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      {/* Month Select Dropdown */}
+                      <select
+                        aria-label={t('Month')}
+                        className="form-select text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[110px]"
+                        value={curM}
+                        onChange={(e) => {
+                          const newM = `${curY}-${e.target.value}`;
+                          setLedgerMonth(newM);
+                          setLedgerYear(curY);
+                          setLedgerPage(1);
+                        }}
+                      >
+                        {MONTH_OPTIONS.map((m) => (
+                          <option key={m.value} value={m.value}>
+                            {language === 'bn' ? m.bn : m.en}
+                          </option>
+                        ))}
+                      </select>
+                      {/* Year Select Dropdown */}
+                      <select
+                        aria-label={t('Year')}
+                        className="form-select text-xs py-1 px-2 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[80px]"
+                        value={curY}
+                        onChange={(e) => {
+                          const newY = e.target.value;
+                          setLedgerYear(newY);
+                          setLedgerMonth(`${newY}-${curM}`);
+                          setLedgerPage(1);
+                        }}
+                      >
+                        {AVAILABLE_YEARS.map((yr) => (
+                          <option key={yr} value={String(yr)}>
+                            {yr}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        title={t('Next Month')}
+                        aria-label={t('Next Month')}
+                        onClick={() => {
+                          const y = Number(curY);
+                          const m = Number(curM);
+                          const d = new Date(y, m, 1);
+                          const newM = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                          setLedgerMonth(newM);
+                          setLedgerYear(String(d.getFullYear()));
+                          setLedgerPage(1);
+                        }}
+                        className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const d = new Date();
+                          setLedgerMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                          setLedgerYear(String(d.getFullYear()));
+                          setLedgerPage(1);
+                        }}
+                        className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition whitespace-nowrap"
+                      >
+                        {t('Current Month')}
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {/* Yearly mode controls */}
                 {ledgerTimeframe === 'yearly' && (
                   <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
                     <button
                       type="button"
-                      title="আগের বছর"
+                      title={t('Previous Year')}
+                      aria-label={t('Previous Year')}
                       onClick={() => {
                         const yr = Number(ledgerYear || new Date().getFullYear()) - 1;
                         setLedgerYear(String(yr));
@@ -1576,15 +1675,16 @@ export const PaymentsPage: React.FC = () => {
                       <ChevronLeft size={16} />
                     </button>
                     <select
+                      aria-label={t('Year')}
                       className="form-select text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[90px]"
-                      value={ledgerYear}
+                      value={ledgerYear || String(new Date().getFullYear())}
                       onChange={(e) => {
                         setLedgerYear(e.target.value);
                         setLedgerMonth('');
                         setLedgerPage(1);
                       }}
                     >
-                      {[2024, 2025, 2026, 2027, 2028].map((yr) => (
+                      {AVAILABLE_YEARS.map((yr) => (
                         <option key={yr} value={String(yr)}>
                           {yr}
                         </option>
@@ -1592,7 +1692,8 @@ export const PaymentsPage: React.FC = () => {
                     </select>
                     <button
                       type="button"
-                      title="পরের বছর"
+                      title={t('Next Year')}
+                      aria-label={t('Next Year')}
                       onClick={() => {
                         const yr = Number(ledgerYear || new Date().getFullYear()) + 1;
                         setLedgerYear(String(yr));
@@ -1610,9 +1711,9 @@ export const PaymentsPage: React.FC = () => {
                         setLedgerMonth('');
                         setLedgerPage(1);
                       }}
-                      className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition"
+                      className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition whitespace-nowrap"
                     >
-                      চলতি বছর
+                      {t('Current Year')}
                     </button>
                   </div>
                 )}
@@ -1632,7 +1733,7 @@ export const PaymentsPage: React.FC = () => {
                       setLedgerPage(1);
                     }}
                   >
-                    <X size={13} /> ফিল্টার সাফ
+                    <X size={13} /> {t('Reset Filters')}
                   </button>
                 )}
               </div>
@@ -1642,7 +1743,7 @@ export const PaymentsPage: React.FC = () => {
           {/* MEMBER FINANCIAL POSITION SUMMARY CARD (LOCATED DIRECTLY BEFORE PAYMENT HISTORY LIST) */}
           {loadingMemberSummary ? (
             <div className="glass-card p-6 animate-pulse text-center text-sm text-gray-400">
-              সদস্যের আর্থিক বিবরণী ও মোট হিসাব লোড হচ্ছে...
+              {t('Loading member financial summary...')}
             </div>
           ) : selectedMemberSummary ? (
             <div className="rounded-2xl border border-blue-500/30 bg-gradient-to-br from-slate-900/95 via-blue-950/20 to-slate-900/95 p-5 shadow-xl space-y-4">
@@ -1657,7 +1758,7 @@ export const PaymentsPage: React.FC = () => {
                       <span className="badge badge-active text-xs">{selectedMemberSummary.member.status || 'ACTIVE'}</span>
                     </div>
                     <p className="text-xs text-gray-400">
-                      আইডি: <span className="font-mono text-blue-300 font-semibold">{selectedMemberSummary.member.memberId}</span> · মোবাইল: {selectedMemberSummary.member.phone || 'N/A'} · শেয়ার: <span className="font-semibold text-white">{selectedMemberSummary.member.currentShares || 1}টি</span>
+                      {t('ID:')} <span className="font-mono text-blue-300 font-semibold">{selectedMemberSummary.member.memberId}</span> · {t('Phone:')} {selectedMemberSummary.member.phone || 'N/A'} · {t('Shares:')} <span className="font-semibold text-white">{selectedMemberSummary.member.currentShares || 1} {language === 'bn' ? 'টি' : 'share(s)'}</span>
                     </p>
                   </div>
                 </div>
@@ -1680,7 +1781,7 @@ export const PaymentsPage: React.FC = () => {
                     className="btn btn-primary btn-sm flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md shadow-blue-500/20"
                   >
                     <ImageIcon size={15} />
-                    রিপোর্ট ছবি ডাউনলোড (Download Image)
+                    {t('Download Report Image')}
                   </button>
                   <button
                     type="button"
@@ -1689,9 +1790,9 @@ export const PaymentsPage: React.FC = () => {
                       setSelectedMemberSummary(null);
                     }}
                     className="btn btn-secondary btn-sm"
-                    title="সকল সদস্যের তালিকায় ফিরুন"
+                    title={t('Back to All Members')}
                   >
-                    <X size={15} /> ফিল্টার মুছুন
+                    <X size={15} /> {t('Clear Filter')}
                   </button>
                 </div>
               </div>
@@ -1701,53 +1802,53 @@ export const PaymentsPage: React.FC = () => {
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
-                      মোট পরিশোধিত (Total Paid)
+                      {t('Total Paid')}
                     </span>
                     <CheckCircle2 size={16} className="text-emerald-400" />
                   </div>
                   <p className="text-2xl font-black text-white mt-2">
                     ৳ {(selectedMemberSummary.summary.totalPayments || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-[11px] text-emerald-300/80 mt-1">সর্বমোট জমাকৃত চাঁদা ও পেমেন্ট</p>
+                  <p className="text-[11px] text-emerald-300/80 mt-1">{t('Total payments and contributions collected')}</p>
                 </div>
 
                 <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-rose-400 uppercase tracking-wider">
-                      মোট বকেয়া (Total Dues)
+                      {t('Total Dues')}
                     </span>
                     <AlertCircle size={16} className="text-rose-400" />
                   </div>
                   <p className="text-2xl font-black text-white mt-2">
                     ৳ {(selectedMemberSummary.summary.totalDues || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-[11px] text-rose-300/80 mt-1">মূল চাঁদা বকেয়া + জরিমানা</p>
+                  <p className="text-[11px] text-rose-300/80 mt-1">{t('Principal dues + penalty')}</p>
                 </div>
 
                 <div className="rounded-xl border border-blue-500/30 bg-blue-950/20 p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
-                      পরিশোধিত জরিমানা (Penalty Paid)
+                      {t('Penalty Paid')}
                     </span>
                     <Clock size={16} className="text-blue-400" />
                   </div>
                   <p className="text-2xl font-black text-white mt-2">
                     ৳ {(selectedMemberSummary.summary.totalPenaltyPaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-[11px] text-blue-300/80 mt-1">দেরির কারণে ইতিমধ্যে প্রদত্ত জরিমানা</p>
+                  <p className="text-[11px] text-blue-300/80 mt-1">{t('Late penalty fines already paid')}</p>
                 </div>
 
                 <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
-                      বকেয়া জরিমানা (Penalty Due)
+                      {t('Penalty Due')}
                     </span>
                     <AlertCircle size={16} className="text-amber-400" />
                   </div>
                   <p className="text-2xl font-black text-white mt-2">
                     ৳ {(selectedMemberSummary.summary.totalPenaltyDue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-[11px] text-amber-300/80 mt-1">অনাদায়ী বিলম্ব জরিমানার পরিমাণ</p>
+                  <p className="text-[11px] text-amber-300/80 mt-1">{t('Outstanding late penalty fines')}</p>
                 </div>
               </div>
             </div>
@@ -1755,7 +1856,7 @@ export const PaymentsPage: React.FC = () => {
             <div className="px-4 py-2.5 rounded-xl border border-blue-500/20 bg-blue-500/5 flex items-center justify-between text-xs text-blue-200">
               <span className="flex items-center gap-2">
                 <Users size={15} className="text-blue-400" />
-                নির্দিষ্ট সদস্যের মোট পরিশোধিত, বকেয়া ও জরিমানার হিসাব এবং রিপোর্ট ছবি ডাউনলোড দেখতে উপরের ড্রপডাউন থেকে সদস্য নির্বাচন করুন অথবা নিচের তালিকা থেকে সদস্যের নামে ক্লিক করুন।
+                {t('Select a member from the dropdown above or click on a member name below to view their total payments, dues, penalties, and download the report image.')}
               </span>
             </div>
           )}
@@ -1771,14 +1872,14 @@ export const PaymentsPage: React.FC = () => {
             <table className="data-table min-w-[1060px]">
               <thead>
                 <tr>
-                  <th>Receipt #</th>
-                  <th>Payment Date</th>
-                  <th>Member</th>
-                  <th>Receiver & Custody</th>
-                  <th>Method</th>
-                  <th>Total Received</th>
-                  <th>Breakdown</th>
-                  <th className="text-right">Action</th>
+                  <th>{t('Receipt #')}</th>
+                  <th>{t('Payment Date')}</th>
+                  <th>{t('Member')}</th>
+                  <th>{t('Receiver & Custody')}</th>
+                  <th>{t('Method')}</th>
+                  <th>{t('Total Received')}</th>
+                  <th>{t('Breakdown')}</th>
+                  <th className="text-right">{t('Action')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1786,14 +1887,14 @@ export const PaymentsPage: React.FC = () => {
                   <tr>
                     <td colSpan={8} className="text-center py-12 text-gray-400">
                       <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
-                      <span>Loading payments registry...</span>
+                      <span>{t('Loading payments registry...')}</span>
                     </td>
                   </tr>
                 ) : payments.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="text-center py-12 text-gray-400">
                       <Receipt size={32} className="opacity-30 mx-auto mb-3" />
-                      <p>No payment records found.</p>
+                      <p>{t('No payment records found.')}</p>
                     </td>
                   </tr>
                 ) : (
@@ -1820,7 +1921,7 @@ export const PaymentsPage: React.FC = () => {
                             }
                           }}
                           className="text-left group cursor-pointer"
-                          title="এই সদস্যের মোট চাঁদা ও বকেয়া বিবরণী দেখুন"
+                          title={t('View financial summary for this member')}
                         >
                           <p className="font-semibold text-white text-sm group-hover:text-blue-400 transition underline-offset-2 group-hover:underline">
                             {p.memberId?.name || 'Unknown'}
@@ -1905,7 +2006,7 @@ export const PaymentsPage: React.FC = () => {
           {ledgerTotalPages > 1 && (
             <div className="flex items-center justify-between p-3 glass-card">
               <span className="text-xs text-gray-400">
-                Page {ledgerPage} of {ledgerTotalPages}
+                {language === 'bn' ? `পৃষ্ঠা ${ledgerPage} এর ${ledgerTotalPages}` : `Page ${ledgerPage} of ${ledgerTotalPages}`}
               </span>
               <div className="flex gap-2">
                 <button
@@ -1914,14 +2015,14 @@ export const PaymentsPage: React.FC = () => {
                   className="btn btn-secondary btn-sm"
                 >
                   <ChevronLeft size={14} />
-                  <span>Previous</span>
+                  <span>{language === 'bn' ? 'পূর্ববর্তী' : 'Previous'}</span>
                 </button>
                 <button
                   disabled={ledgerPage >= ledgerTotalPages}
                   onClick={() => setLedgerPage((p) => p + 1)}
                   className="btn btn-secondary btn-sm"
                 >
-                  <span>Next</span>
+                  <span>{language === 'bn' ? 'পরবর্তী' : 'Next'}</span>
                   <ChevronRight size={14} />
                 </button>
               </div>
