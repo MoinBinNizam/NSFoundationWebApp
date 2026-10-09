@@ -8,7 +8,7 @@ import { CustodyMovement } from '../models/CustodyMovement.js';
 import { InvestmentProject } from '../models/InvestmentProject.js';
 import { CustodyService } from './custody.service.js';
 import { InvestmentService } from './investment.service.js';
-import { IUser, UserRole, AccountantType } from '../types/models.js';
+import { IUser, UserRole, AccountantType, PaymentStatus } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 
 export type ReportType = 'collection' | 'custody' | 'investments' | 'expenses' | 'dues';
@@ -23,9 +23,16 @@ const dates = (query: Record<string, unknown>, field: string) => {
   if (query.endDate) { const end = new Date(String(query.endDate)); end.setHours(23, 59, 59, 999); date.$lte = end; }
   return Object.keys(date).length ? { [field]: date } : {};
 };
-const currentMonth = () => new Date().toISOString().slice(0, 7);
-const monthRange = (query: Record<string, unknown>) => {
-  const end = query.endDate ? new Date(String(query.endDate)) : new Date();
+const currentMonth = () => '2025-04';
+const getLatestSystemMonth = async () => {
+  const latestPayment = await Payment.findOne({ status: { $ne: PaymentStatus.CANCELLED } }).sort({ paymentDate: -1 }).select('paymentDate').lean();
+  return latestPayment ? new Date(latestPayment.paymentDate).toISOString().slice(0, 7) : '2025-04';
+};
+const monthRange = (query: Record<string, unknown>, latestMonth: string) => {
+  const end = query.endDate ? new Date(String(query.endDate)) : (() => {
+    const [y, m] = latestMonth.split('-').map(Number);
+    return new Date(y, m - 1, 1);
+  })();
   // Historical dashboard reporting starts when the society's recorded
   // financial history starts. A caller may still narrow the period explicitly.
   const start = query.startDate ? new Date(String(query.startDate)) : new Date(2024, 0, 1);
@@ -59,12 +66,13 @@ const paginate = <T>(rows: T[], query: Record<string, unknown>) => {
 
 export class ReportingService {
   static async getDashboard(query: Record<string, unknown>, user: IUser) {
+    const latestSysMonth = await getLatestSystemMonth();
     const scoped = !isAdmin(user); const userId = objectId(user); const paymentFilter: Record<string, unknown> = { ...dates(query, 'paymentDate') }; const expenseFilter: Record<string, unknown> = { ...dates(query, 'date') };
     if (scoped) { paymentFilter.receiverId = userId; expenseFilter.createdBy = userId; }
     const activityFilter = scoped ? { performedBy: userId } : {};
-    const trendMonths = monthRange(query);
-    const trendBounds = monthBounds(trendMonths[0] || currentMonth());
-    const trendEnd = monthBounds(trendMonths[trendMonths.length - 1] || currentMonth()).end;
+    const trendMonths = monthRange(query, latestSysMonth);
+    const trendBounds = monthBounds(trendMonths[0] || '2024-01');
+    const trendEnd = monthBounds(trendMonths[trendMonths.length - 1] || latestSysMonth).end;
     const trendPaymentFilter = { ...(scoped ? { receiverId: userId } : {}), paymentDate: { $gte: query.startDate ? new Date(String(query.startDate)) : trendBounds.start, $lte: query.endDate ? (() => { const end = new Date(String(query.endDate)); end.setHours(23, 59, 59, 999); return end; })() : trendEnd } };
     const trendExpenseFilter = { ...(scoped ? { createdBy: userId } : {}), date: { $gte: query.startDate ? new Date(String(query.startDate)) : trendBounds.start, $lte: query.endDate ? (() => { const end = new Date(String(query.endDate)); end.setHours(23, 59, 59, 999); return end; })() : trendEnd } };
     const selectedEnd = query.endDate ? (() => { const end = new Date(String(query.endDate)); end.setHours(23, 59, 59, 999); return end; })() : null;

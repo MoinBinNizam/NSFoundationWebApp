@@ -59,12 +59,31 @@ export class PaymentService {
    * separate cache, so a posted or voided receipt is reflected immediately.
    */
   static async getOutstandingDues(query: { year?: string; month?: string; search?: string }) {
+    const latestPayment = await Payment.findOne({ status: { $ne: PaymentStatus.CANCELLED } })
+      .sort({ paymentDate: -1 })
+      .select('paymentDate')
+      .lean();
+    const latestSystemMonth = latestPayment ? toYearMonth(new Date(latestPayment.paymentDate)) : '2025-04';
+    const systemYear = latestSystemMonth.slice(0, 4);
+
     const year = /^\d{4}$/.test(query.year || '') ? String(query.year) : undefined;
     const monthNumber = Number(query.month);
     const month = monthNumber >= 1 && monthNumber <= 12 ? String(monthNumber).padStart(2, '0') : undefined;
     const ledgerFilter: Record<string, unknown> = {};
-    if (year && month) ledgerFilter.month = `${year}-${month}`;
-    else if (year) ledgerFilter.month = { $gte: `${year}-01`, $lte: `${year}-12` };
+    if (year && month) {
+      const targetMonth = `${year}-${month}`;
+      if (targetMonth > latestSystemMonth) ledgerFilter.month = '__NONE__';
+      else ledgerFilter.month = targetMonth;
+    } else if (year) {
+      if (year > systemYear) {
+        ledgerFilter.month = '__NONE__';
+      } else {
+        const endMonth = year === systemYear ? latestSystemMonth : `${year}-12`;
+        ledgerFilter.month = { $gte: `${year}-01`, $lte: endMonth };
+      }
+    } else {
+      ledgerFilter.month = { $gte: '2024-01', $lte: latestSystemMonth };
+    }
 
     const allLedgers = await MonthlyLedger.find(ledgerFilter)
       .populate('memberId', 'memberId name phone cashoutDue')
@@ -783,6 +802,49 @@ export class PaymentService {
       matchQuery.paymentDate = { $gte: startDate, $lte: endDate };
     }
 
+    // Determine the latest input month from payments in the system
+    const latestPayment = await Payment.findOne({ status: { $ne: PaymentStatus.CANCELLED } })
+      .sort({ paymentDate: -1 })
+      .select('paymentDate')
+      .lean();
+    const latestSystemMonth = latestPayment ? toYearMonth(new Date(latestPayment.paymentDate)) : '2025-04';
+
+    const ledgerMatchQuery: Record<string, unknown> = {};
+    let includeCashout = false;
+
+    if (timeframe === 'monthly') {
+      const targetMonth = filters.date || latestSystemMonth;
+      if (targetMonth > latestSystemMonth) {
+        ledgerMatchQuery.month = '__NONE__';
+      } else {
+        ledgerMatchQuery.month = targetMonth;
+        includeCashout = targetMonth === latestSystemMonth;
+      }
+    } else if (timeframe === 'yearly') {
+      const targetYear = filters.date || latestSystemMonth.slice(0, 4);
+      const systemYear = latestSystemMonth.slice(0, 4);
+      if (targetYear > systemYear) {
+        ledgerMatchQuery.month = '__NONE__';
+      } else {
+        const startMonth = `${targetYear}-01`;
+        const endMonth = targetYear === systemYear ? latestSystemMonth : `${targetYear}-12`;
+        ledgerMatchQuery.month = { $gte: startMonth, $lte: endMonth };
+        includeCashout = targetYear === systemYear;
+      }
+    } else if (timeframe === 'daily') {
+      const targetMonth = filters.date ? filters.date.slice(0, 7) : latestSystemMonth;
+      if (targetMonth > latestSystemMonth) {
+        ledgerMatchQuery.month = '__NONE__';
+      } else {
+        ledgerMatchQuery.month = targetMonth;
+        includeCashout = targetMonth === latestSystemMonth;
+      }
+    } else {
+      // 'all' time: from January 2024 to the latest input month in the system (never calculates into 2026!)
+      ledgerMatchQuery.month = { $gte: '2024-01', $lte: latestSystemMonth };
+      includeCashout = true;
+    }
+
     // 1. Live receipt aggregations. These are queried after every posted
     // payment; no analytics value is cached in the application process.
     const [overall, byMethod, byAccountant, dueLedgers, cashoutDues] = await Promise.all([
@@ -858,13 +920,15 @@ export class PaymentService {
       },
       ]),
 
-      // Outstanding ledger parts are kept separate so accountants can see
-      // exactly whether principal, penalty, or gateway charges need action.
-      MonthlyLedger.find({}).select('principalDue penaltyDue principalPaid penaltyPaid penaltyWaived').lean(),
-      Member.aggregate([
-        { $match: { cashoutDue: { $gt: 0 } } },
-        { $group: { _id: null, total: { $sum: '$cashoutDue' }, count: { $sum: 1 } } },
-      ]),
+      // Outstanding ledger parts are dynamically scoped to the selected timeframe
+      // and capped at the latest input month so future un-entered months are never calculated.
+      MonthlyLedger.find(ledgerMatchQuery).select('principalDue penaltyDue principalPaid penaltyPaid penaltyWaived').lean(),
+      includeCashout
+        ? Member.aggregate([
+            { $match: { cashoutDue: { $gt: 0 } } },
+            { $group: { _id: null, total: { $sum: '$cashoutDue' }, count: { $sum: 1 } } },
+          ])
+        : Promise.resolve([]),
     ]);
 
     const dueSummary = dueLedgers.reduce(

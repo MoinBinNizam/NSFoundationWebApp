@@ -374,7 +374,7 @@ export const DashboardPage: React.FC = () => {
         ) : (
           <div className="flex flex-col gap-8 sm:gap-10">
             {/* 1. Primary Metric KPI Cards (Contributions & Payments Cards Design) */}
-            <div className="order-1 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-5">
+            <div className="order-1 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-6">
               {/* Card 1: Total Collections */}
               <button type="button" onClick={() => openReport('collection')} className="glass-card w-full p-5 text-left border-l-4 border-l-emerald-500 hover:border-emerald-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400/70">
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
@@ -489,6 +489,23 @@ export const DashboardPage: React.FC = () => {
                   <span className="text-amber-400 font-semibold">{dashboard?.metrics.dues.cashoutMemberCount || 0} {t('cash-out cases')}</span>
                 </div>
                 <MetricDelta metric={dashboard?.comparisons.dues} label="vs prior month" inverse />
+              </button>
+
+              {/* Card 6: Total Penalties Collected */}
+              <button type="button" onClick={() => navigate('/payments')} className="glass-card w-full p-5 text-left border-l-4 border-l-orange-500 hover:border-orange-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-orange-400/70" aria-label={t('Total Penalties Collected')}>
+                <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
+                  <span>{t('Total Penalties Collected')}</span>
+                  <div className="p-2 rounded-xl bg-orange-500/10 text-orange-400 border border-orange-500/20">
+                    <Clock size={18} />
+                  </div>
+                </div>
+                <p className="text-2xl sm:text-3xl font-extrabold text-white mt-3 tracking-tight">
+                  {money(dashboard?.metrics.collection.penalty)}
+                </p>
+                <div className="flex items-center justify-between text-[11px] text-gray-400 mt-3 pt-2.5 border-t border-white/5">
+                  <span>{dashboard?.metrics.collection.count || 0} {t('total receipts')}</span>
+                  <span className="text-orange-400 font-semibold">{t('Late fee fines')}</span>
+                </div>
               </button>
             </div>
 
