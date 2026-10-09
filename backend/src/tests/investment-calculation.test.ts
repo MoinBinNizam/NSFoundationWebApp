@@ -1,9 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  calculateSegmentedProfitFromData,
-  toDhakaDateString,
-  getDaysBetween,
-} from '../services/investment-calculation.service.js';
+import { calculateSegmentedProfitFromData } from '../services/investment-calculation.service.js';
 import { ProjectStatus } from '../types/models.js';
 
 describe('Investment Calculation Service — Business Rules & Scenarios', () => {

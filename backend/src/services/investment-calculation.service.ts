@@ -36,10 +36,12 @@ export interface SegmentedProfitCalculation {
  * Format a Date object to YYYY-MM-DD in Asia/Dhaka (+06:00) timezone
  */
 export function toDhakaDateString(d: Date | string): string {
+  if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.trim())) {
+    return d.trim();
+  }
   const dateObj = typeof d === 'string' ? new Date(d) : d;
-  // Shift to Dhaka UTC+6
-  const utc = dateObj.getTime() + dateObj.getTimezoneOffset() * 60000;
-  const dhakaTime = new Date(utc + 6 * 3600000);
+  // Shift to Dhaka UTC+6 (Dhaka is fixed UTC+6 with no daylight saving)
+  const dhakaTime = new Date(dateObj.getTime() + 6 * 3600000);
   const y = dhakaTime.getUTCFullYear();
   const m = String(dhakaTime.getUTCMonth() + 1).padStart(2, '0');
   const day = String(dhakaTime.getUTCDate()).padStart(2, '0');
