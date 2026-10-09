@@ -1056,7 +1056,7 @@ export const PaymentsPage: React.FC = () => {
                   : String(new Date().getMonth() + 1).padStart(2, '0');
 
                 return (
-                  <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10 flex-wrap">
+                  <div className="inline-flex items-center gap-1 bg-slate-900/80 px-1.5 py-1 rounded-xl border border-white/10 shrink-0">
                     <button
                       type="button"
                       title={t('Previous Month')}
@@ -1069,34 +1069,35 @@ export const PaymentsPage: React.FC = () => {
                       }}
                       className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
                     >
-                      <ChevronLeft size={16} />
+                      <ChevronLeft size={15} />
                     </button>
-                    {/* Month Select Dropdown */}
-                    <select
-                      aria-label={t('Month')}
-                      className="form-select text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[110px]"
-                      value={curMonth}
-                      onChange={(e) => setFilterDate(`${curYear}-${e.target.value}`)}
-                    >
-                      {MONTH_OPTIONS.map((m) => (
-                        <option key={m.value} value={m.value}>
-                          {language === 'bn' ? m.bn : m.en}
-                        </option>
-                      ))}
-                    </select>
-                    {/* Year Select Dropdown */}
-                    <select
-                      aria-label={t('Year')}
-                      className="form-select text-xs py-1 px-2 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[80px]"
-                      value={curYear}
-                      onChange={(e) => setFilterDate(`${e.target.value}-${curMonth}`)}
-                    >
-                      {AVAILABLE_YEARS.map((yr) => (
-                        <option key={yr} value={String(yr)}>
-                          {yr}
-                        </option>
-                      ))}
-                    </select>
+                    {/* Compact Unified Month & Year Select Group */}
+                    <div className="flex items-center rounded-lg border border-white/15 bg-slate-950 px-1 py-0.5">
+                      <select
+                        aria-label={t('Month')}
+                        className="bg-transparent text-xs text-white font-medium py-0.5 px-1 cursor-pointer focus:outline-none border-r border-white/10"
+                        value={curMonth}
+                        onChange={(e) => setFilterDate(`${curYear}-${e.target.value}`)}
+                      >
+                        {MONTH_OPTIONS.map((m) => (
+                          <option key={m.value} value={m.value} className="bg-slate-900 text-white">
+                            {language === 'bn' ? m.bn : m.en}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        aria-label={t('Year')}
+                        className="bg-transparent text-xs text-white font-medium py-0.5 px-1 cursor-pointer focus:outline-none"
+                        value={curYear}
+                        onChange={(e) => setFilterDate(`${e.target.value}-${curMonth}`)}
+                      >
+                        {AVAILABLE_YEARS.map((yr) => (
+                          <option key={yr} value={String(yr)} className="bg-slate-900 text-white">
+                            {yr}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <button
                       type="button"
                       title={t('Next Month')}
@@ -1109,7 +1110,7 @@ export const PaymentsPage: React.FC = () => {
                       }}
                       className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
                     >
-                      <ChevronRight size={16} />
+                      <ChevronRight size={15} />
                     </button>
                     <button
                       type="button"
@@ -1127,7 +1128,7 @@ export const PaymentsPage: React.FC = () => {
 
               {/* Yearly Controls */}
               {timeframe === 'yearly' && (
-                <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
+                <div className="inline-flex items-center gap-1 bg-slate-900/80 px-1.5 py-1 rounded-xl border border-white/10 shrink-0">
                   <button
                     type="button"
                     title={t('Previous Year')}
@@ -1138,16 +1139,16 @@ export const PaymentsPage: React.FC = () => {
                     }}
                     className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
                   >
-                    <ChevronLeft size={16} />
+                    <ChevronLeft size={15} />
                   </button>
                   <select
                     aria-label={t('Year')}
-                    className="form-select text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[90px]"
+                    className="bg-slate-950 text-xs text-white font-medium py-0.5 px-2 border border-white/15 rounded-lg focus:outline-none cursor-pointer"
                     value={filterDate || String(new Date().getFullYear())}
                     onChange={(e) => setFilterDate(e.target.value)}
                   >
                     {AVAILABLE_YEARS.map((yr) => (
-                      <option key={yr} value={String(yr)}>
+                      <option key={yr} value={String(yr)} className="bg-slate-900 text-white">
                         {yr}
                       </option>
                     ))}
@@ -1570,7 +1571,7 @@ export const PaymentsPage: React.FC = () => {
                   const curM = ledgerMonth && ledgerMonth.length >= 7 ? ledgerMonth.slice(5, 7) : String(new Date().getMonth() + 1).padStart(2, '0');
 
                   return (
-                    <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10 flex-wrap">
+                    <div className="inline-flex items-center gap-1 bg-slate-900/80 px-1.5 py-1 rounded-xl border border-white/10 shrink-0">
                       <button
                         type="button"
                         title={t('Previous Month')}
@@ -1586,44 +1587,45 @@ export const PaymentsPage: React.FC = () => {
                         }}
                         className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
                       >
-                        <ChevronLeft size={16} />
+                        <ChevronLeft size={15} />
                       </button>
-                      {/* Month Select Dropdown */}
-                      <select
-                        aria-label={t('Month')}
-                        className="form-select text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[110px]"
-                        value={curM}
-                        onChange={(e) => {
-                          const newM = `${curY}-${e.target.value}`;
-                          setLedgerMonth(newM);
-                          setLedgerYear(curY);
-                          setLedgerPage(1);
-                        }}
-                      >
-                        {MONTH_OPTIONS.map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {language === 'bn' ? m.bn : m.en}
-                          </option>
-                        ))}
-                      </select>
-                      {/* Year Select Dropdown */}
-                      <select
-                        aria-label={t('Year')}
-                        className="form-select text-xs py-1 px-2 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[80px]"
-                        value={curY}
-                        onChange={(e) => {
-                          const newY = e.target.value;
-                          setLedgerYear(newY);
-                          setLedgerMonth(`${newY}-${curM}`);
-                          setLedgerPage(1);
-                        }}
-                      >
-                        {AVAILABLE_YEARS.map((yr) => (
-                          <option key={yr} value={String(yr)}>
-                            {yr}
-                          </option>
-                        ))}
-                      </select>
+                      {/* Compact Unified Month & Year Select Group */}
+                      <div className="flex items-center rounded-lg border border-white/15 bg-slate-950 px-1 py-0.5">
+                        <select
+                          aria-label={t('Month')}
+                          className="bg-transparent text-xs text-white font-medium py-0.5 px-1 cursor-pointer focus:outline-none border-r border-white/10"
+                          value={curM}
+                          onChange={(e) => {
+                            const newM = `${curY}-${e.target.value}`;
+                            setLedgerMonth(newM);
+                            setLedgerYear(curY);
+                            setLedgerPage(1);
+                          }}
+                        >
+                          {MONTH_OPTIONS.map((m) => (
+                            <option key={m.value} value={m.value} className="bg-slate-900 text-white">
+                              {language === 'bn' ? m.bn : m.en}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          aria-label={t('Year')}
+                          className="bg-transparent text-xs text-white font-medium py-0.5 px-1 cursor-pointer focus:outline-none"
+                          value={curY}
+                          onChange={(e) => {
+                            const newY = e.target.value;
+                            setLedgerYear(newY);
+                            setLedgerMonth(`${newY}-${curM}`);
+                            setLedgerPage(1);
+                          }}
+                        >
+                          {AVAILABLE_YEARS.map((yr) => (
+                            <option key={yr} value={String(yr)} className="bg-slate-900 text-white">
+                              {yr}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                       <button
                         type="button"
                         title={t('Next Month')}
@@ -1639,7 +1641,7 @@ export const PaymentsPage: React.FC = () => {
                         }}
                         className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
                       >
-                        <ChevronRight size={16} />
+                        <ChevronRight size={15} />
                       </button>
                       <button
                         type="button"
@@ -1659,7 +1661,7 @@ export const PaymentsPage: React.FC = () => {
 
                 {/* Yearly mode controls */}
                 {ledgerTimeframe === 'yearly' && (
-                  <div className="flex items-center gap-1.5 bg-slate-900/80 px-2 py-1 rounded-xl border border-white/10">
+                  <div className="inline-flex items-center gap-1 bg-slate-900/80 px-1.5 py-1 rounded-xl border border-white/10 shrink-0">
                     <button
                       type="button"
                       title={t('Previous Year')}
@@ -1672,11 +1674,11 @@ export const PaymentsPage: React.FC = () => {
                       }}
                       className="p-1 text-gray-400 hover:text-white hover:bg-white/10 rounded-md transition"
                     >
-                      <ChevronLeft size={16} />
+                      <ChevronLeft size={15} />
                     </button>
                     <select
                       aria-label={t('Year')}
-                      className="form-select text-xs py-1 px-2.5 bg-slate-950 border-gray-700 rounded-lg text-white font-medium min-w-[90px]"
+                      className="bg-slate-950 text-xs text-white font-medium py-0.5 px-2 border border-white/15 rounded-lg focus:outline-none cursor-pointer"
                       value={ledgerYear || String(new Date().getFullYear())}
                       onChange={(e) => {
                         setLedgerYear(e.target.value);
@@ -1685,7 +1687,7 @@ export const PaymentsPage: React.FC = () => {
                       }}
                     >
                       {AVAILABLE_YEARS.map((yr) => (
-                        <option key={yr} value={String(yr)}>
+                        <option key={yr} value={String(yr)} className="bg-slate-900 text-white">
                           {yr}
                         </option>
                       ))}
