@@ -374,7 +374,7 @@ export const DashboardPage: React.FC = () => {
         ) : (
           <div className="flex flex-col gap-8 sm:gap-10">
             {/* 1. Primary Metric KPI Cards (Contributions & Payments Cards Design) */}
-            <div className="order-1 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-6">
+            <div className="order-1 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-3">
               {/* Card 1: Total Collections */}
               <button type="button" onClick={() => openReport('collection')} className="glass-card w-full p-5 text-left border-l-4 border-l-emerald-500 hover:border-emerald-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400/70">
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
