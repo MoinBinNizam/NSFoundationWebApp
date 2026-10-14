@@ -6,6 +6,9 @@ import { Member } from '../models/Member.js';
 import { IUser } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 
+import { ShareHistory } from '../models/ShareHistory.js';
+import { getMonthlyShareValue } from '../services/settings.service.js';
+
 interface AuthenticatedRequest extends Request {
   user?: IUser;
 }
@@ -18,11 +21,32 @@ export class PaymentController {
   static async getCollectionMembers(_req: Request, res: Response, next: NextFunction) {
     try {
       const members = await Member.find({ status: 'ACTIVE' })
-        .select('name memberId phone')
+        .select('name memberId phone status')
         .sort({ memberId: 1 })
         .limit(500)
         .lean();
-      res.status(200).json({ success: true, data: members });
+
+      const latestShareRecords = await ShareHistory.aggregate([
+        { $sort: { effectiveMonth: -1, createdAt: -1 } },
+        { $group: { _id: '$memberId', latestShares: { $first: '$shareCount' } } },
+      ]);
+      const memberShareMap = new Map<string, number>();
+      for (const sr of latestShareRecords) {
+        memberShareMap.set(String(sr._id), sr.latestShares);
+      }
+
+      const shareAmount = await getMonthlyShareValue();
+
+      const data = members.map((m) => {
+        const shareCount = memberShareMap.get(String(m._id)) ?? 1;
+        return {
+          ...m,
+          shareCount,
+          monthlyObligation: shareCount * shareAmount,
+        };
+      });
+
+      res.status(200).json({ success: true, data });
     } catch (error) {
       next(error);
     }

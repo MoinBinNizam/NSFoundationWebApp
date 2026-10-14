@@ -18,7 +18,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [language, setLanguage] = useState<Language>(() => {
     const saved = localStorage.getItem('language') as Language | null;
     if (saved === 'en' || saved === 'bn') return saved;
-    return typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('bn') ? 'bn' : 'en';
+    return 'bn';
   });
   useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark'); document.documentElement.lang = language === 'bn' ? 'bn' : 'en'; localStorage.setItem('theme', theme); }, [theme, language]);
   useEffect(() => { localStorage.setItem('language', language); }, [language]);

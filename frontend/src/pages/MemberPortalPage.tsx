@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
 import { downloadMemberReportImage } from '../utils/report-image';
 
@@ -85,6 +86,7 @@ const money = (value: number) => `৳ ${Number(value || 0).toLocaleString('en-IN
 
 export const MemberPortalPage: React.FC = () => {
   const { user } = useAuth();
+  const { t } = usePreferences();
   const { logo } = useLogo();
   const [data, setData] = useState<Portal | null>(null);
   const [transparency, setTransparency] = useState<Transparency | null>(null);
@@ -168,26 +170,26 @@ export const MemberPortalPage: React.FC = () => {
   return (
     <div className="space-y-6 max-w-5xl">
       <header>
-        <p className="text-xs font-bold uppercase tracking-wider text-blue-400">Member self-service</p>
-        <h1 className="text-3xl font-extrabold text-white mt-1">Welcome, {data.member.name}</h1>
+        <p className="text-xs font-bold uppercase tracking-wider text-blue-400">{t('Member self-service')}</p>
+        <h1 className="text-3xl font-extrabold text-white mt-1">{t('Welcome,')} {data.member.name}</h1>
         <p className="text-sm text-gray-400 mt-1">
-          {data.member.memberId} · Your shares, contributions, and account status.
+          {data.member.memberId} · {t('Your shares, contributions, and account status.')}
         </p>
       </header>
 
       {/* Top Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card icon={<Users />} label="Current shares" value={String(data.currentShares)} />
-        <Card icon={<WalletCards />} label="Outstanding due" value={money(summaryTotalDues)} />
-        <Card icon={<WalletCards />} label="Advance credit" value={money(data.advance)} />
+        <Card icon={<Users />} label={t('Current shares')} value={String(data.currentShares)} />
+        <Card icon={<WalletCards />} label={t('Outstanding due')} value={money(summaryTotalDues)} />
+        <Card icon={<WalletCards />} label={t('Advance credit')} value={money(data.advance)} />
       </div>
 
       {/* Official Annual Statement Section */}
       <section className="glass-card p-5">
         <div className="flex justify-between items-center gap-3">
           <div>
-            <h2 className="font-bold text-white">Official annual statement</h2>
-            <p className="text-sm text-gray-400 mt-1">Download your personal statement only.</p>
+            <h2 className="font-bold text-white">{t('Official annual statement')}</h2>
+            <p className="text-sm text-gray-400 mt-1">{t('Download your personal statement only.')}</p>
           </div>
           <button
             className="btn btn-primary"
@@ -204,7 +206,7 @@ export const MemberPortalPage: React.FC = () => {
         <div className="flex gap-2 items-center">
           <BarChart3 size={19} className="text-emerald-300" />
           <div>
-            <h2 className="font-bold text-white">NS Foundation today</h2>
+            <h2 className="font-bold text-white">{t('NS Foundation today')}</h2>
             <p className="text-sm text-gray-400 mt-1">
               Organization-level information approved by the Super Admin. It does not include other Members’ personal records.
             </p>
@@ -212,15 +214,15 @@ export const MemberPortalPage: React.FC = () => {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5">
           {disclosure.showCollections && (
-            <Card icon={<WalletCards />} label="Organization collections" value={money(transparency.collections || 0)} />
+            <Card icon={<WalletCards />} label={t('Organization collections')} value={money(transparency.collections || 0)} />
           )}
           {disclosure.showExpenses && (
-            <Card icon={<ReceiptText />} label="Organization expenses" value={money(transparency.expenses || 0)} />
+            <Card icon={<ReceiptText />} label={t('Organization expenses')} value={money(transparency.expenses || 0)} />
           )}
           {disclosure.showRealizedProfit && (
             <Card
               icon={<TrendingUp />}
-              label="Net realized profit"
+              label={t('Net realized profit')}
               value={money(transparency.netRealizedProfit || 0)}
               note={`Profit ${money(transparency.realizedProfit || 0)} · Loss ${money(transparency.realizedLoss || 0)}`}
             />
@@ -228,7 +230,7 @@ export const MemberPortalPage: React.FC = () => {
           {disclosure.showExpectedProfit && (
             <Card
               icon={<TrendingUp />}
-              label="Expected active-project profit"
+              label={t('Expected active-project profit')}
               value={money(transparency.expectedProfit || 0)}
               note="Projection only; not guaranteed."
             />
@@ -239,11 +241,11 @@ export const MemberPortalPage: React.FC = () => {
             <table className="data-table min-w-[700px]">
               <thead>
                 <tr>
-                  <th>Project</th>
-                  <th>Status</th>
-                  <th>Invested</th>
-                  <th>Expected ROI</th>
-                  <th>Maturity</th>
+                  <th>{t('Project')}</th>
+                  <th>{t('Status')}</th>
+                  <th>{t('Invested')}</th>
+                  <th>{t('Expected ROI')}</th>
+                  <th>{t('Maturity')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -277,7 +279,7 @@ export const MemberPortalPage: React.FC = () => {
         )}
         {disclosure.allowAnnualProfitLossDownload && (
           <div className="mt-5 pt-5 border-t border-white/10">
-            <h3 className="font-semibold text-white">Annual profit & loss reports</h3>
+            <h3 className="font-semibold text-white">{t('Annual profit & loss reports')}</h3>
             <p className="text-xs text-gray-400 mt-1">
               Only final, locked annual reports are available. Audit packs and operational detail remain restricted.
             </p>
@@ -307,10 +309,10 @@ export const MemberPortalPage: React.FC = () => {
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <ReceiptText size={20} className="text-blue-400" />
-              চাঁদা ও বকেয়া আর্থিক সারসংক্ষেপ (Financial Totals)
+              {t('Financial Totals & Balance Summary')}
             </h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              আপনার পরিশোধিত মোট চাঁদা, বকেয়া এবং জরিমানার বিস্তারিত হিসাব
+              {t('Your payment totals, dues, and penalties breakdown')}
             </p>
           </div>
           <button
@@ -320,7 +322,7 @@ export const MemberPortalPage: React.FC = () => {
             className="btn btn-primary btn-sm flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold shadow-md shadow-blue-500/20"
           >
             <ImageIcon size={16} />
-            {downloadingImg ? 'ছবি তৈরি হচ্ছে...' : 'রিপোর্ট ছবি ডাউনলোড (Download Image)'}
+            {downloadingImg ? t('Generating image...') : t('Download Report Image')}
           </button>
         </div>
 
@@ -329,7 +331,7 @@ export const MemberPortalPage: React.FC = () => {
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
-                মোট পরিশোধিত (Total Paid)
+                {t('Total Paid')}
               </span>
               <CheckCircle2 size={16} className="text-emerald-400" />
             </div>
@@ -340,7 +342,7 @@ export const MemberPortalPage: React.FC = () => {
           <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-rose-400 uppercase tracking-wider">
-                মোট বকেয়া (Total Dues)
+                {t('Total Dues')}
               </span>
               <AlertCircle size={16} className="text-rose-400" />
             </div>
@@ -351,7 +353,7 @@ export const MemberPortalPage: React.FC = () => {
           <div className="rounded-xl border border-blue-500/30 bg-blue-950/20 p-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
-                পরিশোধিত জরিমানা (Penalty Paid)
+                {t('Penalty Paid')}
               </span>
               <Clock size={16} className="text-blue-400" />
             </div>
@@ -362,7 +364,7 @@ export const MemberPortalPage: React.FC = () => {
           <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
-                বকেয়া জরিমানা (Penalty Due)
+                {t('Penalty Due')}
               </span>
               <AlertCircle size={16} className="text-amber-400" />
             </div>
@@ -377,7 +379,7 @@ export const MemberPortalPage: React.FC = () => {
         <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
           <h2 className="font-bold text-white flex items-center gap-2">
             <ReceiptText size={18} />
-            Contribution history
+            {t('Contribution history')}
           </h2>
           <span className="text-xs text-gray-400 font-medium">
             মোট লেনদেন: {data.payments.length} টি
@@ -387,11 +389,11 @@ export const MemberPortalPage: React.FC = () => {
           <table className="data-table min-w-[540px]">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Receipt</th>
-                <th>Method</th>
-                <th>Amount</th>
-                <th>Status</th>
+                <th>{t('Date')}</th>
+                <th>{t('Receipt')}</th>
+                <th>{t('Method')}</th>
+                <th>{t('Amount')}</th>
+                <th>{t('Status')}</th>
               </tr>
             </thead>
             <tbody>
@@ -423,15 +425,15 @@ export const MemberPortalPage: React.FC = () => {
 
       {/* Monthly Account Status */}
       <section className="glass-card p-5">
-        <h2 className="font-bold text-white">Monthly account status</h2>
+        <h2 className="font-bold text-white">{t('Monthly account status')}</h2>
         <div className="table-container mt-4">
           <table className="data-table min-w-[540px]">
             <thead>
               <tr>
-                <th>Month</th>
-                <th>Due</th>
-                <th>Paid</th>
-                <th>Status</th>
+                <th>{t('Month')}</th>
+                <th>{t('Due')}</th>
+                <th>{t('Paid')}</th>
+                <th>{t('Status')}</th>
               </tr>
             </thead>
             <tbody>

@@ -8,6 +8,7 @@ import {
   recordShareChange,
   recordShareTransfer,
   reconcileMemberYearAccount,
+  reconcileAllYearAccounts,
   getYearAccounts,
 } from '../services/share.service.js';
 import { createError } from '../middlewares/error.js';
@@ -187,25 +188,39 @@ export async function reconcileYearAccountHandler(
     }
 
     const { memberId, year } = req.body;
-    if (!memberId || !year) {
-      return next(createError('memberId and year are required.', 400));
+    if (!year) {
+      return next(createError('Year is required for annual reconciliation.', 400));
     }
 
-    const yearAccount = await reconcileMemberYearAccount(
-      memberId,
-      parseInt(year, 10),
-      req.user,
-      {
-        ip: req.ip,
-        userAgent: req.headers['user-agent'],
-      }
-    );
+    const parsedYear = parseInt(year, 10);
+    const meta = {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    };
 
+    if (memberId && memberId !== 'ALL') {
+      const yearAccount = await reconcileMemberYearAccount(
+        memberId,
+        parsedYear,
+        req.user,
+        meta
+      );
+
+      res.status(200).json({
+        success: true,
+        message: `Annual account for member ${yearAccount.memberId} for year ${parsedYear} reconciled successfully.`,
+        data: yearAccount,
+      });
+      return;
+    }
+
+    const result = await reconcileAllYearAccounts(parsedYear, req.user, meta);
     res.status(200).json({
       success: true,
-      message: `Annual account for ${year} reconciled successfully.`,
-      data: yearAccount,
+      message: `Annual accounts for ${result.reconciledCount} members reconciled successfully for year ${parsedYear}.`,
+      data: result,
     });
+    return;
   } catch (error) {
     next(error);
   }

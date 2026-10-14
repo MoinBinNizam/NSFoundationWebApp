@@ -50,16 +50,33 @@ export class DistributionService {
       memberId: Types.ObjectId;
       memberCode: string;
       memberName: string;
+      memberStatus: string;
       finalShares: number;
       shortfall: number;
       excessAdvance: number;
     }> = [];
 
-    // The January 2025 final share position is the fixed payout basis.
+    // Gather active members with authoritative share count up to the target operational year
     const activeMembers = await Member.find({ status: 'ACTIVE' }).lean();
+    const endMonth = `${year}-12`;
     for (const m of activeMembers) {
-      const january2025Share = await ShareHistory.findOne({ memberId: m._id, effectiveMonth: { $lte: '2025-01' } }).sort({ effectiveMonth: -1, createdAt: -1 }).lean();
-      memberAccounts.push({ memberId: m._id as any, memberCode: m.memberId, memberName: m.name, finalShares: Math.max(1, january2025Share?.shareCount ?? 1), shortfall: 0, excessAdvance: 0 });
+      const shareRecord =
+        (await ShareHistory.findOne({ memberId: m._id, effectiveMonth: { $lte: endMonth } })
+          .sort({ effectiveMonth: -1, createdAt: -1 })
+          .lean()) ||
+        (await ShareHistory.findOne({ memberId: m._id })
+          .sort({ effectiveMonth: -1, createdAt: -1 })
+          .lean());
+
+      memberAccounts.push({
+        memberId: m._id as any,
+        memberCode: m.memberId,
+        memberName: m.name,
+        memberStatus: m.status,
+        finalShares: Math.max(1, shareRecord?.shareCount ?? 1),
+        shortfall: 0,
+        excessAdvance: 0,
+      });
     }
 
     const totalShares = memberAccounts.reduce((sum, m) => sum + m.finalShares, 0);
@@ -104,6 +121,7 @@ export class DistributionService {
         memberId: m.memberId,
         memberCode: m.memberCode,
         memberName: m.memberName,
+        memberStatus: m.memberStatus,
         year,
         finalShares: m.finalShares,
         shareRatio: Math.round(shareRatio * 10000) / 10000,

@@ -32,6 +32,7 @@ interface MemberAllocation {
   memberId: string;
   memberCode: string;
   memberName: string;
+  memberStatus?: string;
   year: number;
   finalShares: number;
   shareRatio: number;
@@ -721,8 +722,16 @@ export const DistributionPage: React.FC = () => {
                               {money(item.netDistributionAmount)}
                             </td>
                             <td className="text-center">
-                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-300 border border-amber-500/25">
-                                Preview
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                  (item.memberStatus || item.status) === 'ACTIVE'
+                                    ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/25'
+                                    : (item.memberStatus || item.status) === 'INACTIVE' || (item.memberStatus || item.status) === 'DROPPED'
+                                    ? 'bg-rose-500/10 text-rose-300 border border-rose-500/25'
+                                    : 'bg-amber-500/10 text-amber-300 border border-amber-500/25'
+                                }`}
+                              >
+                                {item.memberStatus || item.status || 'ACTIVE'}
                               </span>
                             </td>
                           </tr>

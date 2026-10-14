@@ -416,21 +416,21 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
         return (
           <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0 whitespace-nowrap">
             <CheckCircle2 size={12} className="shrink-0" />
-            <span>Posted</span>
+            <span>{t('Posted')}</span>
           </span>
         );
       case 'READY_TO_POST':
         return (
           <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 shrink-0 whitespace-nowrap">
             <Sparkles size={12} className="shrink-0" />
-            <span>Ready to Post</span>
+            <span>{t('Ready to Post')}</span>
           </span>
         );
       case 'DUPLICATE_SUSPECTED':
         return (
           <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20 shrink-0 whitespace-nowrap">
             <ShieldAlert size={12} className="shrink-0" />
-            <span>Duplicate Suspected</span>
+            <span>{t('Duplicate Suspected')}</span>
           </span>
         );
       case 'NEEDS_REVIEW':
@@ -438,7 +438,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
         return (
           <span className="inline-flex items-center gap-1 px-2 sm:px-2.5 py-0.5 rounded-full text-[11px] sm:text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0 whitespace-nowrap">
             <Clock size={12} className="shrink-0" />
-            <span>Needs Review</span>
+            <span>{t('Needs Review')}</span>
           </span>
         );
     }
@@ -505,12 +505,12 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
               {uploading ? (
                 <>
                   <RefreshCw size={18} className="animate-spin" />
-                  <span>Processing OCR...</span>
+                  <span>{t('Processing OCR...')}</span>
                 </>
               ) : (
                 <>
                   <Upload size={18} />
-                  <span>Upload Receipt(s)</span>
+                  <span>{t('Upload Receipt(s)')}</span>
                 </>
               )}
             </button>
@@ -551,7 +551,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
                   : 'bg-slate-900/60 text-gray-400 hover:text-white hover:bg-slate-800'
               }`}
             >
-              <span>{st.label}</span>
+              <span>{t(st.label)}</span>
             </button>
           ))}
         </div>
@@ -562,7 +562,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
           className="self-end sm:self-auto px-3 py-1.5 rounded-lg bg-slate-900/60 text-gray-400 hover:text-white transition-all flex items-center gap-1.5 text-xs shrink-0"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          <span>Refresh</span>
+          <span>{t('Refresh')}</span>
         </button>
       </div>
 
@@ -570,16 +570,16 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
       {loading ? (
         <div className="glass-card p-12 text-center text-gray-400 text-sm">
           <RefreshCw size={24} className="animate-spin mx-auto mb-3 text-blue-400" />
-          Loading receipts queue...
+          {t('Loading receipts queue...')}
         </div>
       ) : receipts.length === 0 ? (
         <div className="glass-card p-12 text-center space-y-3">
           <FileText size={36} className="mx-auto text-gray-500 opacity-50" />
-          <h3 className="text-base font-bold text-white">No Receipts Found</h3>
+          <h3 className="text-base font-bold text-white">{t('No Receipts Found')}</h3>
           <p className="text-gray-400 text-xs max-w-sm mx-auto">
             {statusFilter === 'ALL'
-              ? 'Upload a payment screenshot or bank receipt to start the auto-extraction workflow.'
-              : `No receipts matching filter "${statusFilter.replace(/_/g, ' ')}".`}
+              ? t('Upload a payment screenshot or bank receipt to start the auto-extraction workflow.')
+              : `${t('No records match the current filters.')}`}
           </p>
         </div>
       ) : (

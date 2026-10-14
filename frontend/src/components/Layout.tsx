@@ -166,7 +166,7 @@ export const Layout: React.FC = () => {
                   )}
                   {item.badge && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/25 text-blue-400 border border-blue-500/30">
-                      {item.badge}
+                      {t(item.badge)}
                     </span>
                   )}
                 </div>
@@ -190,10 +190,10 @@ export const Layout: React.FC = () => {
                   <Shield size={12} className="text-blue-400 shrink-0" />
                   <span className="text-[10px] text-blue-400 font-semibold tracking-wide">
                     {user?.designation && user.designation !== 'GENERAL_MEMBER'
-                      ? user.designation
+                      ? t(user.designation)
                       : user?.accountantType
-                      ? `${user.accountantType} ACC`
-                      : user?.role}
+                      ? `${t(user.accountantType)} ${t('ACC')}`
+                      : t(user?.role || '')}
                   </span>
                 </div>
               </div>

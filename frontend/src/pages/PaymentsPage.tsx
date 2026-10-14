@@ -56,6 +56,8 @@ interface MemberOption {
   phone: string;
   status: string;
   cashoutDue?: number;
+  shareCount?: number;
+  monthlyObligation?: number;
 }
 
 interface AllocationItem {
@@ -2219,7 +2221,7 @@ export const PaymentsPage: React.FC = () => {
                   <option value="">-- Choose Member --</option>
                   {membersList.map((m) => (
                     <option key={m._id} value={m._id}>
-                      {m.memberId} - {m.name} ({m.phone})
+                      {m.memberId} - {m.name} ({m.shareCount || 1} {(m.shareCount || 1) === 1 ? 'share' : 'shares'} · ৳{((m.shareCount || 1) * 500).toLocaleString()}/mo)
                     </option>
                   ))}
                 </select>
@@ -2227,10 +2229,21 @@ export const PaymentsPage: React.FC = () => {
 
               {/* Authoritative member obligation and due snapshot */}
               {selectedMemberObj && (
-                <div className="rounded-xl border border-white/10 bg-slate-900/80 p-3.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-400">Selected Member:</span>
-                    <span className="font-bold text-white">{selectedMemberObj.name}</span>
+                <div className="rounded-xl border border-white/10 bg-slate-900/80 p-3.5 space-y-3">
+                  <div className="flex items-center justify-between text-xs pb-2 border-b border-white/10">
+                    <div>
+                      <span className="text-gray-400">Selected Member:</span>
+                      <span className="font-bold text-white ml-1">{selectedMemberObj.name}</span>
+                      <span className="text-gray-400 ml-1 font-mono text-[11px]">({selectedMemberObj.memberId})</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                        {selectedMemberObj.shareCount ?? 1} Share{((selectedMemberObj.shareCount ?? 1) > 1) ? 's' : ''}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        ৳{((selectedMemberObj.shareCount ?? 1) * 500).toLocaleString()}/mo
+                      </span>
+                    </div>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
                     <div className="rounded-lg border border-emerald-400/20 bg-emerald-500/10 p-2">

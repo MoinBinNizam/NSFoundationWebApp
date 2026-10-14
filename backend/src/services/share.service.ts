@@ -3,7 +3,8 @@ import { Member } from '../models/Member.js';
 import { MemberYearAccount } from '../models/MemberYearAccount.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { Payment } from '../models/Payment.js';
-import { ShareEventType, IUser, IMemberYearAccount, IShareHistory } from '../types/models.js';
+import { MonthlyLedger } from '../models/MonthlyLedger.js';
+import { ShareEventType, IUser, IMemberYearAccount, IShareHistory, MonthlyLedgerStatus } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 import { HydratedDocument, Types } from 'mongoose';
 import { getMonthlyShareValue } from './settings.service.js';
@@ -12,12 +13,22 @@ export { getMonthlyShareValue } from './settings.service.js';
 /**
  * Retrieves the latest active share count for a member as of an effective month.
  */
-export async function getMemberCurrentShares(memberId: string | Types.ObjectId): Promise<{
+export async function getMemberCurrentShares(
+  memberId: string | Types.ObjectId,
+  effectiveMonthLimit?: string
+): Promise<{
   shareCount: number;
   effectiveMonth: string;
   lastUpdated?: Date;
 }> {
-  const latestEvent = await ShareHistory.findOne({ memberId })
+  const query: Record<string, unknown> = { memberId };
+  if (effectiveMonthLimit) {
+    query.effectiveMonth = { $lte: effectiveMonthLimit };
+  } else {
+    query.effectiveMonth = { $lte: '2025-12' };
+  }
+
+  const latestEvent = await ShareHistory.findOne(query)
     .sort({ effectiveMonth: -1, createdAt: -1 })
     .lean();
 
@@ -57,11 +68,13 @@ export async function recordShareChange(
   const effectiveMonth = input.effectiveMonth.trim();
   const eventType = input.eventType || ShareEventType.TEMPORARY_CHANGE;
 
-  // Strict business rule: Normal changes are locked from 2025-01 onwards
+  const isOverride = Boolean(input.isAdministrativeOverride);
+
+  // Strict business rule: Normal changes are locked from 2025-01 onwards unless explicit administrative override
   if (
     eventType === ShareEventType.TEMPORARY_CHANGE &&
     effectiveMonth >= '2025-01' &&
-    !input.isAdministrativeOverride
+    !isOverride
   ) {
     throw createError(
       `Business Rule Violation: Normal share adjustments are permanently locked starting from January 2025 (effectiveMonth: ${effectiveMonth}). Post-2024 share movements must be recorded as TRANSFER or require authorized administrative override.`,
@@ -72,16 +85,51 @@ export async function recordShareChange(
   const current = await getMemberCurrentShares(member._id);
   const previousShareCount = current.shareCount;
 
+  // Clean up any rogue future test records (> 2025-12)
+  await ShareHistory.deleteMany({ memberId: member._id, effectiveMonth: { $gt: '2025-12' } });
+
   const shareEvent = await ShareHistory.create({
     memberId: member._id,
     effectiveMonth,
     shareCount: input.shareCount,
     previousShareCount,
     eventType,
-    isAdministrativeOverride: input.isAdministrativeOverride || false,
+    isAdministrativeOverride: isOverride,
     changedBy: actingUser._id,
     notes: input.notes?.trim(),
   });
+
+  // Business Rule (Audio / SRS):
+  // For the 2024 cooperative financial year, the closing December share count determines the total annual obligation.
+  // If effectiveMonth is within 2024:
+  if (effectiveMonth <= '2024-12') {
+    // If an interim change was entered (e.g. 2024-05), also ensure closing 2024-12 matches this updated share count
+    if (effectiveMonth < '2024-12') {
+      await ShareHistory.findOneAndUpdate(
+        { memberId: member._id, effectiveMonth: '2024-12' },
+        {
+          $set: {
+            shareCount: input.shareCount,
+            eventType: ShareEventType.ANNUAL_FINALIZATION,
+            isAdministrativeOverride: isOverride,
+            changedBy: actingUser._id,
+            notes: `Closing shares synchronized from ${effectiveMonth} adjustment (${input.shareCount} shares)`,
+          },
+        },
+        { upsert: true }
+      );
+    }
+
+    // Immediately recalculate MemberYearAccount for 2024 and re-align MonthlyLedgers from effectiveMonth onwards
+    await syncMember2024YearAndLedgers(member._id, effectiveMonth, actingUser, meta);
+  } else if (effectiveMonth >= '2025-01') {
+    // Post-2024: Update monthly ledgers from effectiveMonth onwards
+    const shareVal = await getMonthlyShareValue();
+    await MonthlyLedger.updateMany(
+      { memberId: member._id, month: { $gte: effectiveMonth } },
+      { $set: { shareCount: input.shareCount, principalDue: input.shareCount * shareVal } }
+    );
+  }
 
   // Audit log
   await AuditLog.create({
@@ -191,6 +239,22 @@ export async function recordShareTransfer(
     userAgent: meta?.userAgent,
   });
 
+  // Synchronize 2024 ledgers and annual accounts if effective in 2024
+  if (effectiveMonth <= '2024-12') {
+    await syncMember2024YearAndLedgers(seller._id, effectiveMonth, actingUser, meta);
+    await syncMember2024YearAndLedgers(buyer._id, effectiveMonth, actingUser, meta);
+  } else {
+    const shareVal = await getMonthlyShareValue();
+    await MonthlyLedger.updateMany(
+      { memberId: seller._id, month: { $gte: effectiveMonth } },
+      { $set: { shareCount: sellerEvent.shareCount, principalDue: sellerEvent.shareCount * shareVal } }
+    );
+    await MonthlyLedger.updateMany(
+      { memberId: buyer._id, month: { $gte: effectiveMonth } },
+      { $set: { shareCount: buyerEvent.shareCount, principalDue: buyerEvent.shareCount * shareVal } }
+    );
+  }
+
   return { sellerEvent, buyerEvent };
 }
 
@@ -297,6 +361,164 @@ export async function getMembersWithShares() {
 }
 
 /**
+ * Synchronizes a member's 2024 annual account based on December closing shares.
+ *
+ * CRITICAL RULE (User instruction):
+ * - Prior months (e.g. Jan-Apr 2024 when a member had 4 shares and paid ৳2,000/month) MUST NEVER BE OVERWRITTEN.
+ * - Each monthly ledger preserves the share count active in that specific month (e.g. Jan-Apr = 4 shares, May-Dec = 3 shares).
+ * - When a share change occurs at `effectiveMonthFrom` (e.g. '2024-05'), only months from that month forward (month >= effectiveMonthFrom) update their active share expectation.
+ * - In December 2024, the final closing share count determines the Total Annual Obligation (finalShares × ৳6,000).
+ * - If total principal paid across 2024 > annual obligation, the excess is recorded as `excessAdvance` (Advance Credit for 2025).
+ * - If total principal paid < annual obligation, the difference is recorded as `shortfall` (Due).
+ */
+export async function syncMember2024YearAndLedgers(
+  memberId: string | Types.ObjectId,
+  effectiveMonthFrom?: string,
+  actingUser?: HydratedDocument<IUser>,
+  meta?: { ip?: string; userAgent?: string }
+): Promise<HydratedDocument<IMemberYearAccount>> {
+  const member = await Member.findById(memberId);
+  if (!member) {
+    throw createError('Member not found.', 404);
+  }
+
+  const shareValue = await getMonthlyShareValue();
+
+  // Clean up any rogue future share records (> 2025-12)
+  await ShareHistory.deleteMany({ memberId: member._id, effectiveMonth: { $gt: '2025-12' } });
+
+  // 1. Resolve closing December 2024 shares (or latest share record on or before 2024-12)
+  const decEvent = await ShareHistory.findOne({
+    memberId: member._id,
+    effectiveMonth: '2024-12',
+  }).sort({ createdAt: -1 });
+
+  let finalShares = 0;
+  if (decEvent) {
+    finalShares = decEvent.shareCount;
+  } else {
+    const latest2024 = await ShareHistory.findOne({
+      memberId: member._id,
+      effectiveMonth: { $lte: '2024-12' },
+    }).sort({ effectiveMonth: -1, createdAt: -1 });
+    finalShares = latest2024 ? latest2024.shareCount : 1;
+  }
+
+  let activeMonths = 12;
+  if (member.status === 'DROPPED') {
+    const activeLedgersCount = await MonthlyLedger.countDocuments({
+      memberId: member._id,
+      month: { $gte: '2024-01', $lte: '2024-12' },
+    });
+    activeMonths = Math.min(12, Math.max(1, activeLedgersCount));
+  }
+
+  // 2. Annual Obligation for 2024 is strictly calculated from the closing December shares
+  const annualObligation = finalShares * shareValue * activeMonths;
+
+  // 3. Aggregate actual principal payments made in 2024
+  const startOfYear = new Date('2024-01-01T00:00:00.000Z');
+  const endOfYear = new Date('2024-12-31T23:59:59.999Z');
+
+  const payments = await Payment.find({
+    memberId: member._id,
+    paymentDate: { $gte: startOfYear, $lte: endOfYear },
+    status: { $ne: 'CANCELLED' },
+  }).lean();
+
+  let totalPrincipalPaid = payments.reduce((sum, p) => sum + (p.principalAmount || 0), 0);
+
+  if (totalPrincipalPaid === 0) {
+    const ledgers = await MonthlyLedger.find({
+      memberId: member._id,
+      month: { $gte: '2024-01', $lte: '2024-12' },
+    }).lean();
+    totalPrincipalPaid = ledgers.reduce((sum, l) => sum + (l.principalPaid || 0), 0);
+  }
+
+  const shortfall = Math.max(0, annualObligation - totalPrincipalPaid);
+  const excessAdvance = Math.max(0, totalPrincipalPaid - annualObligation);
+  const isSettled = shortfall === 0;
+
+  // 4. Update or Upsert MemberYearAccount for 2024
+  const yearAccount = await MemberYearAccount.findOneAndUpdate(
+    { memberId: member._id, year: 2024 },
+    {
+      finalShares,
+      annualObligation,
+      totalPrincipalPaid,
+      shortfall,
+      excessAdvance,
+      isSettled,
+      settledAt: isSettled ? new Date() : undefined,
+      notes: `Annual reconciliation for 2024 computed against final share count of ${finalShares}`,
+    },
+    { upsert: true, new: true }
+  );
+
+  // 5. Update MonthlyLedgers:
+  // IMPORTANT: As instructed by user, DO NOT overwrite prior historical months!
+  // If effectiveMonthFrom is provided (e.g. '2024-05'), ONLY update ledgers where month >= effectiveMonthFrom.
+  // Months prior to effectiveMonthFrom are NEVER modified, preserving their historical share count and payments.
+  if (effectiveMonthFrom && effectiveMonthFrom <= '2024-12') {
+    const startMonthNum = Math.max(1, parseInt(effectiveMonthFrom.split('-')[1], 10));
+    for (let m = startMonthNum; m <= 12; m++) {
+      const monthStr = `2024-${String(m).padStart(2, '0')}`;
+
+      // Get the member's active shares in THAT month from ShareHistory
+      const activeShareEvent = await ShareHistory.findOne({
+        memberId: member._id,
+        effectiveMonth: { $lte: monthStr },
+      }).sort({ effectiveMonth: -1, createdAt: -1 });
+
+      const monthShares = activeShareEvent ? activeShareEvent.shareCount : finalShares;
+      const monthExpected = monthShares * shareValue;
+
+      const existing = await MonthlyLedger.findOne({ memberId: member._id, month: monthStr });
+      if (existing) {
+        existing.shareCount = monthShares;
+        existing.principalDue = monthExpected;
+        const penaltyWaived = existing.penaltyWaived || 0;
+        const isPaid = (existing.principalPaid >= monthExpected) &&
+          (existing.penaltyPaid + penaltyWaived >= existing.penaltyDue);
+        existing.status = isPaid
+          ? MonthlyLedgerStatus.PAID
+          : (existing.principalPaid > 0 ? MonthlyLedgerStatus.PARTIAL : MonthlyLedgerStatus.DUE);
+        if (monthStr === '2024-12') {
+          existing.excessAdvance = excessAdvance;
+        }
+        existing.lastRebuiltAt = new Date();
+        await existing.save();
+      }
+    }
+  } else if (!effectiveMonthFrom) {
+    // If called without effectiveMonthFrom (e.g. Year Reconciliation),
+    // only update the closing month excessAdvance without altering prior monthly ledgers
+    if (excessAdvance > 0) {
+      await MonthlyLedger.updateOne(
+        { memberId: member._id, month: '2024-12' },
+        { $set: { excessAdvance, lastRebuiltAt: new Date() } }
+      );
+    }
+  }
+
+  if (actingUser) {
+    await AuditLog.create({
+      performedBy: actingUser._id,
+      action: 'SYNC_2024_SHARES_LEDGERS',
+      entityName: 'MemberYearAccount',
+      entityId: yearAccount._id,
+      afterState: yearAccount.toObject(),
+      reason: `Synchronized 2024 year account for ${member.memberId}: finalShares=${finalShares}, annualObligation=${annualObligation}, shortfall=${shortfall}, excessAdvance=${excessAdvance}`,
+      ipAddress: meta?.ip,
+      userAgent: meta?.userAgent,
+    });
+  }
+
+  return yearAccount;
+}
+
+/**
  * Reconciles a member's annual account for a given year (e.g. 2024 baseline).
  * Formula (SRS Section 1.1A & 5.2):
  * 2024 Annual Principal Obligation = December 2024 Final Shares × Share Value × 12
@@ -318,9 +540,13 @@ export async function reconcileMemberYearAccount(
     throw createError('Member not found.', 404);
   }
 
+  if (year === 2024) {
+    return await syncMember2024YearAndLedgers(member._id, undefined, actingUser, meta);
+  }
+
   const shareValue = await getMonthlyShareValue();
 
-  // For 2024: find December baseline (or latest share event in/before that year)
+  // For other years: find December baseline (or latest share event in/before that year)
   let finalShares = 0;
   const decEvent = await ShareHistory.findOne({
     memberId: member._id,
@@ -330,7 +556,6 @@ export async function reconcileMemberYearAccount(
   if (decEvent) {
     finalShares = decEvent.shareCount;
   } else {
-    // If no explicit December record, look for the latest record on or before December of that year
     const lastRecordInYear = await ShareHistory.findOne({
       memberId: member._id,
       effectiveMonth: { $lte: `${year}-12` },
@@ -339,7 +564,16 @@ export async function reconcileMemberYearAccount(
     finalShares = lastRecordInYear ? lastRecordInYear.shareCount : 0;
   }
 
-  const annualObligation = finalShares * shareValue * 12;
+  let activeMonths = 12;
+  if (member.status === 'DROPPED') {
+    const activeLedgersCount = await MonthlyLedger.countDocuments({
+      memberId: member._id,
+      month: { $gte: `${year}-01`, $lte: `${year}-12` },
+    });
+    activeMonths = Math.min(12, Math.max(1, activeLedgersCount));
+  }
+
+  const annualObligation = finalShares * shareValue * activeMonths;
 
   // Aggregate actual principal payments made in that year
   const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
@@ -351,7 +585,15 @@ export async function reconcileMemberYearAccount(
     status: { $ne: 'CANCELLED' },
   }).lean();
 
-  const totalPrincipalPaid = payments.reduce((sum, p) => sum + (p.principalAmount || 0), 0);
+  let totalPrincipalPaid = payments.reduce((sum, p) => sum + (p.principalAmount || 0), 0);
+
+  if (totalPrincipalPaid === 0) {
+    const ledgers = await MonthlyLedger.find({
+      memberId: member._id,
+      month: { $gte: `${year}-01`, $lte: `${year}-12` },
+    }).lean();
+    totalPrincipalPaid = ledgers.reduce((sum, l) => sum + (l.principalPaid || 0), 0);
+  }
 
   const shortfall = Math.max(0, annualObligation - totalPrincipalPaid);
   const excessAdvance = Math.max(0, totalPrincipalPaid - annualObligation);
@@ -385,6 +627,23 @@ export async function reconcileMemberYearAccount(
   });
 
   return yearAccount;
+}
+
+/**
+ * Reconciles all members' annual accounts for a given year (triggered manually by Admin).
+ */
+export async function reconcileAllYearAccounts(
+  year: number,
+  actingUser: HydratedDocument<IUser>,
+  meta?: { ip?: string; userAgent?: string }
+): Promise<{ reconciledCount: number; accounts: HydratedDocument<IMemberYearAccount>[] }> {
+  const members = await Member.find().lean();
+  const accounts: HydratedDocument<IMemberYearAccount>[] = [];
+  for (const m of members) {
+    const acc = await reconcileMemberYearAccount(String(m._id), year, actingUser, meta);
+    accounts.push(acc);
+  }
+  return { reconciledCount: accounts.length, accounts };
 }
 
 /**

@@ -16,6 +16,7 @@ import {
   Calendar,
   Layers,
   FileCheck,
+  RefreshCw,
 } from 'lucide-react';
 
 interface MemberShareItem {
@@ -85,7 +86,7 @@ interface ShareStats {
 const taka = (value: number) => `৳${Number(value || 0).toFixed(2)}`;
 
 export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual' }> = ({ initialTab = 'positions' }) => {
-  const { user } = useAuth();
+  const { user, canAccess } = useAuth();
   const { t } = usePreferences();
   const [activeTab, setActiveTab] = useState<'positions' | 'dues' | 'annual'>(initialTab);
 
@@ -209,8 +210,8 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
       memberId: m ? m._id : membersShares[0]?._id || '',
       effectiveMonth: '2024-12',
       shareCount: m ? m.currentShares : 1,
-      eventType: 'TEMPORARY_CHANGE',
-      isAdministrativeOverride: false,
+      eventType: 'ANNUAL_FINALIZATION',
+      isAdministrativeOverride: true,
       notes: '',
     });
     setShowAdjustModal(true);
@@ -248,11 +249,17 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
     try {
       await apiRequest('/shares/change', {
         method: 'POST',
-        body: JSON.stringify(adjustData),
+        body: JSON.stringify({
+          ...adjustData,
+          isAdministrativeOverride: true,
+        }),
       });
       setShowAdjustModal(false);
-      fetchPositions();
-      if (activeTab === 'dues') fetchDues();
+      await Promise.all([
+        fetchPositions(),
+        fetchDues(),
+        fetchAnnual(),
+      ]);
     } catch (err: unknown) {
       setFormError((err as Error).message);
     } finally {
@@ -272,8 +279,11 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
         body: JSON.stringify(transferData),
       });
       setShowTransferModal(false);
-      fetchPositions();
-      if (activeTab === 'dues') fetchDues();
+      await Promise.all([
+        fetchPositions(),
+        fetchDues(),
+        fetchAnnual(),
+      ]);
     } catch (err: unknown) {
       setFormError((err as Error).message);
     } finally {
@@ -302,8 +312,48 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
     }
   };
 
+  // Bulk annual reconciliation for all members
+  const handleBulkReconcile = async (year: number) => {
+    if (!window.confirm(t(`Are you sure you want to run annual reconciliation for ALL members for year ${year}? Ensure all payment records and share counts are verified first.`))) {
+      return;
+    }
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await apiRequest('/shares/reconcile-year', {
+        method: 'POST',
+        body: JSON.stringify({ year, memberId: 'ALL' }),
+      });
+      fetchPositions();
+      fetchAnnual();
+    } catch (err: unknown) {
+      setFormError((err as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Quick single-member reconcile
+  const handleQuickReconcile = async (memberId?: string, year?: number) => {
+    if (!memberId) return;
+    setSubmitting(true);
+    setFormError(null);
+    try {
+      await apiRequest('/shares/reconcile-year', {
+        method: 'POST',
+        body: JSON.stringify({ memberId, year: year || selectedYear }),
+      });
+      fetchPositions();
+      fetchAnnual();
+    } catch (err: unknown) {
+      setFormError((err as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const isPost2024Adjust = adjustData.effectiveMonth >= '2025-01';
-  const canModify = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT' || user?.role === 'SUPER_ADMIN';
+  const canModify = (user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT' || user?.role === 'SUPER_ADMIN') && canAccess('SHARES', 'edit');
 
   return (
     <div className="space-y-6">
@@ -386,7 +436,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
         <div className="glass-card p-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-              Peer Share Transfers
+              {t('Peer Share Transfers')}
             </span>
             <div className="p-2 rounded-lg bg-amber-500/15 text-amber-400">
               <Repeat size={20} />
@@ -394,7 +444,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
           </div>
           <p className="text-3xl font-extrabold text-amber-400 mt-3">{stats.totalTransfers}</p>
           <span className="text-xs text-gray-500 mt-1 block">
-            Post-2024 secondary movements
+            {t('Post-2024 secondary movements')}
           </span>
         </div>
       </div>
@@ -411,7 +461,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
           }`}
         >
           <Layers size={18} />
-          <span>Member Shares & Positions</span>
+          <span>{t('Member Shares & Positions')}</span>
         </button>
 
         <button
@@ -437,35 +487,36 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
           }`}
         >
           <FileCheck size={18} />
-          <span>Annual Reconciliation Ledger</span>
+          <span>{t('Annual Reconciliation Ledger')}</span>
         </button>
       </div>
 
       {/* TAB 1: MEMBER SHARES & POSITIONS */}
       {activeTab === 'positions' && (
         <div className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
-          <table className="data-table min-w-[860px]">
+          <table className="data-table min-w-[920px]">
             <thead>
               <tr>
-                <th>Member</th>
-                <th>Current Shares</th>
-                <th>Monthly Obligation</th>
-                <th>Effective Month</th>
-                <th>2024 Reconciliation Status</th>
+                <th>{t('Member')}</th>
+                <th>{t('Current Shares')}</th>
+                <th>{t('Monthly Obligation')}</th>
+                <th>{t('Effective Month')}</th>
+                <th>{t('2024 Reconciliation Status')}</th>
+                {canModify && <th className="text-right">{t('Action')}</th>}
               </tr>
             </thead>
             <tbody>
               {loadingPositions ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-gray-400">
+                  <td colSpan={canModify ? 6 : 5} className="text-center py-12 text-gray-400">
                     <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
-                    <span>Loading share positions...</span>
+                    <span>{t('Loading share positions...')}</span>
                   </td>
                 </tr>
               ) : membersShares.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-gray-400">
-                    No members registered yet.
+                  <td colSpan={canModify ? 6 : 5} className="text-center py-12 text-gray-400">
+                    {t('No members registered yet.')}
                   </td>
                 </tr>
               ) : (
@@ -490,14 +541,14 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                             m.currentShares > 0 ? 'text-emerald-400' : 'text-gray-500'
                           }`}
                         >
-                          {m.currentShares} {m.currentShares === 1 ? 'Share' : 'Shares'}
+                          {m.currentShares} {t(m.currentShares === 1 ? 'Share' : 'Shares')}
                         </span>
                       </td>
                       <td>
                         <span className="font-bold text-white text-sm">
-                          BDT  {m.monthlyObligation.toLocaleString()}
+                          ৳ {m.monthlyObligation.toLocaleString()}
                         </span>
-                        <span className="text-xs text-gray-500"> /month</span>
+                        <span className="text-xs text-gray-500"> {t('/month')}</span>
                       </td>
                       <td>
                         <span className="font-mono text-xs text-gray-300">
@@ -508,19 +559,32 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                         {ya ? (
                           ya.isSettled ? (
                             <span className="badge badge-active text-[10px]">
-                              <CheckCircle2 size={12} /> Settled
+                              <CheckCircle2 size={12} /> {t('Settled')}
                             </span>
                           ) : (
                             <span className="badge badge-inactive text-[10px]">
-                              <AlertTriangle size={12} /> Shortfall BDT {ya.shortfall.toLocaleString()}
+                              <AlertTriangle size={12} /> {t('Shortfall')}: ৳ {ya.shortfall.toLocaleString()}
                             </span>
                           )
                         ) : (
                           <span className="badge badge-dropped text-[10px] opacity-60">
-                            Not Reconciled
+                            {t('Not Reconciled')}
                           </span>
                         )}
                       </td>
+                      {canModify && (
+                        <td className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAdjust(m)}
+                            className="btn btn-secondary btn-sm text-[11px] py-1 px-2.5 inline-flex items-center gap-1.5"
+                            title={`${t('Adjust Shares')} (${m.memberId})`}
+                          >
+                            <Plus size={13} />
+                            <span>{t('Adjust Shares')}</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   );
                 })
@@ -604,12 +668,25 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
       {/* TAB 3: ANNUAL RECONCILIATION LEDGER */}
       {activeTab === 'annual' && (
         <div className="space-y-4">
-          {/* Year selector */}
+          {/* Admin manual reconcile notice banner */}
+          <div className="glass-card p-4 border border-amber-500/25 bg-amber-500/5 text-amber-200 text-xs rounded-xl flex items-start gap-3">
+            <Info size={18} className="text-amber-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-amber-300">
+                {t('Admin Manual Reconciliation Mode')}
+              </p>
+              <p className="text-gray-300 mt-0.5 leading-relaxed">
+                {t('Annual reconciliation recalculates member annual obligations based on closing December shares and matches against recorded payments. Reconcile manually once payment data, receipts, and member shares are fully verified.')}
+              </p>
+            </div>
+          </div>
+
+          {/* Year selector and action controls */}
           <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Calendar size={18} className="text-blue-400" />
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                Accounting Year:
+                {t('Accounting Year:')}
               </span>
               {[2024, 2025].map((yr) => (
                 <button
@@ -622,16 +699,27 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                       : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
                   }`}
                 >
-                  Year {yr}
+                  {t(`Year ${yr}`)}
                 </button>
               ))}
             </div>
 
             {canModify && (
-              <button onClick={() => handleOpenReconcile()} className="btn btn-secondary btn-sm text-xs">
-                <CalendarCheck size={16} />
-                <span>Reconcile Member</span>
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => handleBulkReconcile(selectedYear)}
+                  disabled={submitting}
+                  className="btn btn-primary btn-sm text-xs"
+                >
+                  <RefreshCw size={14} className={submitting ? 'animate-spin' : ''} />
+                  <span>{t(`Reconcile All Members (${selectedYear})`)}</span>
+                </button>
+                <button type="button" onClick={() => handleOpenReconcile()} className="btn btn-secondary btn-sm text-xs">
+                  <CalendarCheck size={16} />
+                  <span>{t('Reconcile Member')}</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -639,27 +727,28 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
             <table className="data-table min-w-[1020px]">
               <thead>
                 <tr>
-                  <th>Member</th>
+                  <th>{t('Member')}</th>
                   <th>{t(`Final Shares (${selectedYear})`)}</th>
                   <th>{t('Annual Obligation')}</th>
                   <th>{t('Principal Paid')}</th>
                   <th>{t('Shortfall Due')}</th>
                   <th>{t('Advance Credit (Next Year)')}</th>
                   <th>{t('Settlement Status')}</th>
+                  {canModify && <th className="text-right">{t('Action')}</th>}
                 </tr>
               </thead>
               <tbody>
                 {loadingAnnual ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-gray-400">
+                    <td colSpan={canModify ? 8 : 7} className="text-center py-12 text-gray-400">
                       <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
-                      <span>Loading annual accounts...</span>
+                      <span>{t('Loading annual accounts...')}</span>
                     </td>
                   </tr>
                 ) : yearAccounts.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-12 text-gray-400">
-                      No reconciliation records generated for year {selectedYear} yet.
+                    <td colSpan={canModify ? 8 : 7} className="text-center py-12 text-gray-400">
+                      {t(`No reconciliation records generated for year ${selectedYear} yet.`)}
                     </td>
                   </tr>
                 ) : (
@@ -674,33 +763,47 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                         </div>
                       </td>
                       <td>
-                        <span className="font-bold text-emerald-400 text-sm">{ya.finalShares} Shares</span>
+                        <span className="font-bold text-emerald-400 text-sm">{ya.finalShares} {t(ya.finalShares === 1 ? 'Share' : 'Shares')}</span>
                       </td>
                       <td>
                         <span className="font-bold text-white text-sm">
-                          BDT  {ya.annualObligation.toLocaleString()}
+                          ৳ {ya.annualObligation.toLocaleString()}
                         </span>
                       </td>
                       <td>
-                        <span className="text-blue-400 text-sm">BDT  {ya.totalPrincipalPaid.toLocaleString()}</span>
+                        <span className="text-blue-400 text-sm">৳ {ya.totalPrincipalPaid.toLocaleString()}</span>
                       </td>
                       <td>
                         <span className={`text-sm font-bold ${ya.shortfall > 0 ? 'text-rose-400' : 'text-gray-500'}`}>
-                          BDT  {ya.shortfall.toLocaleString()}
+                          ৳ {ya.shortfall.toLocaleString()}
                         </span>
                       </td>
                       <td>
                         <span className={`text-sm font-bold ${ya.excessAdvance > 0 ? 'text-emerald-400' : 'text-gray-500'}`}>
-                          BDT  {ya.excessAdvance.toLocaleString()}
+                          ৳ {ya.excessAdvance.toLocaleString()}
                         </span>
                       </td>
                       <td>
                         {ya.isSettled ? (
-                          <span className="badge badge-active text-[10px]">Settled</span>
+                          <span className="badge badge-active text-[10px]">{t('Settled')}</span>
                         ) : (
-                          <span className="badge badge-inactive text-[10px]">Unsettled Shortfall</span>
+                          <span className="badge badge-inactive text-[10px]">{t('Unsettled Shortfall')}</span>
                         )}
                       </td>
+                      {canModify && (
+                        <td className="text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleQuickReconcile(ya.memberId?._id, selectedYear)}
+                            disabled={submitting}
+                            className="btn btn-secondary btn-sm text-[11px] py-1 px-2.5 inline-flex items-center gap-1"
+                            title={t('Reconcile this member account')}
+                          >
+                            <CalendarCheck size={13} />
+                            <span>{t('Reconcile')}</span>
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -716,9 +819,9 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
           <div className="modal-content p-7">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-lg font-bold text-white">Adjust Share Count</h3>
+                <h3 className="text-lg font-bold text-white">{t('Adjust Share Count')}</h3>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Record interim adjustments (2024) or finalizations.
+                  {t('Record interim adjustments (2024) or finalizations.')}
                 </p>
               </div>
               <button
@@ -739,14 +842,21 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
               <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-xs mb-4 flex gap-2">
                 <AlertTriangle size={18} className="shrink-0 text-amber-400" />
                 <span>
-                  <strong>Post-2024 Share Lock Warning:</strong> Normal share adjustments are locked from 1 January 2025 onward. Changes require an administrative override or must be executed via Peer Transfer.
+                  <strong>{t('Post-2024 Share Lock Warning:')}</strong> {t('Normal share adjustments are locked from 1 January 2025 onward. Changes require an administrative override or must be executed via Peer Transfer.')}
                 </span>
               </div>
             )}
 
+            <div className="p-3 bg-blue-500/10 border border-blue-500/25 rounded-lg text-blue-300 text-xs mb-4 flex gap-2">
+              <Info size={18} className="shrink-0 text-blue-400 mt-0.5" />
+              <span>
+                {t("For the 2024 financial year, the closing December share count determines the full annual obligation (Shares × ৳6,000). Adjusting shares here automatically updates the member's active position, annual obligation, all monthly ledgers, and live outstanding dues.")}
+              </span>
+            </div>
+
             <form onSubmit={handleAdjustSubmit} className="space-y-4">
               <div className="form-group mb-0">
-                <label className="form-label">Member *</label>
+                <label className="form-label">{t('Member')} *</label>
                 <select
                   className="form-select"
                   value={adjustData.memberId}
@@ -754,7 +864,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                 >
                   {membersShares.map((m) => (
                     <option key={m._id} value={m._id}>
-                      {m.memberId} — {m.name} (Current: {m.currentShares} shares)
+                      {m.memberId} — {m.name} ({t('Current Shares')}: {m.currentShares})
                     </option>
                   ))}
                 </select>
@@ -762,7 +872,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="form-group mb-0">
-                  <label className="form-label">Effective Month (YYYY-MM) *</label>
+                  <label className="form-label">{t('Effective Month (YYYY-MM)')} *</label>
                   <input
                     type="month"
                     required
@@ -773,7 +883,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label">New Total Share Count *</label>
+                  <label className="form-label">{t('New Total Share Count')} *</label>
                   <input
                     type="number"
                     min={1}
@@ -787,14 +897,14 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
               </div>
 
               <div className="form-group mb-0">
-                <label className="form-label">Event Type</label>
+                <label className="form-label">{t('Event Type')}</label>
                 <select
                   className="form-select text-xs"
                   value={adjustData.eventType}
                   onChange={(e) => setAdjustData({ ...adjustData, eventType: e.target.value })}
                 >
-                  <option value="TEMPORARY_CHANGE">TEMPORARY_CHANGE (Interim 2024 change)</option>
-                  <option value="ANNUAL_FINALIZATION">ANNUAL_FINALIZATION (December baseline)</option>
+                  <option value="TEMPORARY_CHANGE">{t('TEMPORARY_CHANGE (Interim 2024 change)')}</option>
+                  <option value="ANNUAL_FINALIZATION">{t('ANNUAL_FINALIZATION (December baseline)')}</option>
                 </select>
               </div>
 
@@ -808,17 +918,17 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                     onChange={(e) => setAdjustData({ ...adjustData, isAdministrativeOverride: e.target.checked })}
                   />
                   <label htmlFor="adminOverrideCheck" className="text-xs text-rose-400 font-semibold cursor-pointer">
-                    Confirm Administrative Override for post-2024 share change
+                    {t('Confirm Administrative Override for post-2024 share change')}
                   </label>
                 </div>
               )}
 
               <div className="form-group mb-0">
-                <label className="form-label">Reason / Notes</label>
+                <label className="form-label">{t('Reason / Notes')}</label>
                 <textarea
                   className="form-textarea text-xs"
                   rows={2}
-                  placeholder="Mandatory if administrative override..."
+                  placeholder={t('Mandatory if administrative override...')}
                   value={adjustData.notes}
                   onChange={(e) => setAdjustData({ ...adjustData, notes: e.target.value })}
                 />
@@ -826,10 +936,10 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
 
               <div className="flex justify-end gap-2.5 pt-3">
                 <button type="button" className="btn btn-secondary text-xs" onClick={() => setShowAdjustModal(false)}>
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button type="submit" disabled={submitting} className="btn btn-primary text-xs">
-                  {submitting ? 'Recording...' : 'Record Share Change'}
+                  {submitting ? t('Recording...') : t('Record Share Change')}
                 </button>
               </div>
             </form>
@@ -843,9 +953,9 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
           <div className="modal-content p-7">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-lg font-bold text-white">Peer Share Transfer</h3>
+                <h3 className="text-lg font-bold text-white">{t('Peer Share Transfer')}</h3>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Secondary transfer between existing members (Post-2024 supported).
+                  {t('Secondary transfer between existing members (Post-2024 supported).')}
                 </p>
               </div>
               <button
@@ -871,7 +981,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
 
             <form onSubmit={handleTransferSubmit} className="space-y-4">
               <div className="form-group mb-0">
-                <label className="form-label">Transfer FROM (Seller Member) *</label>
+                <label className="form-label">{t('Transfer FROM (Seller Member)')} *</label>
                 <select
                   className="form-select text-xs"
                   value={transferData.fromMemberId}
@@ -879,14 +989,14 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                 >
                   {membersShares.map((m) => (
                     <option key={m._id} value={m._id}>
-                      {m.memberId} — {m.name} (Has: {m.currentShares} shares)
+                      {m.memberId} — {m.name} ({t('Current Shares')}: {m.currentShares})
                     </option>
                   ))}
                 </select>
               </div>
 
               <div className="form-group mb-0">
-                <label className="form-label">Transfer TO (Buyer Member) *</label>
+                <label className="form-label">{t('Transfer TO (Buyer Member)')} *</label>
                 <select
                   className="form-select text-xs"
                   value={transferData.toMemberId}
@@ -896,7 +1006,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                     .filter((m) => m._id !== transferData.fromMemberId)
                     .map((m) => (
                       <option key={m._id} value={m._id}>
-                        {m.memberId} — {m.name} (Current: {m.currentShares} shares)
+                        {m.memberId} — {m.name} ({t('Current Shares')}: {m.currentShares})
                       </option>
                     ))}
                 </select>
@@ -904,7 +1014,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="form-group mb-0">
-                  <label className="form-label">Shares to Transfer *</label>
+                  <label className="form-label">{t('Shares to Transfer')} *</label>
                   <input
                     type="number"
                     min={1}
@@ -916,7 +1026,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label">Effective Month *</label>
+                  <label className="form-label">{t('Effective Month')} *</label>
                   <input
                     type="month"
                     required
@@ -928,11 +1038,11 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
               </div>
 
               <div className="form-group mb-0">
-                <label className="form-label">Transfer Note / Agreement Reference</label>
+                <label className="form-label">{t('Transfer Note / Agreement Reference')}</label>
                 <input
                   type="text"
                   className="form-input text-xs"
-                  placeholder="e.g. Mutual consent transfer agreement ref #..."
+                  placeholder={t('e.g. Mutual consent transfer agreement ref #...')}
                   value={transferData.notes}
                   onChange={(e) => setTransferData({ ...transferData, notes: e.target.value })}
                 />
@@ -940,10 +1050,10 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
 
               <div className="flex justify-end gap-2.5 pt-3">
                 <button type="button" className="btn btn-secondary text-xs" onClick={() => setShowTransferModal(false)}>
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button type="submit" disabled={submitting} className="btn btn-primary text-xs">
-                  {submitting ? 'Processing Transfer...' : 'Confirm Transfer'}
+                  {submitting ? t('Transferring...') : t('Confirm Transfer')}
                 </button>
               </div>
             </form>
@@ -957,9 +1067,9 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
           <div className="modal-content p-7">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="text-lg font-bold text-white">Reconcile Annual Account</h3>
+                <h3 className="text-lg font-bold text-white">{t('Reconcile Annual Account')}</h3>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Normalize annual principal obligation against December closing shares.
+                  {t('Normalize annual principal obligation against December closing shares.')}
                 </p>
               </div>
               <button
@@ -977,44 +1087,48 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
             )}
 
             <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-lg text-emerald-400 text-xs mb-4">
-              <strong>Formula (SRS Section 1.1A):</strong> Annual Obligation = Closing December Shares × BDT 500 × 12.
-              Shortfalls must be settled within the year; excesses carry over as advance credits for the following year.
+              <strong>{t('Calculation Formula')}:</strong> {t('Annual Obligation = Closing December Shares × BDT 500 × 12. Shortfalls must be settled within the year; excesses carry over as advance credits for the following year.')}
+            </div>
+
+            <div className="p-3 bg-amber-500/10 border border-amber-500/25 rounded-lg text-amber-300 text-xs mb-4">
+              <strong>{t('Admin Manual Control')}:</strong> {t('Only apply reconciliation after verifying that raw payment entries and shares are confirmed accurate. This recalculates annual obligations and matches them against recorded payments.')}
             </div>
 
             <form onSubmit={handleReconcileSubmit} className="space-y-4">
               <div className="form-group mb-0">
-                <label className="form-label">Member *</label>
+                <label className="form-label">{t('Member')} *</label>
                 <select
                   className="form-select text-xs"
                   value={reconcileData.memberId}
                   onChange={(e) => setReconcileData({ ...reconcileData, memberId: e.target.value })}
                 >
+                  <option value="ALL">-- {t('All Members')} ({reconcileData.year}) --</option>
                   {membersShares.map((m) => (
                     <option key={m._id} value={m._id}>
-                      {m.memberId} — {m.name} (Shares: {m.currentShares})
+                      {m.memberId} — {m.name} ({t('Shares')}: {m.currentShares})
                     </option>
                   ))}
                 </select>
               </div>
 
               <div className="form-group mb-0">
-                <label className="form-label">Reconciliation Year *</label>
+                <label className="form-label">{t('Reconciliation Year')} *</label>
                 <select
                   className="form-select text-xs"
                   value={reconcileData.year}
                   onChange={(e) => setReconcileData({ ...reconcileData, year: parseInt(e.target.value, 10) })}
                 >
-                  <option value={2024}>2024 (Adjustment & Finalization Baseline)</option>
+                  <option value={2024}>{t('2024 (Adjustment & Finalization Baseline)')}</option>
                   <option value={2025}>2025</option>
                 </select>
               </div>
 
               <div className="flex justify-end gap-2.5 pt-3">
                 <button type="button" className="btn btn-secondary text-xs" onClick={() => setShowReconcileModal(false)}>
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button type="submit" disabled={submitting} className="btn btn-primary text-xs">
-                  {submitting ? 'Reconciling...' : 'Run Reconciliation'}
+                  {submitting ? t('Reconciling...') : t('Run Reconciliation')}
                 </button>
               </div>
             </form>

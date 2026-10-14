@@ -169,7 +169,10 @@ export async function getMembers(options: MemberQueryOptions = {}) {
   ]);
 
   const histories = members.length
-    ? await ShareHistory.find({ memberId: { $in: members.map((member) => member._id) } })
+    ? await ShareHistory.find({
+        memberId: { $in: members.map((member) => member._id) },
+        effectiveMonth: { $lte: '2025-12' },
+      })
       .sort({ effectiveMonth: -1, createdAt: -1 })
       .lean()
     : [];

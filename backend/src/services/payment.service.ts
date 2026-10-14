@@ -86,9 +86,27 @@ export class PaymentService {
     }
 
     const allLedgers = await MonthlyLedger.find(ledgerFilter)
-      .populate('memberId', 'memberId name phone cashoutDue')
+      .populate('memberId', 'memberId name phone cashoutDue status')
       .sort({ month: -1, createdAt: -1 })
       .lean();
+
+    // Map latest active shares per member from ShareHistory
+    const latestShareRecords = await ShareHistory.aggregate([
+      { $match: { effectiveMonth: { $lte: '2025-12' } } },
+      { $sort: { effectiveMonth: -1, createdAt: -1 } },
+      { $group: { _id: '$memberId', latestShares: { $first: '$shareCount' } } },
+    ]);
+    const memberShareMap = new Map<string, number>();
+    for (const sr of latestShareRecords) {
+      memberShareMap.set(String(sr._id), sr.latestShares);
+    }
+
+    const resolveMemberShares = (member: any, fallbackShares?: number): number => {
+      if (!member) return 0;
+      if (member.status === 'INACTIVE' || member.status === 'DROPPED') return 0;
+      const memberKey = String(member._id);
+      return memberShareMap.get(memberKey) ?? fallbackShares ?? 1;
+    };
 
     const normalizedSearch = (query.search || '').trim().toLowerCase();
     const matchesSearch = (member: any) => !normalizedSearch || [member?.memberId, member?.name, member?.phone]
@@ -111,23 +129,25 @@ export class PaymentService {
       const memberKey = String(member._id);
       const cashoutDue = cashoutAssigned.has(memberKey) ? 0 : money(Number(member.cashoutDue || 0));
       cashoutAssigned.add(memberKey);
+      const shareCount = resolveMemberShares(member, ledger.shareCount);
       return {
-        _id: String(ledger._id), month: ledger.month, shareCount: ledger.shareCount,
-        member: { _id: String(member._id), memberId: member.memberId, name: member.name, phone: member.phone },
+        _id: String(ledger._id), month: ledger.month, shareCount,
+        member: { _id: String(member._id), memberId: member.memberId, name: member.name, phone: member.phone, status: member.status },
         principalDue, penaltyDue, cashoutDue, totalDue: money(principalDue + penaltyDue + cashoutDue),
         details: [{ month: ledger.month, shareCount: ledger.shareCount, principalDue, penaltyDue, penaltyWaived: Number(ledger.penaltyWaived || 0) }],
       };
     });
 
     const membersWithCashoutOnly = await Member.find({ cashoutDue: { $gt: 0 } })
-      .select('memberId name phone cashoutDue').lean();
+      .select('memberId name phone cashoutDue status').lean();
     for (const member of membersWithCashoutOnly) {
       const memberKey = String(member._id);
       if (cashoutAssigned.has(memberKey) || !matchesSearch(member)) continue;
       const cashoutDue = money(Number(member.cashoutDue || 0));
+      const shareCount = resolveMemberShares(member, 0);
       ledgerRows.push({
-        _id: `cashout-${memberKey}`, month: '', shareCount: 0,
-        member: { _id: memberKey, memberId: member.memberId, name: member.name, phone: member.phone },
+        _id: `cashout-${memberKey}`, month: '', shareCount,
+        member: { _id: memberKey, memberId: member.memberId, name: member.name, phone: member.phone, status: member.status },
         principalDue: 0, penaltyDue: 0, cashoutDue, totalDue: cashoutDue, details: [],
       });
     }

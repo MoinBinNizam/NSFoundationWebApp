@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
 import {
   Wallet,
   ArrowRightLeft,
@@ -130,6 +131,7 @@ export const CustodyPage: React.FC = () => {
   const { user, canAccess } = useAuth();
   const canEdit = canAccess('CUSTODY', 'edit');
   const isAdmin = (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && canEdit;
+  const { t } = usePreferences();
   const isAccountant = (user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT') && canEdit;
 
   // Navigation Tabs
@@ -334,7 +336,7 @@ export const CustodyPage: React.FC = () => {
     }
   };
 
-  // Execute Reconcile
+  // Execute {t('Reconcile')}
   const handleExecuteReconcile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reconcileForm.accountId || reconcileForm.verifiedAmount === '' || !reconcileForm.reason) {
@@ -418,26 +420,26 @@ export const CustodyPage: React.FC = () => {
     switch (channel) {
       case 'BANK':
         return {
-          label: 'Islami Bank',
+          label: t('Islami Bank'),
           icon: Building2,
           bg: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
         };
       case 'BKASH':
         return {
-          label: 'bKash Wallet',
+          label: t('bKash Wallet'),
           icon: Smartphone,
           bg: 'bg-pink-500/10 text-pink-400 border-pink-500/20',
         };
       case 'NAGAD':
         return {
-          label: 'Nagad Wallet',
+          label: t('Nagad Wallet'),
           icon: PhoneCall,
           bg: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
         };
       case 'CASH':
       default:
         return {
-          label: 'Physical Cash',
+          label: t('Physical Cash'),
           icon: Banknote,
           bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
         };
@@ -483,7 +485,7 @@ export const CustodyPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
             <span className="font-bold uppercase tracking-wider">Read-Only Access:</span>
-            <span>You have viewing permissions for Accountant Custody Ledger. Fund transfers, account reconciliations, and account creations are restricted.</span>
+            <span>{t('You have viewing permissions for Accountant Custody Ledger. Fund transfers, account reconciliations, and account creations are restricted.')}</span>
           </div>
           {user?.designation && (
             <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 border border-amber-500/30 text-amber-300 uppercase">
@@ -499,11 +501,11 @@ export const CustodyPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
               <Wallet className="w-7 h-7 text-indigo-400" />
-              Accountant Custody Ledger
+              {t('Accountant Custody Ledger')}
             </h1>
           </div>
           <p className="text-sm text-gray-400 mt-1">
-            Authoritative multi-custodian balances, cross-channel transfers, and real-time transaction ledger.
+            {t('Authoritative multi-custodian balances, cross-channel transfers, and real-time transaction ledger.')}
           </p>
         </div>
 
@@ -513,10 +515,10 @@ export const CustodyPage: React.FC = () => {
             onClick={() => fetchCustodyOverview()}
             disabled={loading}
             className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm font-medium transition-colors border border-gray-700 flex items-center gap-1.5"
-            title="Refresh Custody Balances"
+            title="{t('Refresh Custody Balances')}"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('Refresh')}
           </button>
 
           {isAccountant && (
@@ -525,7 +527,7 @@ export const CustodyPage: React.FC = () => {
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-medium transition-all shadow-lg shadow-indigo-600/20 flex items-center gap-2"
             >
               <ArrowRightLeft className="w-4 h-4" />
-              Transfer Funds
+              {t('Transfer Funds')}
             </button>
           )}
 
@@ -536,14 +538,14 @@ export const CustodyPage: React.FC = () => {
                 className="px-3.5 py-2 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
               >
                 <SlidersHorizontal className="w-4 h-4" />
-                Reconcile
+                {t('Reconcile')}
               </button>
               <button
                 onClick={() => setShowNewAccountModal(true)}
                 className="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
-                Add Account
+                {t('Add Account')}
               </button>
             </>
           )}
@@ -557,7 +559,7 @@ export const CustodyPage: React.FC = () => {
           <div className="p-4 rounded-xl bg-gradient-to-br from-[#131b2e] to-[#0f172a] border border-indigo-500/20 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Total Liquid Funds
+                {t('Total Liquid Funds')}
               </span>
               <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
                 <Wallet className="w-4 h-4" />
@@ -570,7 +572,7 @@ export const CustodyPage: React.FC = () => {
             </div>
             <div className="mt-2 text-xs text-indigo-400 flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
-              Derived from {summary.totalAccountsCount} custody accounts
+              Derived from {summary.totalAccountsCount} {t('custody accounts')}
             </div>
           </div>
 
@@ -578,7 +580,7 @@ export const CustodyPage: React.FC = () => {
           <div className="p-4 rounded-xl bg-gradient-to-br from-[#1e1b2e] to-[#131124] border border-purple-500/20 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Moin Custody (Primary)
+                {t('Moin Custody (Primary)')}
               </span>
               <div className="w-8 h-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-400">
                 <Shield className="w-4 h-4" />
@@ -598,7 +600,7 @@ export const CustodyPage: React.FC = () => {
           <div className="p-4 rounded-xl bg-gradient-to-br from-[#1a2333] to-[#101926] border border-blue-500/20 relative overflow-hidden">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-                Samrat Custody (Assistant)
+                {t('Samrat Custody (Assistant)')}
               </span>
               <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
                 <Layers className="w-4 h-4" />
@@ -617,7 +619,7 @@ export const CustodyPage: React.FC = () => {
           {/* Channels Breakdown */}
           <div className="p-4 rounded-xl bg-[#111827] border border-white/10 flex flex-col justify-between">
             <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
-              Channel Allocations
+              {t('Channel Allocations')}
             </span>
             <div className="grid grid-cols-2 gap-2 mt-2">
               <div className="text-xs">
@@ -664,7 +666,7 @@ export const CustodyPage: React.FC = () => {
             }`}
           >
             <TrendingUp className="w-4 h-4" />
-            Transaction Movement Ledger
+            {t('Transaction Movement Ledger')}
           </button>
           <button
             onClick={() => setActiveTab('transfers')}
@@ -675,7 +677,7 @@ export const CustodyPage: React.FC = () => {
             }`}
           >
             <ArrowRightLeft className="w-4 h-4" />
-            Inter-Account Transfers
+            {t('Inter-Account Transfers')}
           </button>
         </div>
       </div>
@@ -727,7 +729,7 @@ export const CustodyPage: React.FC = () => {
                         </span>
                       ) : (
                         <span className="text-xs text-gray-500 bg-gray-800/60 px-2 py-0.5 rounded border border-gray-700">
-                          Society Reserve
+                          {t('Society Reserve')}
                         </span>
                       )}
                     </div>
@@ -762,7 +764,7 @@ export const CustodyPage: React.FC = () => {
                     <div className="grid grid-cols-2 gap-2 mt-3 p-2 rounded-lg bg-gray-900/60 border border-gray-800/80 text-xs">
                       <div>
                         <span className="text-gray-500 block flex items-center gap-1">
-                          <ArrowDownLeft className="w-3 h-3 text-emerald-400" /> Total In
+                          <ArrowDownLeft className="w-3 h-3 text-emerald-400" /> {t('Total In')}
                         </span>
                         <span className="font-medium text-emerald-400">
                           +BDT {(acc.totalInflow || 0).toLocaleString()}
@@ -770,7 +772,7 @@ export const CustodyPage: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-gray-500 block flex items-center gap-1">
-                          <ArrowUpRight className="w-3 h-3 text-rose-400" /> Total Out
+                          <ArrowUpRight className="w-3 h-3 text-rose-400" /> {t('Total Out')}
                         </span>
                         <span className="font-medium text-rose-400">
                           -BDT {(acc.totalOutflow || 0).toLocaleString()}
@@ -791,7 +793,7 @@ export const CustodyPage: React.FC = () => {
                         className="flex-1 px-2.5 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <ArrowRightLeft className="w-3 h-3" />
-                        Transfer From
+                        {t('Transfer From')}
                       </button>
                     )}
 
@@ -801,9 +803,9 @@ export const CustodyPage: React.FC = () => {
                         setActiveTab('movements');
                       }}
                       className="px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-medium transition-colors border border-gray-700"
-                      title="View Ledger Movements"
+                      title="{t('View Ledger Movements')}"
                     >
-                      History
+                      {t('History')}
                     </button>
 
                     {isAdmin && (
@@ -925,7 +927,7 @@ export const CustodyPage: React.FC = () => {
 
             {(movementAccountFilter || movementTypeFilter || movementSourceFilter || movementStartDate || movementEndDate) && (
               <div className="mt-3 pt-3 border-t border-gray-800 flex items-center justify-between text-xs">
-                <span className="text-gray-400">Active filters applied</span>
+                <span className="text-gray-400">{t('Active filters applied')}</span>
                 <button
                   onClick={() => {
                     setMovementAccountFilter('');
@@ -1394,7 +1396,7 @@ export const CustodyPage: React.FC = () => {
               {/* Target Account */}
               <div>
                 <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                  Custody Account to Reconcile
+                  Custody Account to {t('Reconcile')}
                 </label>
                 <select
                   value={reconcileForm.accountId}
@@ -1638,31 +1640,31 @@ export const CustodyPage: React.FC = () => {
             <div className="p-6 space-y-4 text-xs">
               <div className="p-4 bg-gray-900/80 rounded-xl border border-gray-800 space-y-3">
                 <div className="flex justify-between items-center pb-2 border-b border-gray-800">
-                  <span className="text-gray-400">Voucher Number:</span>
+                  <span className="text-gray-400">{t('Voucher Number:')}</span>
                   <span className="font-mono font-bold text-indigo-400 text-sm">
                     {selectedTransferVoucher.transferNumber}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Transfer Date:</span>
+                  <span className="text-gray-400">{t('Transfer Date:')}</span>
                   <span className="font-semibold text-white">
                     {new Date(selectedTransferVoucher.date).toLocaleDateString()}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Source:</span>
+                  <span className="text-gray-400">{t('Source:')}</span>
                   <span className="font-semibold text-white">
                     {selectedTransferVoucher.sourceAccountId?.name} ({selectedTransferVoucher.sourceAccountId?.channel})
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Destination:</span>
+                  <span className="text-gray-400">{t('Destination:')}</span>
                   <span className="font-semibold text-white">
                     {selectedTransferVoucher.destinationAccountId?.name} ({selectedTransferVoucher.destinationAccountId?.channel})
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-gray-800">
-                  <span className="text-gray-400 font-semibold uppercase">Transferred Amount:</span>
+                  <span className="text-gray-400 font-semibold uppercase">{t('Transferred Amount:')}</span>
                   <span className="text-lg font-bold text-emerald-400">
                     BDT {selectedTransferVoucher.amount.toLocaleString()}
                   </span>
@@ -1670,7 +1672,7 @@ export const CustodyPage: React.FC = () => {
               </div>
 
               <div>
-                <span className="text-gray-400 block font-medium mb-1">Purpose / Justification:</span>
+                <span className="text-gray-400 block font-medium mb-1">{t('Purpose / Justification:')}</span>
                 <p className="text-gray-200 p-2.5 rounded-lg bg-gray-900/60 border border-gray-800 italic">
                   "{selectedTransferVoucher.purpose || 'Direct inter-account transfer'}"
                 </p>

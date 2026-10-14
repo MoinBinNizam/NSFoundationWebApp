@@ -852,13 +852,13 @@ export const InvestmentsPage: React.FC = () => {
               className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <option value="">{t('All Statuses')}</option>
-              <option value="ACTIVE">{t('Active')} (সক্রিয়)</option>
-              <option value="OVERDUE_PRINCIPAL">মেয়াদোত্তীর্ণ বকেয়া মূলধন (Overdue Principal)</option>
-              <option value="DURATION_COMPLETED">মেয়াদোত্তীর্ণ (Duration Completed)</option>
-              <option value="PRINCIPAL_PARTIALLY_RETURNED">আংশিক মূলধন ফেরত (Partially Returned)</option>
-              <option value="FULLY_SETTLED">সম্পূর্ণ নিষ্পত্তিকৃত (Fully Settled)</option>
-              <option value="PROPOSED">{t('Proposed')} (প্রস্তাবিত)</option>
-              <option value="CLOSED">{t('Closed')} (বন্ধ)</option>
+              <option value="ACTIVE">{t('Active')}</option>
+              <option value="OVERDUE_PRINCIPAL">{t('Overdue Principal')}</option>
+              <option value="DURATION_COMPLETED">{t('Duration Completed')}</option>
+              <option value="PRINCIPAL_PARTIALLY_RETURNED">{t('Partially Returned')}</option>
+              <option value="FULLY_SETTLED">{t('Fully Settled')}</option>
+              <option value="PROPOSED">{t('Proposed')}</option>
+              <option value="CLOSED">{t('Closed')}</option>
             </select>
           </div>
 
@@ -869,14 +869,14 @@ export const InvestmentsPage: React.FC = () => {
               onChange={(e) => setCategoryFilter(e.target.value)}
               className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              <option value="">সকল শ্রেনী (All Categories)</option>
-              <option value="Agriculture">কৃষি ও খামার (Agriculture)</option>
-              <option value="Livestock">গবাদিপশু ও ডেইরি (Livestock)</option>
-              <option value="Trading">পণ্য লেনদেন (Commodity Trading)</option>
-              <option value="Real Estate">জমি ও প্রপার্টি (Real Estate)</option>
-              <option value="Tech / Digital">প্রযুক্তি ও ডিজিটাল (Tech / Digital)</option>
-              <option value="Restaurant">রেস্তোরাঁ ও খাদ্য (Restaurant)</option>
-              <option value="Fisheries">মৎস্য চাষ (Fisheries / Shrimp)</option>
+              <option value="">{t('All Categories')}</option>
+              <option value="Agriculture">{t('Agriculture')}</option>
+              <option value="Livestock">{t('Livestock')}</option>
+              <option value="Trading">{t('Trading')}</option>
+              <option value="Real Estate">{t('Real Estate')}</option>
+              <option value="Tech / Digital">{t('Tech / Digital')}</option>
+              <option value="Restaurant">{t('Restaurant')}</option>
+              <option value="Fisheries">{t('Fisheries')}</option>
             </select>
           </div>
 
@@ -891,7 +891,7 @@ export const InvestmentsPage: React.FC = () => {
                 }}
                 className="text-xs text-emerald-400 hover:text-emerald-300 font-medium px-2 py-1"
               >
-                ফিল্টার রিসেট (Reset)
+                {t('Reset Filters')}
               </button>
             </div>
           )}
@@ -902,11 +902,11 @@ export const InvestmentsPage: React.FC = () => {
       {loading ? (
         <div className="py-12 text-center text-gray-400 flex items-center justify-center gap-2">
           <RefreshCw className="w-5 h-5 animate-spin text-emerald-400" />
-          বিনিয়োগ প্রকল্প লোড হচ্ছে... (Loading investment projects...)
+          {t('Loading investment projects...')}
         </div>
       ) : projects.length === 0 ? (
         <div className="bg-[#111827] border border-white/10 rounded-xl p-8 text-center text-gray-400">
-          কোনো বিনিয়োগ প্রকল্প পাওয়া যায়নি (No investment projects found).
+          {t('No investment projects found.')}
         </div>
       ) : (
         <>
@@ -942,7 +942,7 @@ export const InvestmentsPage: React.FC = () => {
                         </span>
                         {prj.invoiceNo && (
                           <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
-                            ইনভয়েস: {prj.invoiceNo}
+                            {t('Invoice')}: {prj.invoiceNo}
                           </span>
                         )}
                         {prj.externalEntity && (
@@ -968,11 +968,11 @@ export const InvestmentsPage: React.FC = () => {
                         }`}
                       >
                         {isOverdue
-                          ? 'মেয়াদোত্তীর্ণ (লাভ চলমান)'
+                          ? t('Overdue (Interest Accruing)')
                           : prj.status === 'FULLY_SETTLED'
-                          ? 'সম্পূর্ণ নিষ্পত্তিকৃত'
+                          ? t('Fully Settled')
                           : prj.status === 'PRINCIPAL_PARTIALLY_RETURNED'
-                          ? 'আংশিক ফেরত'
+                          ? t('Partially Returned')
                           : prj.status}
                       </span>
                     </div>
@@ -981,7 +981,7 @@ export const InvestmentsPage: React.FC = () => {
                     {isOverdue && (
                       <div className="mt-2.5 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-[11px] text-amber-300 flex items-center gap-1.5 font-medium">
                         <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                        পরিকল্পিত মেয়াদ শেষ ({calc?.overdueDays || 0} দিন) • বাকি মূলধনে লাভ সঞ্চয় চলমান
+                        {t('Planned duration completed')} ({calc?.overdueDays || 0} {t('Days')}) • {t('profit accrual continuing on outstanding principal')}
                       </div>
                     )}
 
@@ -991,22 +991,22 @@ export const InvestmentsPage: React.FC = () => {
                         {prj.name}
                       </h3>
                       <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                        <span className="text-gray-300 font-medium">শ্রেনী: {prj.category}</span>
+                        <span className="text-gray-300 font-medium">{t('Category')}: {t(prj.category)}</span>
                         {prj.plannedDuration && (
                           <>
                             <span>•</span>
-                            <span>মেয়াদ: {prj.plannedDuration}</span>
+                            <span>{t('Duration')}: {prj.plannedDuration}</span>
                           </>
                         )}
                         <span>•</span>
-                        <span>শুরু: {new Date(prj.startDate).toLocaleDateString()}</span>
+                        <span>{t('Start')}: {new Date(prj.startDate).toLocaleDateString()}</span>
                       </p>
                     </div>
 
                     {/* Funding Progress */}
                     <div className="mt-3 pt-3 border-t border-gray-800">
                       <div className="flex justify-between items-baseline text-xs mb-1">
-                        <span className="text-gray-400">মূল বিনিয়োগ:</span>
+                        <span className="text-gray-400">{t('Original Principal')}:</span>
                         <span className="font-bold text-white">
                           BDT {(prj.totalFunded || prj.targetPrincipal).toLocaleString()}
                         </span>
@@ -1025,25 +1025,25 @@ export const InvestmentsPage: React.FC = () => {
                     {/* Core Financial Dimensions Grid (Principal vs Profit Strictly Separated) */}
                     <div className="grid grid-cols-2 gap-2 mt-3 p-2.5 rounded-lg bg-gray-900/60 border border-gray-800/80 text-xs">
                       <div>
-                        <span className="text-gray-500 block">বাকি মূলধন:</span>
+                        <span className="text-gray-500 block">{t('Outstanding Principal')}:</span>
                         <span className={`font-semibold ${outstandingPrincipal > 0 ? 'text-amber-300' : 'text-emerald-400'}`}>
                           BDT {outstandingPrincipal.toLocaleString()}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-500 block">বাৎসরিক ROI:</span>
+                        <span className="text-gray-500 block">{t('Annual ROI')}:</span>
                         <span className="font-semibold text-indigo-400">
-                          {expectedRoi}% বাৎসরিক
+                          {expectedRoi}% {t('yearly')}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-500 block">অর্জিত সম্ভাব্য লাভ:</span>
+                        <span className="text-gray-500 block">{t('Expected Accrued Profit')}:</span>
                         <span className="font-semibold text-purple-300">
                           BDT {(calc?.expectedProfitAccrued ?? 0).toLocaleString()}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-500 block">ফেরত প্রাপ্ত লাভ:</span>
+                        <span className="text-gray-500 block">{t('Actual Profit Returned')}:</span>
                         <span className="font-semibold text-emerald-400">
                           +BDT {(calc?.actualProfitReturned ?? m.totalProfitRealized ?? 0).toLocaleString()}
                         </span>
@@ -1053,7 +1053,7 @@ export const InvestmentsPage: React.FC = () => {
                     {/* Profit Outstanding */}
                     {(calc?.expectedProfitOutstanding ?? 0) > 0 && (
                       <div className="mt-2 text-[11px] text-gray-400 flex justify-between bg-purple-500/5 px-2 py-1 rounded border border-purple-500/10">
-                        <span>বাকি সম্ভাব্য লাভ:</span>
+                        <span>{t('Outstanding Profit')}:</span>
                         <span className="font-semibold text-purple-300">
                           BDT {(calc?.expectedProfitOutstanding ?? 0).toLocaleString()}
                         </span>
@@ -1068,7 +1068,7 @@ export const InvestmentsPage: React.FC = () => {
                       className="flex-1 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-medium transition-colors border border-gray-700 flex items-center justify-center gap-1"
                     >
                       <Eye className="w-3.5 h-3.5" />
-                      বিস্তারিত (Details)
+                      {t('Details')}
                     </button>
 
                     {isAccountant && prj.status !== 'CLOSED' && prj.status !== 'FULLY_SETTLED' && (
@@ -1108,7 +1108,7 @@ export const InvestmentsPage: React.FC = () => {
                             className="px-2.5 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded-lg text-xs font-medium transition-colors"
                             title="Record Maturity Return"
                           >
-                            ফেরত (Return)
+                            {t('Return')}
                           </button>
                         )}
                       </>
@@ -1131,7 +1131,7 @@ export const InvestmentsPage: React.FC = () => {
                   onClick={() => handlePageChange(page - 1)}
                   className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs text-gray-300 rounded-lg border border-gray-700 font-medium transition-colors"
                 >
-                  পূর্ববর্তী (Prev)
+                  {t('Previous')}
                 </button>
                 <span className="text-xs px-2 text-gray-400">
                   {page} / {totalPages}
@@ -1141,7 +1141,7 @@ export const InvestmentsPage: React.FC = () => {
                   onClick={() => handlePageChange(page + 1)}
                   className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs text-gray-300 rounded-lg border border-gray-700 font-medium transition-colors"
                 >
-                  পরবর্তী (Next)
+                  {t('Next')}
                 </button>
               </div>
             </div>
@@ -1161,8 +1161,8 @@ export const InvestmentsPage: React.FC = () => {
                   <Plus className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-white">New Investment Project</h2>
-                  <p className="text-xs text-gray-400">Define pooled investment project & partner details</p>
+                  <h2 className="text-lg font-bold text-white">{t('New Investment Project')}</h2>
+                  <p className="text-xs text-gray-400">{t('Define pooled investment project & partner details')}</p>
                 </div>
               </div>
               <button
@@ -1177,7 +1177,7 @@ export const InvestmentsPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    প্রকল্পের নাম (Project Name)
+                    {t('Project Name')} *
                   </label>
                   <input
                     type="text"
@@ -1191,7 +1191,7 @@ export const InvestmentsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    ইনভয়েস নং (Invoice No)
+                    {t('Invoice No')}
                   </label>
                   <input
                     type="text"
@@ -1204,7 +1204,7 @@ export const InvestmentsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    এনজিও / পার্টনার (Partner / NGO)
+                    {t('Partner / Entity')}
                   </label>
                   <input
                     type="text"
@@ -1219,7 +1219,7 @@ export const InvestmentsPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    শ্রেনী (Category)
+                    {t('Category')} *
                   </label>
                   {!isCustomCategory ? (
                     <select
@@ -1234,15 +1234,15 @@ export const InvestmentsPage: React.FC = () => {
                       }}
                       className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     >
-                      <option value="Agriculture">কৃষি ও খামার (Agriculture)</option>
-                      <option value="Livestock">গবাদিপশু ও ডেইরি (Livestock)</option>
-                      <option value="Trading">পণ্য লেনদেন (Commodity Trading)</option>
-                      <option value="Real Estate">জমি ও প্রপার্টি (Real Estate)</option>
-                      <option value="Tech / Digital">প্রযুক্তি ও ডিজিটাল (Tech / Digital)</option>
-                      <option value="Restaurant">রেস্তোরাঁ ও খাদ্য (Restaurant)</option>
-                      <option value="Fisheries">মৎস্য চাষ (Fisheries / Shrimp)</option>
-                      <option value="General">অন্যান্য / সাধারণ (General)</option>
-                      <option value="__NEW__">+ নতুন শ্রেনী যোগ করুন (+ New Category)</option>
+                      <option value="Agriculture">{t('Agriculture')}</option>
+                      <option value="Livestock">{t('Livestock')}</option>
+                      <option value="Trading">{t('Trading')}</option>
+                      <option value="Real Estate">{t('Real Estate')}</option>
+                      <option value="Tech / Digital">{t('Tech / Digital')}</option>
+                      <option value="Restaurant">{t('Restaurant')}</option>
+                      <option value="Fisheries">{t('Fisheries')}</option>
+                      <option value="General">{t('General')}</option>
+                      <option value="__NEW__">+ {t('Add New Category')}</option>
                     </select>
                   ) : (
                     <div className="flex items-center gap-1.5">
@@ -1250,7 +1250,7 @@ export const InvestmentsPage: React.FC = () => {
                         type="text"
                         value={customCategory}
                         onChange={(e) => setCustomCategory(e.target.value)}
-                        placeholder="নতুন শ্রেনীর নাম লিখুন..."
+                        placeholder={t('Enter new category name...')}
                         className="w-full bg-[#1F2937] border border-emerald-500 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
                         required
                       />
@@ -1258,7 +1258,7 @@ export const InvestmentsPage: React.FC = () => {
                         type="button"
                         onClick={() => setIsCustomCategory(false)}
                         className="p-2 bg-gray-800 hover:bg-gray-700 text-gray-400 rounded-lg"
-                        title="বিদ্যমান তালিকা থেকে বাছুন"
+                        title={t('Select from existing list')}
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -1268,7 +1268,7 @@ export const InvestmentsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    পরিকল্পিত সময়কাল (Planned Duration)
+                    {t('Planned Duration')}
                   </label>
                   <input
                     type="text"
@@ -1281,7 +1281,7 @@ export const InvestmentsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    মূল বিনিয়োগ লক্ষ্য (Target Principal BDT)
+                    {t('Target Principal (BDT)')} *
                   </label>
                   <input
                     type="number"
@@ -1298,7 +1298,7 @@ export const InvestmentsPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    শুরুর তারিখ (Start Date)
+                    {t('Start Date')} *
                   </label>
                   <input
                     type="date"
@@ -1311,7 +1311,7 @@ export const InvestmentsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    পরিকল্পিত শেষ তারিখ (Planned End Date)
+                    {t('Planned End Date')}
                   </label>
                   <input
                     type="date"
@@ -1323,7 +1323,7 @@ export const InvestmentsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    বাৎসরিক সম্ভাব্য লাভের হার (%) (Expected ROI yearly)
+                    {t('Expected Annual ROI (%)')}
                   </label>
                   <input
                     type="number"
@@ -1381,7 +1381,7 @@ export const InvestmentsPage: React.FC = () => {
 
                 {createForm.initialFundings.length === 0 ? (
                   <p className="text-xs text-gray-500 italic">
-                    No initial funding attached yet. You can fund this project anytime later from one or multiple accountants.
+                    {t('No initial funding attached yet. You can fund this project anytime later from one or multiple accountants.')}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -1400,7 +1400,7 @@ export const InvestmentsPage: React.FC = () => {
                             }}
                             className="w-full bg-[#1F2937] border border-gray-700 rounded px-2.5 py-1.5 text-xs text-white"
                           >
-                            <option value="">Select accountant custody account...</option>
+                            <option value="">{t('Select accountant custody account...')}</option>
                             {custodyAccounts.map((acc) => (
                               <option key={acc._id} value={acc._id}>
                                 {acc.name} ({acc.channel}) — Available: BDT {acc.derivedBalance.toLocaleString()}
@@ -1477,8 +1477,8 @@ export const InvestmentsPage: React.FC = () => {
                   <ArrowDownLeft className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-white">Invest Capital into Project</h2>
-                  <p className="text-xs text-gray-400">Supply money from one or multiple accountant custodies</p>
+                  <h2 className="text-lg font-bold text-white">{t('Invest Capital into Project')}</h2>
+                  <p className="text-xs text-gray-400">{t('Supply money from one or multiple accountant custodies')}</p>
                 </div>
               </div>
               <button
@@ -1626,7 +1626,7 @@ export const InvestmentsPage: React.FC = () => {
 
               {/* Total Summary */}
               <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-between text-xs">
-                <span className="text-indigo-300 font-medium">Total New Capital to Invest:</span>
+                <span className="text-indigo-300 font-medium">{t('Total New Capital to Invest:')}</span>
                 <span className="text-base font-bold text-white">
                   BDT{' '}
                   {fundForm.fundings
@@ -1670,8 +1670,8 @@ export const InvestmentsPage: React.FC = () => {
                   <ArrowUpRight className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-white">Record Maturity & Return</h2>
-                  <p className="text-xs text-gray-400">Realize principal, profit/loss, and deposit destination</p>
+                  <h2 className="text-lg font-bold text-white">{t('Record Maturity & Return')}</h2>
+                  <p className="text-xs text-gray-400">{t('Realize principal, profit/loss, and deposit destination')}</p>
                 </div>
               </div>
               <button
@@ -1765,7 +1765,7 @@ export const InvestmentsPage: React.FC = () => {
 
               {/* Net Total Preview */}
               <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl flex items-center justify-between text-xs">
-                <span className="text-purple-300 font-medium">Total Cash/Proceeds Returned:</span>
+                <span className="text-purple-300 font-medium">{t('Total Cash/Proceeds Returned:')}</span>
                 <span className="text-base font-bold text-white">
                   BDT{' '}
                   {(
@@ -1780,26 +1780,26 @@ export const InvestmentsPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    জমা গন্তব্য (Return Destination)
+                    {t('Return Destination')}
                   </label>
                   <select
                     value={returnForm.destinationType}
                     onChange={(e) => setReturnForm({ ...returnForm, destinationType: e.target.value as any })}
                     className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
-                    <option value="ACCOUNTANT_CUSTODY">হিসাবরক্ষক কাস্টডি (Accountant Custody)</option>
-                    <option value="PROJECT_WALLET">প্রকল্প ওয়ালেট (Project Wallet)</option>
-                    <option value="EXTERNAL_WALLET">বহিঃস্থ ওয়ালেট (External Wallet)</option>
+                    <option value="ACCOUNTANT_CUSTODY">{t('Accountant Custody')}</option>
+                    <option value="PROJECT_WALLET">{t('Project Wallet')}</option>
+                    <option value="EXTERNAL_WALLET">{t('External Wallet')}</option>
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    জমা একাউন্ট {returnForm.destinationType === 'ACCOUNTANT_CUSTODY' && <span className="text-red-400">*</span>}
+                    {t('Deposit Account')} {returnForm.destinationType === 'ACCOUNTANT_CUSTODY' && <span className="text-red-400">*</span>}
                   </label>
                   {returnForm.destinationType === 'PROJECT_WALLET' ? (
                     <div className="w-full bg-[#111827] border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-400 italic">
-                      প্রকল্প ওয়ালেটে রক্ষিত হবে (আলাদা কাস্টডি একাউন্ট প্রয়োজন নেই)
+                      {t('Will be retained in project wallet (no separate custody account needed)')}
                     </div>
                   ) : (
                     <select
@@ -1823,7 +1823,7 @@ export const InvestmentsPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    লেনদেন রেফারেন্স (Tx Ref / ID)
+                    {t('Transaction Reference / ID')}
                   </label>
                   <input
                     type="text"
@@ -1836,7 +1836,7 @@ export const InvestmentsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                    মন্তব্য / রেফারেন্স বিবরণ
+                    {t('Notes / Justification')}
                   </label>
                   <input
                     type="text"
@@ -1883,8 +1883,8 @@ export const InvestmentsPage: React.FC = () => {
                   <Repeat className="w-4 h-4" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-white">Reinvest Wallet Proceeds</h2>
-                  <p className="text-xs text-gray-400">Reinvest from partner wallet + optional new accountant funds</p>
+                  <h2 className="text-lg font-bold text-white">{t('Reinvest Wallet Proceeds')}</h2>
+                  <p className="text-xs text-gray-400">{t('Reinvest from partner wallet + optional new accountant funds')}</p>
                 </div>
               </div>
               <button
@@ -2069,7 +2069,7 @@ export const InvestmentsPage: React.FC = () => {
               {/* As-Of Date & Overdue Status Banner */}
               <div className="flex items-center justify-between p-2.5 rounded-xl bg-gray-900/90 border border-gray-800 flex-wrap gap-2">
                 <span className="text-gray-400">
-                  হিসাবকাল (Calculation As Of):{' '}
+                  {t('Calculation As Of')}:{' '}
                   <span className="font-mono text-emerald-400 font-semibold">
                     {selectedProjectForDetail.calculation?.asOfDate || new Date().toISOString().split('T')[0]}
                   </span>
@@ -2085,25 +2085,25 @@ export const InvestmentsPage: React.FC = () => {
               {/* 6 Key Financial Dimensions (Principal vs Profit Strictly Separated) */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div className="p-3 bg-gray-900/80 rounded-xl border border-gray-800">
-                  <span className="text-gray-400 block">মূল বিনিয়োগ (Original Principal)</span>
+                  <span className="text-gray-400 block">{t('Original Principal')}</span>
                   <span className="text-base font-bold text-white">
                     BDT {(selectedProjectForDetail.totalFunded || selectedProjectForDetail.targetPrincipal).toLocaleString()}
                   </span>
                 </div>
                 <div className="p-3 bg-gray-900/80 rounded-xl border border-gray-800">
-                  <span className="text-gray-400 block">ফেরত মূলধন (Principal Returned)</span>
+                  <span className="text-gray-400 block">{t('Principal Returned')}</span>
                   <span className="text-base font-bold text-purple-400">
                     BDT {(selectedProjectForDetail.calculation?.totalPrincipalReturned ?? selectedProjectForDetail.metrics.totalPrincipalReturned).toLocaleString()}
                   </span>
                 </div>
                 <div className="p-3 bg-gray-900/80 rounded-xl border border-gray-800">
-                  <span className="text-gray-400 block">বাকি মূলধন (Outstanding Principal)</span>
+                  <span className="text-gray-400 block">{t('Outstanding Principal')}</span>
                   <span className={`text-base font-bold ${(selectedProjectForDetail.calculation?.outstandingPrincipal ?? selectedProjectForDetail.metrics.netOutstandingCapital) > 0 ? 'text-amber-300' : 'text-emerald-400'}`}>
                     BDT {(selectedProjectForDetail.calculation?.outstandingPrincipal ?? selectedProjectForDetail.metrics.netOutstandingCapital).toLocaleString()}
                   </span>
                 </div>
                 <div className="p-3 bg-gray-900/80 rounded-xl border border-gray-800">
-                  <span className="text-gray-400 block">অর্জিত সম্ভাব্য লাভ (Expected Accrued)</span>
+                  <span className="text-gray-400 block">{t('Expected Accrued Profit')}</span>
                   <span className="text-base font-bold text-purple-300">
                     BDT {(selectedProjectForDetail.calculation?.expectedProfitAccrued ?? 0).toLocaleString()}
                   </span>
@@ -2112,13 +2112,13 @@ export const InvestmentsPage: React.FC = () => {
                   </span>
                 </div>
                 <div className="p-3 bg-gray-900/80 rounded-xl border border-gray-800">
-                  <span className="text-gray-400 block">প্রকৃত প্রাপ্ত লাভ (Actual Profit Returned)</span>
+                  <span className="text-gray-400 block">{t('Actual Profit Returned')}</span>
                   <span className="text-base font-bold text-emerald-400">
                     +BDT {(selectedProjectForDetail.calculation?.actualProfitReturned ?? selectedProjectForDetail.metrics.totalProfitRealized).toLocaleString()}
                   </span>
                 </div>
                 <div className="p-3 bg-gray-900/80 rounded-xl border border-gray-800">
-                  <span className="text-gray-400 block">বাকি সম্ভাব্য লাভ (Profit Outstanding)</span>
+                  <span className="text-gray-400 block">{t('Outstanding Profit')}</span>
                   <span className="text-base font-bold text-indigo-300">
                     BDT {(selectedProjectForDetail.calculation?.expectedProfitOutstanding ?? 0).toLocaleString()}
                   </span>
@@ -2130,18 +2130,18 @@ export const InvestmentsPage: React.FC = () => {
                 <div>
                   <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                     <TrendingUp className="w-3.5 h-3.5 text-purple-400" />
-                    টাইম-সেগমেন্ট ভিত্তিক লাভ হিসাব (Date-Sensitive Segmented Profit Calculation)
+                    {t('Date-Sensitive Segmented Profit Calculation')}
                   </h3>
                   <div className="border border-gray-800 rounded-xl overflow-hidden">
                     <table className="w-full text-left text-xs">
                       <thead className="bg-gray-900/80 text-gray-400 border-b border-gray-800">
                         <tr>
-                          <th className="py-2.5 px-3">পর্ব #</th>
-                          <th className="py-2.5 px-3">সময়কাল (তারিখ হতে - পর্যন্ত)</th>
-                          <th className="py-2.5 px-3">দিন</th>
-                          <th className="py-2.5 px-3">কার্যকরী মূলধন</th>
-                          <th className="py-2.5 px-3">বাৎসরিক ROI</th>
-                          <th className="py-2.5 px-3">অর্জিত লাভ</th>
+                          <th className="py-2.5 px-3">{t('Segment #')}</th>
+                          <th className="py-2.5 px-3">{t('Date Range')}</th>
+                          <th className="py-2.5 px-3">{t('Days')}</th>
+                          <th className="py-2.5 px-3">{t('Active Principal')}</th>
+                          <th className="py-2.5 px-3">{t('Annual ROI')}</th>
+                          <th className="py-2.5 px-3">{t('Accrued Profit')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-800/60">
@@ -2171,7 +2171,7 @@ export const InvestmentsPage: React.FC = () => {
               <div>
                 <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-400" />
-                  বহু-হিসাবরক্ষক অর্থায়ন ইতিহাস (Multi-Accountant Investment Contributions)
+                  {t('Multi-Accountant Investment Contributions')}
                 </h3>
 
                 {projectDetailData?.fundings && projectDetailData.fundings.length > 0 ? (
@@ -2179,10 +2179,10 @@ export const InvestmentsPage: React.FC = () => {
                     <table className="w-full text-left text-xs">
                       <thead className="bg-gray-900/80 text-gray-400 border-b border-gray-800">
                         <tr>
-                          <th className="py-2.5 px-3">তারিখ</th>
-                          <th className="py-2.5 px-3">জিম্মা হিসাব (Custody Account)</th>
-                          <th className="py-2.5 px-3">পরিমাণ</th>
-                          <th className="py-2.5 px-3">অর্থায়নকারী</th>
+                          <th className="py-2.5 px-3">{t('Date')}</th>
+                          <th className="py-2.5 px-3">{t('Custody Account')}</th>
+                          <th className="py-2.5 px-3">{t('Amount')}</th>
+                          <th className="py-2.5 px-3">{t('Funded By')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-800/60">
@@ -2207,7 +2207,7 @@ export const InvestmentsPage: React.FC = () => {
                   </div>
                 ) : (
                   <p className="text-gray-500 italic p-3 bg-gray-900/50 rounded-lg border border-gray-800">
-                    এখনো কোনো অর্থায়ন রেকর্ড করা হয়নি (No investment fundings recorded yet).
+                    {t('No investment fundings recorded yet.')}
                   </p>
                 )}
               </div>
@@ -2216,7 +2216,7 @@ export const InvestmentsPage: React.FC = () => {
               <div>
                 <h3 className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-2 flex items-center gap-1.5">
                   <ArrowUpRight className="w-3.5 h-3.5 text-purple-400" />
-                  মেয়াদপূর্তি ও ফেরত লেনদেন ইতিহাস (Maturity & Returns History)
+                  {t('Maturity & Returns History')}
                 </h3>
 
                 {projectDetailData?.returns && projectDetailData.returns.length > 0 ? (
@@ -2224,12 +2224,12 @@ export const InvestmentsPage: React.FC = () => {
                     <table className="w-full text-left text-xs">
                       <thead className="bg-gray-900/80 text-gray-400 border-b border-gray-800">
                         <tr>
-                          <th className="py-2.5 px-3">তারিখ</th>
-                          <th className="py-2.5 px-3">ফেরত মূলধন</th>
-                          <th className="py-2.5 px-3">প্রাপ্ত লাভ</th>
-                          <th className="py-2.5 px-3">মোট ফেরত</th>
-                          <th className="py-2.5 px-3">গন্তব্য</th>
-                          <th className="py-2.5 px-3">রেফারেন্স</th>
+                          <th className="py-2.5 px-3">{t('Date')}</th>
+                          <th className="py-2.5 px-3">{t('Principal Returned')}</th>
+                          <th className="py-2.5 px-3">{t('Actual Profit')}</th>
+                          <th className="py-2.5 px-3">{t('Total Return')}</th>
+                          <th className="py-2.5 px-3">{t('Destination')}</th>
+                          <th className="py-2.5 px-3">{t('Reference')}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-800/60">
@@ -2249,7 +2249,7 @@ export const InvestmentsPage: React.FC = () => {
                             </td>
                             <td className="py-2.5 px-3 text-gray-300">
                               {r.destinationType === 'PROJECT_WALLET'
-                                ? 'প্রকল্প ওয়ালেট (Project Wallet)'
+                                ? t('Project Wallet')
                                 : r.destinationCustodyAccountId?.name || r.destinationType}
                             </td>
                             <td className="py-2.5 px-3 text-gray-400 font-mono">
@@ -2262,7 +2262,7 @@ export const InvestmentsPage: React.FC = () => {
                   </div>
                 ) : (
                   <p className="text-gray-500 italic p-3 bg-gray-900/50 rounded-lg border border-gray-800">
-                    এখনো কোনো ফেরত জমা হয়নি (No returns realized yet).
+                    {t('No returns realized yet.')}
                   </p>
                 )}
               </div>

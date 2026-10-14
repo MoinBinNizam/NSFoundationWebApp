@@ -224,31 +224,21 @@ export const MembersPage: React.FC = () => {
       setFormError(t('Enter a Bangladesh mobile number or an international phone number.'));
       return;
     }
-    const requestedShareCount = Number(formData.initialShareCount);
-    if (!Number.isInteger(requestedShareCount) || requestedShareCount < 1 || requestedShareCount > 10_000) {
-      setFormError(t('Number of shares must be a whole number between 1 and 10,000.'));
-      return;
-    }
     setSubmitting(true);
 
     try {
       await apiRequest(`/members/${selectedMember._id}`, {
         method: 'PUT',
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email,
+          designation: formData.designation,
+          status: formData.status,
+          joinDate: formData.joinDate,
+          address: formData.address,
+        }),
       });
-      if (requestedShareCount !== selectedMember.shareCount) {
-        await apiRequest('/shares/change', {
-          method: 'POST',
-          body: JSON.stringify({
-            memberId: selectedMember._id,
-            shareCount: requestedShareCount,
-            effectiveMonth: new Date().toISOString().slice(0, 7),
-            eventType: 'TEMPORARY_CHANGE',
-            isAdministrativeOverride: true,
-            notes: 'Share count updated from Member Management.',
-          }),
-        });
-      }
       setShowEditModal(false);
       fetchData();
     } catch (err: unknown) {
@@ -634,7 +624,7 @@ export const MembersPage: React.FC = () => {
 
             <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div className="form-group mb-0">
-                <label className="form-label">Full Name *</label>
+                <label className="form-label">{t('Full Name')} *</label>
                 <input
                   type="text"
                   required
@@ -647,7 +637,7 @@ export const MembersPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="form-group mb-0">
-                  <label className="form-label">Phone Number *</label>
+                  <label className="form-label">{t('Phone Number')} *</label>
                   <input
                     type="tel"
                     inputMode="tel"
@@ -661,7 +651,7 @@ export const MembersPage: React.FC = () => {
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label">Email Address</label>
+                  <label className="form-label">{t('Email Address')}</label>
                   <input
                     type="email"
                     className="form-input"
@@ -691,20 +681,20 @@ export const MembersPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="form-group mb-0">
-                  <label className="form-label">Status *</label>
+                  <label className="form-label">{t('Status')} *</label>
                   <select
                     required
                     className="form-select"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                   >
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="INACTIVE">INACTIVE</option>
+                    <option value="ACTIVE">{t('ACTIVE')}</option>
+                    <option value="INACTIVE">{t('INACTIVE')}</option>
                   </select>
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label">Join Date *</label>
+                  <label className="form-label">{t('Join Date')} *</label>
                   <input
                     type="date"
                     required
@@ -717,7 +707,7 @@ export const MembersPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="form-group mb-0">
-                  <label className="form-label">No. of Shares *</label>
+                  <label className="form-label">{t('No. of Shares')} *</label>
                   <input
                     type="number"
                     required
@@ -736,7 +726,7 @@ export const MembersPage: React.FC = () => {
               </div>
 
               <div className="form-group mb-0">
-                <label className="form-label">Address</label>
+                <label className="form-label">{t('Address')}</label>
                 <input
                   type="text"
                   className="form-input"
@@ -770,10 +760,10 @@ export const MembersPage: React.FC = () => {
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h3 className="text-lg font-bold text-white">
-                  Edit Member {selectedMember.memberId}
+                  {t('Edit Member')} {selectedMember.memberId}
                 </h3>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Update contact or status information.
+                  {t('Update contact or status information.')}
                 </p>
               </div>
               <button
@@ -792,7 +782,7 @@ export const MembersPage: React.FC = () => {
 
             <form onSubmit={handleEditSubmit} className="space-y-4">
               <div className="form-group mb-0">
-                <label className="form-label">Full Name</label>
+                <label className="form-label">{t('Full Name')} *</label>
                 <input
                   type="text"
                   required
@@ -804,7 +794,7 @@ export const MembersPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="form-group mb-0">
-                  <label className="form-label">Phone Number</label>
+                  <label className="form-label">{t('Phone Number')} *</label>
                   <input
                     type="tel"
                     inputMode="tel"
@@ -817,7 +807,7 @@ export const MembersPage: React.FC = () => {
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label">Email</label>
+                  <label className="form-label">{t('Email Address')}</label>
                   <input
                     type="email"
                     className="form-input"
@@ -846,21 +836,21 @@ export const MembersPage: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div className="form-group mb-0">
-                  <label className="form-label">Status *</label>
+                  <label className="form-label">{t('Status')} *</label>
                   <select
                     required
                     className="form-select"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                   >
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="INACTIVE">INACTIVE</option>
-                    <option value="DROPPED">DROPPED</option>
+                    <option value="ACTIVE">{t('ACTIVE')}</option>
+                    <option value="INACTIVE">{t('INACTIVE')}</option>
+                    <option value="DROPPED">{t('DROPPED')}</option>
                   </select>
                 </div>
 
                 <div className="form-group mb-0">
-                  <label className="form-label">Join Date *</label>
+                  <label className="form-label">{t('Join Date')} *</label>
                   <input
                     type="date"
                     required
@@ -871,21 +861,18 @@ export const MembersPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div className="form-group mb-0">
-                  <label className="form-label">No. of Shares *</label>
-                  <input type="number" required min="1" max="10000" step="1" className="form-input" value={formData.initialShareCount} onChange={(e) => setFormData({ ...formData, initialShareCount: e.target.value })} />
-                  <p className="text-[11px] text-gray-500 mt-1">Changes are recorded in the share history.</p>
-                </div>
-                <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/25 px-4 py-3.5 self-end">
-                  <p className="text-[11px] uppercase tracking-wide font-semibold text-emerald-200/80">Monthly payable preview</p>
-                  <p className="text-lg font-extrabold text-emerald-300 mt-0.5">৳{((Number(formData.initialShareCount) || 0) * shareAmount).toFixed(2)}</p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">{formData.initialShareCount || 0} share(s) × ৳{shareAmount.toFixed(2)}</p>
+              <div className="p-3.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200 flex items-center justify-between">
+                <div>
+                  <span className="font-semibold text-white">{t('Current Active Shares')}: </span>
+                  <span className="font-bold text-amber-300 ml-1">{selectedMember.shareCount || 1} {t('share(s)')}</span>
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    {t('To adjust, increase, decrease, or transfer shares, use the Shares & Annual Account Management module.')}
+                  </p>
                 </div>
               </div>
 
               <div className="form-group mb-0">
-                <label className="form-label">Address</label>
+                <label className="form-label">{t('Address')}</label>
                 <input
                   type="text"
                   className="form-input"
@@ -900,10 +887,10 @@ export const MembersPage: React.FC = () => {
                   className="btn btn-secondary"
                   onClick={() => setShowEditModal(false)}
                 >
-                  Cancel
+                  {t('Cancel')}
                 </button>
                 <button type="submit" disabled={submitting} className="btn btn-primary">
-                  {submitting ? 'Saving Changes...' : 'Save Changes'}
+                  {submitting ? t('Saving Changes...') : t('Save Changes')}
                 </button>
               </div>
             </form>
@@ -939,50 +926,50 @@ export const MembersPage: React.FC = () => {
 
             <div className="space-y-2.5 mt-4 text-xs">
               <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
-                <span className="text-gray-400 font-medium">Board Designation:</span>
+                <span className="text-gray-400 font-medium">{t('Board Designation / Role')}:</span>
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${DESIGNATION_CONFIG[selectedMember.designation || 'GENERAL_MEMBER']?.badgeClass || 'bg-gray-500/20 text-gray-300'}`}>
                   {t(DESIGNATION_CONFIG[selectedMember.designation || 'GENERAL_MEMBER']?.label || selectedMember.designation || 'General Member')}
                 </span>
               </div>
 
               <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
-                <span className="text-gray-400 font-medium">Membership Status:</span>
+                <span className="text-gray-400 font-medium">{t('Membership Status')}:</span>
                 <span className={`badge ${selectedMember.status === 'ACTIVE' ? 'badge-active' : selectedMember.status === 'INACTIVE' ? 'badge-inactive' : 'badge-dropped'}`}>
-                  {selectedMember.status}
+                  {t(selectedMember.status)}
                 </span>
               </div>
 
               <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
-                <span className="text-gray-400 font-medium">Phone:</span>
+                <span className="text-gray-400 font-medium">{t('Phone Number')}:</span>
                 <span className="text-white font-semibold">{selectedMember.phone}</span>
               </div>
 
               {selectedMember.email && (
                 <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
-                  <span className="text-gray-400 font-medium">Email:</span>
+                  <span className="text-gray-400 font-medium">{t('Email Address')}:</span>
                   <span className="text-white font-semibold">{selectedMember.email}</span>
                 </div>
               )}
 
               <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
-                <span className="text-gray-400 font-medium">Join Date:</span>
+                <span className="text-gray-400 font-medium">{t('Join Date')}:</span>
                 <span className="text-white font-semibold">{new Date(selectedMember.joinDate).toLocaleDateString()}</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
-                  <span className="text-gray-400 font-medium">Shares:</span>
+                  <span className="text-gray-400 font-medium">{t('Shares')}:</span>
                   <span className="text-white font-semibold">{selectedMember.shareCount}</span>
                 </div>
                 <div className="flex justify-between items-center p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                  <span className="text-emerald-100/70 font-medium">Monthly Payable:</span>
-                  <span className="text-emerald-300 font-semibold">BDT {new Intl.NumberFormat('en-BD').format(selectedMember.monthlyPayable)}</span>
+                  <span className="text-emerald-100/70 font-medium">{t('Monthly Payable')}:</span>
+                  <span className="text-emerald-300 font-semibold">৳ {new Intl.NumberFormat('en-BD').format(selectedMember.monthlyPayable)}</span>
                 </div>
               </div>
 
               {selectedMember.address && (
                 <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">
-                  <span className="text-gray-400 font-medium">Address:</span>
+                  <span className="text-gray-400 font-medium">{t('Address')}:</span>
                   <span className="text-white font-semibold">{selectedMember.address}</span>
                 </div>
               )}
@@ -995,7 +982,7 @@ export const MembersPage: React.FC = () => {
                 className="btn btn-secondary text-xs"
                 onClick={() => setShowDetailsModal(false)}
               >
-                Close
+                {t('Close')}
               </button>
             </div>
           </div>
@@ -1007,11 +994,10 @@ export const MembersPage: React.FC = () => {
         <div className="modal-overlay">
           <div className="modal-content p-7 max-w-md">
             <h3 className="text-lg font-bold text-red-400 mb-2">
-              Confirm Drop Member
+              {t('Confirm Drop Member')}
             </h3>
             <p className="text-xs text-gray-300 leading-relaxed mb-6">
-              Are you sure you want to mark member <strong className="text-white">{selectedMember.name}</strong> ({selectedMember.memberId}) as <strong>DROPPED</strong>?
-              This will update their status and create an immutable audit trail entry.
+              {t('Are you sure you want to mark member')} <strong className="text-white">{selectedMember.name}</strong> ({selectedMember.memberId}) {t('as DROPPED? This will update their status and create an immutable audit trail entry.')}
             </p>
 
             <div className="flex justify-end gap-2.5">
@@ -1020,7 +1006,7 @@ export const MembersPage: React.FC = () => {
                 className="btn btn-secondary text-xs"
                 onClick={() => setShowDeleteModal(false)}
               >
-                Cancel
+                {t('Cancel')}
               </button>
               <button
                 type="button"
@@ -1028,7 +1014,7 @@ export const MembersPage: React.FC = () => {
                 className="btn btn-danger text-xs"
                 onClick={handleDeleteConfirm}
               >
-                {submitting ? 'Processing...' : 'Confirm Drop'}
+                {submitting ? t('Processing...') : t('Confirm Drop')}
               </button>
             </div>
           </div>
