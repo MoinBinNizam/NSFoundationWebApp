@@ -1,5 +1,6 @@
 import { Response, NextFunction } from 'express';
 import { User } from '../models/User.js';
+import { SystemConfig } from '../models/SystemConfig.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { CustodyAccount } from '../models/CustodyAccount.js';
 import { AuthRequest } from '../middlewares/auth.js';
@@ -145,6 +146,7 @@ export async function login(
           accountantType: user.accountantType,
           status: user.status,
           mustChangePassword: Boolean(user.mustChangePassword),
+          signatureImage: user.signatureImage || null,
         },
       },
     });
@@ -326,7 +328,63 @@ export async function getMe(
         accountantType: req.user.accountantType,
         status: req.user.status,
         mustChangePassword: Boolean(req.user.mustChangePassword),
+        signatureImage: req.user.signatureImage || null,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * PUT /api/auth/signature
+ * Upload or update signature image for current user (Accountants / Staff / Admins).
+ */
+export async function updateSignature(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      return next(createError('Authentication required.', 401));
+    }
+    const { signatureImage } = req.body;
+    req.user.signatureImage = signatureImage || null;
+    await req.user.save();
+
+    // If Primary Accountant or Admin, also sync as default authorized accountant signature in SystemConfig
+    if (
+      req.user.accountantType === AccountantType.PRIMARY ||
+      req.user.role === UserRole.ADMIN ||
+      req.user.role === UserRole.SUPER_ADMIN
+    ) {
+      await SystemConfig.findOneAndUpdate(
+        { key: 'ACCOUNTANT_SIGNATURE' },
+        {
+          key: 'ACCOUNTANT_SIGNATURE',
+          value: signatureImage || null,
+          description: `Authorized accountant signature set by ${req.user.name}`,
+          updatedBy: req.user._id,
+        },
+        { upsert: true }
+      );
+    }
+
+    await AuditLog.create({
+      performedBy: req.user._id,
+      action: 'UPDATE_SIGNATURE',
+      entityName: 'User',
+      entityId: req.user._id,
+      reason: signatureImage ? 'Signature image updated.' : 'Signature image cleared.',
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Signature image updated successfully.',
+      data: { signatureImage: req.user.signatureImage },
     });
   } catch (error) {
     next(error);

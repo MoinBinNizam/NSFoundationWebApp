@@ -18,10 +18,24 @@ import {
   saveOrganizationLogo,
 } from '../services/settings.service.js';
 import { CustodyChannel, UserRole } from '../types/models.js';
+import { SystemConfig } from '../models/SystemConfig.js';
+import { User } from '../models/User.js';
 
 export class SettingsController {
   static async getOrganizationLogo(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try { res.status(200).json({ success: true, data: { logo: await getOrganizationLogo() } }); } catch (error) { next(error); }
+  }
+
+  static async getAccountantSignature(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const config = await SystemConfig.findOne({ key: 'ACCOUNTANT_SIGNATURE' }).lean();
+      let signature = (config?.value as string) || null;
+      if (!signature) {
+        const primaryAcc = await User.findOne({ accountantType: 'PRIMARY', signatureImage: { $ne: null } }).select('signatureImage').lean();
+        if (primaryAcc?.signatureImage) signature = primaryAcc.signatureImage;
+      }
+      res.status(200).json({ success: true, data: { signature, signatureImage: signature } });
+    } catch (error) { next(error); }
   }
 
   static async saveOrganizationLogo(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {

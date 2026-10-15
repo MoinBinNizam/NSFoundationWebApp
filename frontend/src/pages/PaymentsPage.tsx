@@ -30,6 +30,7 @@ import {
   AlertCircle,
   Clock,
   Users,
+  FileSignature,
 } from 'lucide-react';
 import { downloadMemberReportImage } from '../utils/report-image';
 import { ReceiptOcrManager } from '../components/ReceiptOcrManager';
@@ -106,7 +107,7 @@ const receiptAmountInWords = (value: number) => {
 
 /** A deliberately small, standalone document: it avoids printing the full React
  * application and is constrained to one A4 sheet for fast print/download. */
-function createReceiptDocument(payment: PaymentItem, allocations: AllocationItem[], logo: string | null) {
+function createReceiptDocument(payment: PaymentItem, allocations: AllocationItem[], logo: string | null, signatureImage?: string | null) {
   const displayedAllocations = allocations.slice(0, 12);
   const allocationRows = displayedAllocations.map((allocation) => `
     <tr><td>${receiptValue(receiptPeriod(allocation.targetMonth))}</td><td>${receiptValue(allocation.allocationType)}</td><td class="amount">${receiptMoney(allocation.amount)}</td></tr>`).join('');
@@ -129,13 +130,27 @@ function createReceiptDocument(payment: PaymentItem, allocations: AllocationItem
     .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; margin: 5mm 0; } .meta strong, .total strong { display: block; } .right { text-align: right; }
     table { width: 100%; border-collapse: collapse; margin: 4mm 0; font-size: 9pt; } th { background: #eff6ff; text-align: left; } th, td { padding: 2.1mm 2.5mm; border: 1px solid #cbd5e1; } .amount { text-align: right; white-space: nowrap; }
     .summary { margin-left: auto; width: 82mm; padding: 3.5mm; border: 1px solid #bfdbfe; border-radius: 6px; } .line, .total { display: flex; justify-content: space-between; gap: 8mm; padding: 1mm 0; } .total { margin-top: 2mm; padding-top: 2mm; border-top: 1px solid #94a3b8; font-size: 11pt; } .amount-words { margin-top: 2mm; color: #475569; font-size: 8.5pt; font-style: italic; }
-    .footer { display: flex; justify-content: space-between; gap: 10mm; margin-top: 7mm; padding-top: 4mm; border-top: 1px dashed #94a3b8; font-size: 8.5pt; } @media print { .receipt { border-color: #94a3b8; } }
+    .footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; margin-top: 7mm; padding-top: 4mm; border-top: 1px dashed #94a3b8; font-size: 8.5pt; } @media print { .receipt { border-color: #94a3b8; } }
   </style></head><body><main class="receipt">
     <header class="top"><div class="brand">${logo ? `<img class="logo" src="${receiptValue(logo)}" alt="NS Foundation logo">` : ''}<div><h1>NS FOUNDATION COOPERATIVE SOCIETY</h1><div class="subtitle">Official Member Contribution &amp; Payment Receipt</div></div></div><div class="right receipt-no">${receiptValue(payment.receiptNumber)}</div></header>
     <section class="meta"><div><div class="subtitle">Member</div><strong>${receiptValue(payment.memberId?.name)}</strong><div>${receiptValue(payment.memberId?.memberId)} · ${receiptValue(payment.memberId?.phone)}</div></div><div class="right"><div class="subtitle">Payment details</div><strong>${receiptValue(new Date(payment.paymentDate).toLocaleDateString())}</strong><div>${receiptValue(payment.paymentMethod)} · Received by ${receiptValue(payment.receiverId?.name)}</div></div></section>
     <div class="subtitle">Accounting allocations</div><table><thead><tr><th>Period</th><th>Allocation type</th><th class="amount">Amount</th></tr></thead><tbody>${allocationRows}${extraAllocations}</tbody></table>
     <section class="summary"><div class="line"><span>Principal</span><strong>${receiptMoney(payment.principalAmount)}</strong></div>${optionalLines}<div class="total"><span>Total received</span><strong>${receiptMoney(payment.totalAmount)}</strong></div><div class="amount-words">${receiptValue(receiptAmountInWords(payment.totalAmount))}</div></section>
-    <footer class="footer"><span>Custody: ${receiptValue(payment.custodyAccountId?.name)}</span><span>Verified deposit</span><span>Member signature: __________________</span></footer>
+    <footer class="footer">
+      <div>
+        <span>Custody: ${receiptValue(payment.custodyAccountId?.name)}</span> · <span>Verified deposit</span>
+      </div>
+      <div style="display: flex; gap: 8mm; align-items: flex-end;">
+        <div style="text-align: center; min-width: 38mm;">
+          ${signatureImage ? `<img src="${signatureImage}" alt="Authorized Accountant Signature" style="max-height: 36px; max-width: 120px; display: block; margin: 0 auto 3px;" />` : '<div style="height: 36px;"></div>'}
+          <div style="border-top: 1px solid #94a3b8; padding-top: 3px; font-weight: 600;">Authorized Accountant</div>
+        </div>
+        <div style="text-align: center; min-width: 38mm;">
+          <div style="height: 36px;"></div>
+          <div style="border-top: 1px solid #94a3b8; padding-top: 3px;">Member signature</div>
+        </div>
+      </div>
+    </footer>
   </main></body></html>`;
 }
 
@@ -261,7 +276,7 @@ const AVAILABLE_YEARS = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
 
 export const PaymentsPage: React.FC = () => {
   const { logo } = useLogo();
-  const { user, canAccess } = useAuth();
+  const { user, canAccess, updateUser } = useAuth();
   const { t, language } = usePreferences();
   const canEdit = canAccess('PAYMENTS', 'edit');
   const isAdmin = (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && canEdit;
@@ -295,7 +310,15 @@ export const PaymentsPage: React.FC = () => {
   const [ledgerMemberId, setLedgerMemberId] = useState<string>('');
   const [selectedMemberSummary, setSelectedMemberSummary] = useState<{
     member: { _id?: string; memberId: string; name: string; phone: string; currentShares?: number; status?: string };
-    summary: { totalPayments: number; totalDues: number; totalPenaltyPaid: number; totalPenaltyDue: number; totalPrincipalDue?: number; totalPrincipalPaid?: number };
+    summary: {
+      totalPayments: number;
+      totalPrincipalPaid?: number;
+      totalAdvancedPaid?: number;
+      totalDues: number;
+      totalPenaltyPaid: number;
+      totalPenaltyDue: number;
+      totalPrincipalDue?: number;
+    };
     recentPayments?: any[];
   } | null>(null);
   const [loadingMemberSummary, setLoadingMemberSummary] = useState<boolean>(false);
@@ -310,6 +333,13 @@ export const PaymentsPage: React.FC = () => {
   const [custodyAccounts, setCustodyAccounts] = useState<CustodyAccountItem[]>([]);
   const [penaltyRules, setPenaltyRules] = useState<PenaltyRuleItem[]>([]);
   const [penaltyWaivers, setPenaltyWaivers] = useState<PenaltyWaiverItem[]>([]);
+
+  // Accountant Signature State
+  const [accountantSignature, setAccountantSignature] = useState<string | null>(null);
+  const [showSignatureModal, setShowSignatureModal] = useState<boolean>(false);
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
+  const [signatureSaving, setSignatureSaving] = useState<boolean>(false);
+  const [signatureError, setSignatureError] = useState<string | null>(null);
 
   // Modal States
   const [showCollectModal, setShowCollectModal] = useState<boolean>(false);
@@ -467,18 +497,106 @@ export const PaymentsPage: React.FC = () => {
     }
   }, [ledgerPage, ledgerSearch, accountantFilter, methodFilter, ledgerYear, ledgerMonth, ledgerDay, ledgerMemberId]);
 
-  // Fetch Member Summary when a member is selected in Ledger
+  // Load official accountant signature
+  useEffect(() => {
+    apiRequest<{ signature?: string; signatureImage?: string }>('/settings/accountant-signature')
+      .then((res) => {
+        const sig = res.data?.signatureImage || res.data?.signature;
+        if (sig) {
+          setAccountantSignature(sig);
+          setSignaturePreview(sig);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (user?.signatureImage && !accountantSignature) {
+      setAccountantSignature(user.signatureImage);
+      setSignaturePreview(user.signatureImage);
+    }
+  }, [user?.signatureImage, accountantSignature]);
+
+  const handleSignatureFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setSignatureError('Signature image must be less than 2MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSignaturePreview(reader.result as string);
+      setSignatureError(null);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSaveSignature = async () => {
+    if (!signaturePreview) return;
+    setSignatureSaving(true);
+    setSignatureError(null);
+    try {
+      await apiRequest('/auth/signature', {
+        method: 'PUT',
+        body: JSON.stringify({ signatureImage: signaturePreview }),
+      });
+      setAccountantSignature(signaturePreview);
+      updateUser({ signatureImage: signaturePreview });
+      setShowSignatureModal(false);
+    } catch (err: unknown) {
+      setSignatureError((err as Error).message || 'Failed to save signature');
+    } finally {
+      setSignatureSaving(false);
+    }
+  };
+
+  const handleRemoveSignature = async () => {
+    setSignatureSaving(true);
+    setSignatureError(null);
+    try {
+      await apiRequest('/auth/signature', {
+        method: 'PUT',
+        body: JSON.stringify({ signatureImage: null }),
+      });
+      setAccountantSignature(null);
+      setSignaturePreview(null);
+      updateUser({ signatureImage: null });
+      setShowSignatureModal(false);
+    } catch (err: unknown) {
+      setSignatureError((err as Error).message || 'Failed to remove signature');
+    } finally {
+      setSignatureSaving(false);
+    }
+  };
+
+  // Fetch Member Summary when a member is selected in Ledger (dynamically updates with period filter)
   useEffect(() => {
     if (!ledgerMemberId) {
       setSelectedMemberSummary(null);
       return;
     }
     setLoadingMemberSummary(true);
+    const params = new URLSearchParams();
+    if (ledgerTimeframe && ledgerTimeframe !== 'all') params.set('timeframe', ledgerTimeframe);
+    if (ledgerYear) params.set('year', ledgerYear);
+    if (ledgerMonth) params.set('month', ledgerMonth);
+    if (ledgerDay) params.set('day', ledgerDay);
+
+    const queryStr = params.toString() ? `?${params.toString()}` : '';
     apiRequest<{
       member: { _id?: string; memberId: string; name: string; phone: string; currentShares?: number; status?: string };
-      summary: { totalPayments: number; totalDues: number; totalPenaltyPaid: number; totalPenaltyDue: number; totalPrincipalDue?: number; totalPrincipalPaid?: number };
+      summary: {
+        totalPayments: number;
+        totalPrincipalPaid?: number;
+        totalAdvancedPaid?: number;
+        totalDues: number;
+        totalPenaltyPaid: number;
+        totalPenaltyDue: number;
+        totalPrincipalDue?: number;
+      };
       recentPayments?: any[];
-    }>(`/payments/member-summary/${ledgerMemberId}`)
+    }>(`/payments/member-summary/${ledgerMemberId}${queryStr}`)
       .then((res) => {
         setSelectedMemberSummary(res.data);
       })
@@ -489,7 +607,7 @@ export const PaymentsPage: React.FC = () => {
       .finally(() => {
         setLoadingMemberSummary(false);
       });
-  }, [ledgerMemberId]);
+  }, [ledgerMemberId, ledgerTimeframe, ledgerYear, ledgerMonth, ledgerDay]);
 
   const refreshAnalyticsAfterPayment = useCallback(async (payment: Pick<PaymentItem, 'paymentDate'>) => {
     const analyticsDate = analyticsDateForPayment(payment.paymentDate || formData.paymentDate, timeframe);
@@ -667,7 +785,7 @@ export const PaymentsPage: React.FC = () => {
     const printWindow = window.open('', '_blank', 'popup,width=860,height=1000');
     if (!printWindow) return;
     printWindow.document.open();
-    printWindow.document.write(createReceiptDocument(selectedReceipt.payment, selectedReceipt.allocations, logo));
+    printWindow.document.write(createReceiptDocument(selectedReceipt.payment, selectedReceipt.allocations, logo, accountantSignature || user?.signatureImage));
     printWindow.document.close();
     printWindow.focus();
     printWindow.requestAnimationFrame(() => printWindow.print());
@@ -754,7 +872,30 @@ export const PaymentsPage: React.FC = () => {
     text(receiptAmountInWords(payment.totalAmount), 700, y + 30, 'italic 17px Arial', '#475569');
     text(`Custody: ${payment.custodyAccountId?.name || ''}`, 90, 1570, '19px Arial', '#475569');
     text('Verified deposit', 90, 1610, 'bold 19px Arial', '#166534');
-    text('Member signature: ______________________', 700, 1610, '19px Arial', '#475569');
+
+    const effectiveSig = accountantSignature || user?.signatureImage;
+    if (effectiveSig) {
+      try {
+        const sigImage = new Image();
+        await new Promise<void>((resolve) => {
+          sigImage.onload = () => resolve();
+          sigImage.onerror = () => resolve();
+          sigImage.src = effectiveSig;
+        });
+        if (sigImage.complete && sigImage.naturalWidth > 0) {
+          const maxW = 160;
+          const maxH = 50;
+          const scale = Math.min(maxW / sigImage.naturalWidth, maxH / sigImage.naturalHeight);
+          const width = sigImage.naturalWidth * scale;
+          const height = sigImage.naturalHeight * scale;
+          context.drawImage(sigImage, 500 - width / 2, 1605 - height, width, height);
+        }
+      } catch {
+        // Ignore signature image load failure
+      }
+    }
+    text('Authorized Accountant: __________________', 320, 1610, '19px Arial', '#475569');
+    text('Member signature: ______________________', 750, 1610, '19px Arial', '#475569');
     canvas.toBlob((blob) => {
       if (!blob) return;
       const url = URL.createObjectURL(blob);
@@ -909,6 +1050,22 @@ export const PaymentsPage: React.FC = () => {
               <Plus size={18} />
               <span>{t('Collect Payment')}</span>
             </button>
+
+            {(user?.role === 'ACCOUNTANT' || user?.accountantType || user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSignaturePreview(accountantSignature || user?.signatureImage || null);
+                  setSignatureError(null);
+                  setShowSignatureModal(true);
+                }}
+                className="btn btn-secondary shrink-0 self-start sm:self-auto flex items-center gap-2 border border-white/10 hover:border-blue-400"
+                title={t('Add or update official accountant signature for reports and invoices')}
+              >
+                <FileSignature size={18} className={accountantSignature ? 'text-emerald-400' : 'text-gray-400'} />
+                <span>{accountantSignature ? t('Accountant Signature') : t('Add Signature')}</span>
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -1771,15 +1928,30 @@ export const PaymentsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
+                      const reportPayments = (selectedMemberSummary.recentPayments && selectedMemberSummary.recentPayments.length > 0)
+                        ? selectedMemberSummary.recentPayments.map((p) => ({
+                            ...p,
+                            receiverName: p.receiverName || (p.receiverId as any)?.name || '-',
+                            accountantName: p.accountantName || (p.receiverId as any)?.name || '-',
+                          }))
+                        : payments
+                            .filter(
+                              (p) =>
+                                String((p.memberId as any)?._id || (p.memberId as any)) ===
+                                String(selectedMemberSummary.member._id)
+                            )
+                            .map((p) => ({
+                              ...p,
+                              receiverName: (p.receiverId as any)?.name || '-',
+                              accountantName: (p.receiverId as any)?.name || '-',
+                            }));
+
                       downloadMemberReportImage({
                         member: selectedMemberSummary.member,
                         summary: selectedMemberSummary.summary,
-                        payments: payments.filter(
-                          (p) =>
-                            String((p.memberId as any)?._id || (p.memberId as any)) ===
-                            String(selectedMemberSummary.member._id)
-                        ),
+                        payments: reportPayments,
                         logo,
+                        signatureImage: accountantSignature || user?.signatureImage || null,
                       });
                     }}
                     className="btn btn-primary btn-sm flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md shadow-blue-500/20"
@@ -1801,58 +1973,84 @@ export const PaymentsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* 4 Total Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
+              {/* 6 Total Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+                    <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">
                       {t('Total Paid')}
                     </span>
-                    <CheckCircle2 size={16} className="text-emerald-400" />
+                    <CheckCircle2 size={15} className="text-emerald-400" />
                   </div>
-                  <p className="text-2xl font-black text-white mt-2">
+                  <p className="text-xl font-black text-white mt-1.5">
                     ৳ {(selectedMemberSummary.summary.totalPayments || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-[11px] text-emerald-300/80 mt-1">{t('Total payments and contributions collected')}</p>
+                  <p className="text-[10px] text-emerald-300/80 mt-1">{t('Total payments and contributions collected')}</p>
                 </div>
 
-                <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-4">
+                <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-3.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-rose-400 uppercase tracking-wider">
+                    <span className="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">
+                      {t('Total Principal Paid')}
+                    </span>
+                    <Layers size={15} className="text-cyan-400" />
+                  </div>
+                  <p className="text-xl font-black text-white mt-1.5">
+                    ৳ {(selectedMemberSummary.summary.totalPrincipalPaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-[10px] text-cyan-300/80 mt-1">{t('Principal collected towards obligation')}</p>
+                </div>
+
+                <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider">
+                      {t('Total Advanced Paid')}
+                    </span>
+                    <Sparkles size={15} className="text-indigo-400" />
+                  </div>
+                  <p className="text-xl font-black text-white mt-1.5">
+                    ৳ {(selectedMemberSummary.summary.totalAdvancedPaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </p>
+                  <p className="text-[10px] text-indigo-300/80 mt-1">{t('Prepaid advance for future months')}</p>
+                </div>
+
+                <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-3.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-rose-400 uppercase tracking-wider">
                       {t('Total Dues')}
                     </span>
-                    <AlertCircle size={16} className="text-rose-400" />
+                    <AlertCircle size={15} className="text-rose-400" />
                   </div>
-                  <p className="text-2xl font-black text-white mt-2">
+                  <p className="text-xl font-black text-white mt-1.5">
                     ৳ {(selectedMemberSummary.summary.totalDues || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-[11px] text-rose-300/80 mt-1">{t('Principal dues + penalty')}</p>
+                  <p className="text-[10px] text-rose-300/80 mt-1">{t('Principal dues + penalty')}</p>
                 </div>
 
-                <div className="rounded-xl border border-blue-500/30 bg-blue-950/20 p-4">
+                <div className="rounded-xl border border-blue-500/30 bg-blue-950/20 p-3.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-blue-400 uppercase tracking-wider">
-                      {t('Penalty Paid')}
+                    <span className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider">
+                      {t('Total Penalty Paid')}
                     </span>
-                    <Clock size={16} className="text-blue-400" />
+                    <Clock size={15} className="text-blue-400" />
                   </div>
-                  <p className="text-2xl font-black text-white mt-2">
+                  <p className="text-xl font-black text-white mt-1.5">
                     ৳ {(selectedMemberSummary.summary.totalPenaltyPaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-[11px] text-blue-300/80 mt-1">{t('Late penalty fines already paid')}</p>
+                  <p className="text-[10px] text-blue-300/80 mt-1">{t('Late penalty fines already paid')}</p>
                 </div>
 
-                <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4">
+                <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3.5">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
-                      {t('Penalty Due')}
+                    <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">
+                      {t('Total Penalty Due')}
                     </span>
-                    <AlertCircle size={16} className="text-amber-400" />
+                    <AlertCircle size={15} className="text-amber-400" />
                   </div>
-                  <p className="text-2xl font-black text-white mt-2">
+                  <p className="text-xl font-black text-white mt-1.5">
                     ৳ {(selectedMemberSummary.summary.totalPenaltyDue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-[11px] text-amber-300/80 mt-1">{t('Outstanding late penalty fines')}</p>
+                  <p className="text-[10px] text-amber-300/80 mt-1">{t('Outstanding late penalty fines')}</p>
                 </div>
               </div>
             </div>
@@ -2976,6 +3174,116 @@ export const PaymentsPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Accountant Signature Modal */}
+      {showSignatureModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="glass-card max-w-md w-full p-6 space-y-4 border border-white/20 shadow-2xl rounded-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <FileSignature className="text-blue-400" size={20} />
+                <h3 className="text-base font-bold text-white">
+                  {t('Official Accountant Signature')}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSignatureModal(false)}
+                className="text-gray-400 hover:text-white transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-400">
+              {t('Upload your transparent or clean signature image (PNG or JPG). It will appear automatically on official payment receipts, printouts, and downloaded member financial statements.')}
+            </p>
+
+            {signatureError && (
+              <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle size={15} />
+                <span>{signatureError}</span>
+              </div>
+            )}
+
+            {/* Preview Box */}
+            <div className="p-4 rounded-xl border border-dashed border-white/20 bg-slate-900/60 flex flex-col items-center justify-center min-h-[120px]">
+              {signaturePreview ? (
+                <div className="space-y-2 text-center">
+                  <div className="p-3 bg-white rounded-lg inline-block shadow">
+                    <img
+                      src={signaturePreview}
+                      alt="Signature Preview"
+                      className="max-h-24 max-w-[240px] object-contain"
+                    />
+                  </div>
+                  <p className="text-[11px] text-gray-400 font-medium">
+                    {t('Current Signature Preview')}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center text-gray-500 text-xs space-y-1">
+                  <FileSignature size={32} className="mx-auto text-gray-600 mb-1" />
+                  <p>{t('No signature uploaded yet.')}</p>
+                  <p className="text-[10px] text-gray-600">{t('PNG with transparent background recommended')}</p>
+                </div>
+              )}
+            </div>
+
+            {/* File Upload Input */}
+            <div>
+              <label className="block text-xs font-bold text-gray-300 mb-1.5">
+                {t('Choose Signature Image File')}
+              </label>
+              <input
+                type="file"
+                accept="image/png, image/jpeg, image/webp"
+                onChange={handleSignatureFileChange}
+                className="form-input text-xs w-full file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-white/10 gap-2">
+              {accountantSignature ? (
+                <button
+                  type="button"
+                  disabled={signatureSaving}
+                  onClick={handleRemoveSignature}
+                  className="btn btn-outline-danger btn-sm text-xs"
+                >
+                  <Trash2 size={14} className="mr-1" />
+                  {t('Remove Signature')}
+                </button>
+              ) : <div />}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSignatureModal(false)}
+                  className="btn btn-secondary btn-sm"
+                >
+                  {t('Cancel')}
+                </button>
+                <button
+                  type="button"
+                  disabled={signatureSaving || !signaturePreview}
+                  onClick={handleSaveSignature}
+                  className="btn btn-primary btn-sm flex items-center gap-1.5"
+                >
+                  {signatureSaving ? (
+                    <span>{t('Saving...')}</span>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={15} />
+                      <span>{t('Save Signature')}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

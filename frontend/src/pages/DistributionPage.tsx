@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
+import { groupCustodyAccounts } from '../utils/custodyUtils';
 import {
   PieChart,
   Calendar,
@@ -143,6 +144,7 @@ export const DistributionPage: React.FC = () => {
   // Settlement Execution Modal
   const [showPayoutModal, setShowPayoutModal] = useState(false);
   const [custodyAccounts, setCustodyAccounts] = useState<CustodyAccountItem[]>([]);
+  const groupedCustody = useMemo(() => groupCustodyAccounts(custodyAccounts), [custodyAccounts]);
   const [selectedCustodyId, setSelectedCustodyId] = useState('');
   const [processingPayout, setProcessingPayout] = useState(false);
 
@@ -1225,11 +1227,33 @@ export const DistributionPage: React.FC = () => {
                   onChange={(e) => setSelectedCustodyId(e.target.value)}
                   className="form-select text-xs"
                 >
-                  {custodyAccounts.map((acc) => (
-                    <option key={acc._id} value={acc._id}>
-                      {acc.name} ({acc.channel}) — Available: {money(acc.derivedBalance)}
-                    </option>
-                  ))}
+                  {groupedCustody.moin.length > 0 && (
+                    <optgroup label={`Accountant Moin's Custody (${money(groupedCustody.moinTotal)})`}>
+                      {groupedCustody.moin.map((acc) => (
+                        <option key={acc._id} value={acc._id}>
+                          {acc.name} ({acc.channel}) — Available: {money(acc.derivedBalance)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {groupedCustody.samrat.length > 0 && (
+                    <optgroup label={`Accountant Samrat's Custody (${money(groupedCustody.samratTotal)})`}>
+                      {groupedCustody.samrat.map((acc) => (
+                        <option key={acc._id} value={acc._id}>
+                          {acc.name} ({acc.channel}) — Available: {money(acc.derivedBalance)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {groupedCustody.external.length > 0 && (
+                    <optgroup label={`Partner Wallets (${money(groupedCustody.externalTotal)})`}>
+                      {groupedCustody.external.map((acc) => (
+                        <option key={acc._id} value={acc._id}>
+                          {acc.name} ({acc.channel}) — Available: {money(acc.derivedBalance)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
             </div>

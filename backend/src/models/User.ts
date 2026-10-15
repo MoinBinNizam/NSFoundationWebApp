@@ -62,6 +62,7 @@ const userSchema = new Schema<IUser>(
     emailVerifiedAt: { type: Date, default: null },
     offboardedAt: { type: Date, default: null },
     offboardedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    signatureImage: { type: String, default: null },
     status: {
       type: String,
       enum: Object.values(UserStatus),

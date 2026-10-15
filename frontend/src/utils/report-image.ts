@@ -9,11 +9,12 @@ export interface MemberFinancialReportData {
   };
   summary: {
     totalPayments: number;
+    totalPrincipalPaid?: number;
+    totalAdvancedPaid?: number;
     totalDues: number;
     totalPenaltyPaid: number;
     totalPenaltyDue: number;
     totalPrincipalDue?: number;
-    totalPrincipalPaid?: number;
   };
   payments?: Array<{
     _id?: string;
@@ -22,8 +23,11 @@ export interface MemberFinancialReportData {
     totalAmount: number;
     paymentMethod: string;
     status: string;
+    receiverName?: string;
+    accountantName?: string;
   }>;
   logo?: string | null;
+  signatureImage?: string | null;
 }
 
 const formatMoney = (val: number): string => {
@@ -205,9 +209,9 @@ export async function downloadMemberReportImage(data: MemberFinancialReportData)
   const tableTitleY = 425;
   drawText('পেমেন্ট ও চাঁদা লেনদেন তালিকা (Payment History Records)', 70, tableTitleY, 'bold 19px Arial', '#1e293b');
 
-  // Table Coordinates
+  // Table Coordinates - 6 columns including Accountant Name
   const tableY = 445;
-  const cols = [70, 240, 520, 760, 960, canvas.width - 70];
+  const cols = [70, 205, 360, 500, 720, 930, canvas.width - 70];
   const headerH = 40;
   const rowH = 42;
 
@@ -218,11 +222,12 @@ export async function downloadMemberReportImage(data: MemberFinancialReportData)
   ctx.lineWidth = 1;
   ctx.strokeRect(70, tableY, canvas.width - 140, headerH);
 
-  drawText('তারিখ (Date)', cols[0] + 15, tableY + 26, 'bold 15px Arial', '#475569');
-  drawText('রশিদ নং (Receipt #)', cols[1] + 15, tableY + 26, 'bold 15px Arial', '#475569');
-  drawText('পদ্ধতি (Method)', cols[2] + 15, tableY + 26, 'bold 15px Arial', '#475569');
-  drawText('পরিমাণ (Amount)', cols[3] + 15, tableY + 26, 'bold 15px Arial', '#475569');
-  drawText('স্ট্যাটাস (Status)', cols[4] + 15, tableY + 26, 'bold 15px Arial', '#475569');
+  drawText('তারিখ (Date)', cols[0] + 10, tableY + 26, 'bold 14px Arial', '#475569');
+  drawText('রশিদ নং (Receipt #)', cols[1] + 10, tableY + 26, 'bold 14px Arial', '#475569');
+  drawText('পদ্ধতি (Method)', cols[2] + 10, tableY + 26, 'bold 14px Arial', '#475569');
+  drawText('হিসাবরক্ষক (Accountant)', cols[3] + 10, tableY + 26, 'bold 14px Arial', '#475569');
+  drawText('পরিমাণ (Amount)', cols[4] + 10, tableY + 26, 'bold 14px Arial', '#475569');
+  drawText('স্ট্যাটাস (Status)', cols[5] + 10, tableY + 26, 'bold 14px Arial', '#475569');
 
   const paymentsList = data.payments || [];
   const maxRows = 18;
@@ -250,11 +255,14 @@ export async function downloadMemberReportImage(data: MemberFinancialReportData)
         month: 'short',
         year: 'numeric',
       });
-      drawText(pDate, cols[0] + 15, currentY + 27, '14px Arial', '#334155');
-      drawText(p.receiptNumber, cols[1] + 15, currentY + 27, 'bold 14px Arial', '#2563eb');
-      drawText(p.paymentMethod, cols[2] + 15, currentY + 27, '14px Arial', '#475569');
-      drawText(formatMoney(p.totalAmount), cols[3] + 15, currentY + 27, 'bold 14px Arial', '#166534');
-      drawText(p.status, cols[4] + 15, currentY + 27, 'bold 13px Arial', p.status === 'PAID' ? '#166534' : '#b45309');
+      const accountantText = p.accountantName || p.receiverName || '-';
+
+      drawText(pDate, cols[0] + 10, currentY + 27, '13px Arial', '#334155');
+      drawText(p.receiptNumber, cols[1] + 10, currentY + 27, 'bold 13px Arial', '#2563eb');
+      drawText(p.paymentMethod, cols[2] + 10, currentY + 27, '13px Arial', '#475569');
+      drawText(accountantText, cols[3] + 10, currentY + 27, '13px Arial', '#334155');
+      drawText(formatMoney(p.totalAmount), cols[4] + 10, currentY + 27, 'bold 14px Arial', '#166534');
+      drawText(p.status, cols[5] + 10, currentY + 27, 'bold 13px Arial', p.status === 'PAID' || p.status === 'COLLECTED' ? '#166534' : '#b45309');
 
       currentY += rowH;
     });
@@ -279,12 +287,35 @@ export async function downloadMemberReportImage(data: MemberFinancialReportData)
   ctx.lineTo(canvas.width - 70, footerY);
   ctx.stroke();
 
-  // Signature lines
-  drawText('____________________________________', 100, footerY + 60, '15px Arial', '#94a3b8');
-  drawText('সদস্যের স্বাক্ষর (Member Signature)', 100, footerY + 84, 'bold 14px Arial', '#475569');
+  // Accountant Signature Image if present
+  const rightSigCenterX = 950;
+  if (data.signatureImage) {
+    try {
+      const sigImg = new Image();
+      await new Promise<void>((resolve) => {
+        sigImg.onload = () => resolve();
+        sigImg.onerror = () => resolve();
+        sigImg.src = data.signatureImage!;
+      });
+      if (sigImg.complete && sigImg.naturalWidth > 0) {
+        const maxSigW = 180;
+        const maxSigH = 50;
+        const sigScale = Math.min(maxSigW / sigImg.naturalWidth, maxSigH / sigImg.naturalHeight);
+        const sigW = sigImg.naturalWidth * sigScale;
+        const sigH = sigImg.naturalHeight * sigScale;
+        ctx.drawImage(sigImg, rightSigCenterX - sigW / 2, footerY + 52 - sigH, sigW, sigH);
+      }
+    } catch {
+      // Ignore
+    }
+  }
 
-  drawText('____________________________________', canvas.width - 360, footerY + 60, '15px Arial', '#94a3b8');
-  drawText('অনুমোদিত হিসাবরক্ষক (Authorized Accountant)', canvas.width - 360, footerY + 84, 'bold 14px Arial', '#475569');
+  // Signature lines with ample right margin (center at 950 gives 105px margin from canvas right edge)
+  drawText('____________________________________', 230, footerY + 60, '15px Arial', '#94a3b8', 'center');
+  drawText('সদস্যের স্বাক্ষর (Member Signature)', 230, footerY + 84, 'bold 14px Arial', '#475569', 'center');
+
+  drawText('____________________________________', rightSigCenterX, footerY + 60, '15px Arial', '#94a3b8', 'center');
+  drawText('অনুমোদিত হিসাবরক্ষক (Authorized Accountant)', rightSigCenterX, footerY + 84, 'bold 14px Arial', '#475569', 'center');
 
   // Bottom Notice
   drawText(

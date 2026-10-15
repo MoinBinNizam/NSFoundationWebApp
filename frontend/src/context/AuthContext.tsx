@@ -21,6 +21,7 @@ export interface UserProfile {
   accountantType?: 'PRIMARY' | 'ASSISTANT' | null;
   status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
   mustChangePassword?: boolean;
+  signatureImage?: string | null;
 }
 
 interface AuthContextType {
@@ -31,6 +32,7 @@ interface AuthContextType {
   permissions: Record<string, { canView: boolean; canEdit: boolean }>;
   canAccess: (moduleKey: string, action?: 'view' | 'edit') => boolean;
   refreshPermissions: () => Promise<void>;
+  updateUser: (data: Partial<UserProfile>) => void;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
 }
@@ -118,6 +120,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return moduleKey === 'MEMBERS' && action === 'view';
   }, [user, permissions]);
 
+  const updateUser = useCallback((data: Partial<UserProfile>) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, ...data };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -128,6 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         permissions,
         canAccess,
         refreshPermissions: fetchPermissions,
+        updateUser,
         login,
         logout,
       }}

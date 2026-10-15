@@ -7,6 +7,7 @@ const router = Router();
 
 // Login and registration must render the same organization mark before a user has a token.
 router.get('/organization-logo', SettingsController.getOrganizationLogo);
+router.get('/accountant-signature', SettingsController.getAccountantSignature);
 
 router.use(authenticate);
 

@@ -8,6 +8,7 @@ import { Member } from '../models/Member.js';
 import { ShareHistory } from '../models/ShareHistory.js';
 import { PenaltyRule } from '../models/PenaltyRule.js';
 import { PenaltyWaiver } from '../models/PenaltyWaiver.js';
+import { MemberYearAccount } from '../models/MemberYearAccount.js';
 import { AuditLog } from '../models/AuditLog.js';
 import {
   AllocationType,
@@ -1382,7 +1383,10 @@ export class PaymentService {
    * Get comprehensive financial position and historical totals for a member
    * (Total Payments, Total Dues, Total Penalty Paid, Total Penalty Due).
    */
-  static async getMemberPaymentSummary(memberIdentifier: string) {
+  static async getMemberPaymentSummary(
+    memberIdentifier: string,
+    query?: { year?: string; month?: string; day?: string; timeframe?: string }
+  ) {
     const isObjectId = Types.ObjectId.isValid(memberIdentifier);
     const member = await Member.findOne({
       $or: [
@@ -1395,22 +1399,92 @@ export class PaymentService {
       throw createError('Member not found', 404);
     }
 
+    const paymentFilter: Record<string, any> = {
+      memberId: member._id,
+      status: { $ne: PaymentStatus.CANCELLED },
+    };
+    const ledgerFilter: Record<string, any> = { memberId: member._id };
+
+    if (query?.day && /^\d{4}-\d{2}-\d{2}$/.test(query.day)) {
+      const [y, m, d] = query.day.split('-').map(Number);
+      paymentFilter.paymentDate = {
+        $gte: new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0)),
+        $lte: new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999)),
+      };
+      ledgerFilter.month = query.day.slice(0, 7);
+    } else if (query?.month) {
+      const monthStr = query.month.includes('-')
+        ? query.month
+        : `${query.year || new Date().getFullYear()}-${query.month.padStart(2, '0')}`;
+      const [y, m] = monthStr.split('-').map(Number);
+      paymentFilter.paymentDate = {
+        $gte: new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0)),
+        $lte: new Date(Date.UTC(y, m, 0, 23, 59, 59, 999)),
+      };
+      ledgerFilter.month = monthStr;
+    } else if (query?.year && /^\d{4}$/.test(query.year)) {
+      const yearNum = Number(query.year);
+      paymentFilter.paymentDate = {
+        $gte: new Date(Date.UTC(yearNum, 0, 1, 0, 0, 0, 0)),
+        $lte: new Date(Date.UTC(yearNum, 11, 31, 23, 59, 59, 999)),
+      };
+      ledgerFilter.month = { $gte: `${yearNum}-01`, $lte: `${yearNum}-12` };
+    }
+
     const [share, payments, ledgers] = await Promise.all([
       ShareHistory.findOne({ memberId: member._id }).sort({ effectiveMonth: -1, createdAt: -1 }).lean(),
-      Payment.find({ memberId: member._id, status: { $ne: PaymentStatus.CANCELLED } })
+      Payment.find(paymentFilter)
         .populate('receiverId', 'name email accountantType')
         .populate('custodyAccountId', 'name channel accountNumber')
         .sort({ paymentDate: -1, createdAt: -1 })
         .lean(),
-      MonthlyLedger.find({ memberId: member._id }).sort({ month: -1 }).lean(),
+      MonthlyLedger.find(ledgerFilter).sort({ month: -1 }).lean(),
     ]);
 
     const totalPayments = payments.reduce((sum, p) => sum + Number(p.totalAmount || 0), 0);
-    const totalPrincipalPaid = payments.reduce((sum, p) => sum + Number(p.principalAmount || 0), 0);
-    const totalPenaltyPaid = ledgers.reduce((sum, l) => sum + Number(l.penaltyPaid || 0), 0);
-    const totalPrincipalDue = ledgers.reduce((sum, l) => sum + Math.max(0, Number(l.principalDue || 0) - Number(l.principalPaid || 0)), 0);
-    const totalPenaltyDue = ledgers.reduce((sum, l) => sum + Math.max(0, Number(l.penaltyDue || 0) - Number(l.penaltyPaid || 0) - Number(l.penaltyWaived || 0)), 0);
-    const cashoutDue = Number(member.cashoutDue || 0);
+    const paymentAdvanceSum = payments.reduce((sum, p) => sum + Number(p.advanceAmount || 0), 0);
+    const paymentPenalties = payments.reduce((sum, p) => sum + Number(p.penaltyAmount || 0), 0);
+    const ledgerPenalties = ledgers.reduce((sum, l) => sum + Number(l.penaltyPaid || 0), 0);
+    const totalPenaltyPaid = Math.max(paymentPenalties, ledgerPenalties);
+    const totalCashoutChargePaid = payments.reduce((sum, p) => sum + Number(p.cashoutCharge || 0), 0);
+
+    // Dynamic advance calculation across year accounts, monthly ledgers, and payment advance amounts
+    let totalAdvancedPaid = paymentAdvanceSum;
+    if (query?.year) {
+      const yearAccount = await MemberYearAccount.findOne({ memberId: member._id, year: Number(query.year) }).lean();
+      if (yearAccount && (yearAccount.excessAdvance || 0) > 0) {
+        totalAdvancedPaid = Math.max(totalAdvancedPaid, yearAccount.excessAdvance);
+      }
+    } else if (query?.month) {
+      const monthStr = query.month.includes('-')
+        ? query.month
+        : `${query.year || new Date().getFullYear()}-${query.month.padStart(2, '0')}`;
+      const ledger = ledgers.find((l) => l.month === monthStr);
+      if (ledger && (ledger.excessAdvance || 0) > 0) {
+        totalAdvancedPaid = Math.max(totalAdvancedPaid, ledger.excessAdvance);
+      }
+    } else if (!query?.day) {
+      // All-time: check all MemberYearAccount records for excess advance
+      const allMyas = await MemberYearAccount.find({ memberId: member._id }).lean();
+      const myasExcess = allMyas.reduce((sum: number, m: any) => sum + Number(m.excessAdvance || 0), 0);
+      if (myasExcess > 0) {
+        totalAdvancedPaid = Math.max(totalAdvancedPaid, myasExcess);
+      }
+    }
+
+    // Ensure totalPrincipalPaid + totalAdvancedPaid + totalPenaltyPaid + cashoutCharge = totalPayments
+    const totalPrincipalPaid = Math.max(0, totalPayments - totalAdvancedPaid - totalPenaltyPaid - totalCashoutChargePaid);
+
+    const totalPrincipalDue = ledgers.reduce(
+      (sum, l) => sum + Math.max(0, Number(l.principalDue || 0) - Number(l.principalPaid || 0)),
+      0
+    );
+    const totalPenaltyDue = ledgers.reduce(
+      (sum, l) => sum + Math.max(0, Number(l.penaltyDue || 0) - Number(l.penaltyPaid || 0) - Number(l.penaltyWaived || 0)),
+      0
+    );
+    const isFilteredPeriod = Boolean(query?.year || query?.month || query?.day);
+    const cashoutDue = isFilteredPeriod ? 0 : Number(member.cashoutDue || 0);
     const totalDues = totalPrincipalDue + totalPenaltyDue + cashoutDue;
     const currentShares = share?.shareCount || 1;
 
@@ -1426,25 +1500,34 @@ export class PaymentService {
       },
       summary: {
         totalPayments,
+        totalPrincipalPaid,
+        totalAdvancedPaid,
         totalDues,
         totalPenaltyPaid,
         totalPenaltyDue,
         totalPrincipalDue,
-        totalPrincipalPaid,
         cashoutDue,
         paymentCount: payments.length,
       },
-      recentPayments: payments.slice(0, 50).map((p) => ({
-        _id: p._id,
-        receiptNumber: p.receiptNumber,
-        paymentDate: p.paymentDate,
-        paymentMethod: p.paymentMethod,
-        totalAmount: p.totalAmount,
-        principalAmount: p.principalAmount,
-        penaltyAmount: p.penaltyAmount,
-        advanceAmount: p.advanceAmount || 0,
-        status: p.status,
-      })),
+      recentPayments: payments.slice(0, 100).map((p) => {
+        const receiver = p.receiverId as any;
+        const receiverName = receiver?.name || 'N/A';
+        return {
+          _id: p._id,
+          receiptNumber: p.receiptNumber,
+          paymentDate: p.paymentDate,
+          paymentMethod: p.paymentMethod,
+          totalAmount: p.totalAmount,
+          principalAmount: p.principalAmount,
+          penaltyAmount: p.penaltyAmount,
+          advanceAmount: p.advanceAmount || 0,
+          cashoutCharge: p.cashoutCharge || 0,
+          status: p.status,
+          receiverId: receiver,
+          receiverName,
+          accountantName: receiverName,
+        };
+      }),
     };
   }
 }

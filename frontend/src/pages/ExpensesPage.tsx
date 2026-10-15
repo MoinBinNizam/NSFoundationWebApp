@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { usePreferences } from "../context/PreferencesContext";
+import { groupCustodyAccounts } from "../utils/custodyUtils";
 import {
   ChevronLeft,
   ChevronRight,
@@ -22,6 +23,13 @@ interface Account {
   channel: string;
   accountType: string;
   derivedBalance: number;
+  holderId?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+    accountantType?: string;
+  } | string | null;
+  [key: string]: any;
 }
 interface Expense {
   _id: string;
@@ -104,6 +112,7 @@ export const ExpensesPage: React.FC = () => {
     notes: "",
     receiptUrl: "",
   });
+  const groupedAccounts = useMemo(() => groupCustodyAccounts(accounts), [accounts]);
   const query = useCallback(
     () =>
       new URLSearchParams(
@@ -351,11 +360,33 @@ export const ExpensesPage: React.FC = () => {
               className="input-field"
             >
               <option value="">All accounts</option>
-              {accounts.map((item) => (
-                <option key={item._id} value={item._id}>
-                  {item.name}
-                </option>
-              ))}
+              {groupedAccounts.moin.length > 0 && (
+                <optgroup label={`Accountant Moin's Custody (${money(groupedAccounts.moinTotal)})`}>
+                  {groupedAccounts.moin.map((item) => (
+                    <option key={item._id} value={item._id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {groupedAccounts.samrat.length > 0 && (
+                <optgroup label={`Accountant Samrat's Custody (${money(groupedAccounts.samratTotal)})`}>
+                  {groupedAccounts.samrat.map((item) => (
+                    <option key={item._id} value={item._id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {groupedAccounts.external.length > 0 && (
+                <optgroup label={`Partner Wallets (${money(groupedAccounts.externalTotal)})`}>
+                  {groupedAccounts.external.map((item) => (
+                    <option key={item._id} value={item._id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex">
@@ -526,17 +557,48 @@ export const ExpensesPage: React.FC = () => {
               <b>OUT / EXPENSE</b> custody movement. It does not affect
               investment returns or transfers.
             </p>
-            <Select
-              label="Paying accountant custody"
-              value={form.custodyAccountId}
-              onChange={(value) =>
-                setForm({ ...form, custodyAccountId: value })
-              }
-              options={accounts.map((item) => [
-                item._id,
-                `${item.name} (${money(item.derivedBalance)} available)`,
-              ])}
-            />
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-gray-300">
+                Paying accountant custody
+              </label>
+              <select
+                required
+                value={form.custodyAccountId}
+                onChange={(event) =>
+                  setForm({ ...form, custodyAccountId: event.target.value })
+                }
+                className="input-field w-full"
+              >
+                <option value="">Select paying custody account...</option>
+                {groupedAccounts.moin.length > 0 && (
+                  <optgroup label={`Accountant Moin's Custody (${money(groupedAccounts.moinTotal)})`}>
+                    {groupedAccounts.moin.map((item) => (
+                      <option key={item._id} value={item._id}>
+                        {item.name} ({money(item.derivedBalance)} available)
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {groupedAccounts.samrat.length > 0 && (
+                  <optgroup label={`Accountant Samrat's Custody (${money(groupedAccounts.samratTotal)})`}>
+                    {groupedAccounts.samrat.map((item) => (
+                      <option key={item._id} value={item._id}>
+                        {item.name} ({money(item.derivedBalance)} available)
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {groupedAccounts.external.length > 0 && (
+                  <optgroup label={`Partner Wallets (${money(groupedAccounts.externalTotal)})`}>
+                    {groupedAccounts.external.map((item) => (
+                      <option key={item._id} value={item._id}>
+                        {item.name} ({money(item.derivedBalance)} available)
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+              </select>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <Input
                 label="Amount"

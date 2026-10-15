@@ -177,6 +177,7 @@ export interface IUser {
   emailVerifiedAt?: Date | null;
   offboardedAt?: Date | null;
   offboardedBy?: Types.ObjectId | null;
+  signatureImage?: string | null;
   status: UserStatus;
   createdAt: Date;
   updatedAt: Date;

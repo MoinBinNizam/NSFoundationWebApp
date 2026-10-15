@@ -221,7 +221,13 @@ export class PaymentController {
    */
   static async getMemberPaymentSummary(req: Request, res: Response, next: NextFunction) {
     try {
-      const summary = await PaymentService.getMemberPaymentSummary(req.params.memberId);
+      const { year, month, day, timeframe } = req.query;
+      const summary = await PaymentService.getMemberPaymentSummary(req.params.memberId, {
+        year: year ? String(year) : undefined,
+        month: month ? String(month) : undefined,
+        day: day ? String(day) : undefined,
+        timeframe: timeframe ? String(timeframe) : undefined,
+      });
       res.status(200).json({
         success: true,
         data: summary,
