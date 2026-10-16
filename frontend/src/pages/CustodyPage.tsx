@@ -132,7 +132,7 @@ export const CustodyPage: React.FC = () => {
   const { user, canAccess } = useAuth();
   const canEdit = canAccess('CUSTODY', 'edit');
   const isAdmin = (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && canEdit;
-  const { t } = usePreferences();
+  const { t, language } = usePreferences();
   const isAccountant = (user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT') && canEdit;
 
   // Navigation Tabs
@@ -720,7 +720,7 @@ export const CustodyPage: React.FC = () => {
                           : 'bg-gray-800 text-gray-300 border-gray-700'
                       }`}
                     >
-                      {holder.name.split(' ')[0]} ({isMoin ? 'Primary' : isSamrat ? 'Assistant' : 'Custodian'})
+                      {isMoin ? (language === 'bn' ? 'মঈন উদ্দীন' : 'Moin Uddin') : isSamrat ? (language === 'bn' ? 'নুরুল আমিন সম্রাট' : 'Samrat') : t(holder.name)} ({isMoin ? t('Primary') : isSamrat ? t('Assistant') : t('Custodian')})
                     </span>
                   ) : (
                     <span className="text-xs text-gray-500 bg-gray-800/60 px-2 py-0.5 rounded border border-gray-700">

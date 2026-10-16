@@ -21,6 +21,8 @@ import {
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
+import { useLogo } from '../context/LogoContext';
+import { BrandLogo } from '../components/BrandLogo';
 import { groupCustodyAccounts } from '../utils/custodyUtils';
 
 type Policy = {
@@ -89,6 +91,7 @@ type MemberItem = {
 
 export const GovernancePage: React.FC = () => {
   const { user } = useAuth();
+  const { logo } = useLogo();
   const { t, language } = usePreferences();
   const canManage = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
 
@@ -97,6 +100,7 @@ export const GovernancePage: React.FC = () => {
   const [exits, setExits] = useState<Exit[]>([]);
   const [members, setMembers] = useState<MemberItem[]>([]);
   const [custodyAccounts, setCustodyAccounts] = useState<CustodyAcc[]>([]);
+  const [accountantSignature, setAccountantSignature] = useState<string | null>(null);
 
   // Policy Document State
   const [policyDocContent, setPolicyDocContent] = useState<string>('');
@@ -180,11 +184,22 @@ export const GovernancePage: React.FC = () => {
       setExits(e.data || []);
       setPolicyDocContent(doc.data?.content || '');
       setMembers(m.data || []);
-      setCustodyAccounts(ca.data || []);
-      if (ca.data?.[0]) {
-        setExitCustodyId(ca.data[0]._id);
-        setSettleCustodyId(ca.data[0]._id);
+      const rawAccounts = ca.data || [];
+      setCustodyAccounts(rawAccounts);
+      const accountantAccounts = rawAccounts.filter((a) => a.accountType === 'ACCOUNTANT_CUSTODY');
+      const defaultAccount = accountantAccounts[0] || rawAccounts[0];
+      if (defaultAccount) {
+        setExitCustodyId(defaultAccount._id);
+        setSettleCustodyId(defaultAccount._id);
       }
+
+      // Fetch official accountant signature image
+      apiRequest<{ signature?: string; signatureImage?: string }>('/settings/accountant-signature')
+        .then((res) => {
+          const sig = res.data?.signatureImage || res.data?.signature;
+          if (sig) setAccountantSignature(sig);
+        })
+        .catch(() => {});
     } catch (err) {
       setError((err as Error).message);
     }
@@ -538,6 +553,7 @@ export const GovernancePage: React.FC = () => {
     const mov = inst?.custodyMovementId && typeof inst.custodyMovementId === 'object' ? inst.custodyMovementId : null;
     const acc = mov?.custodyAccountId && typeof mov.custodyAccountId === 'object' ? mov.custodyAccountId : null;
     const custodyName = acc?.name || 'Accountant Custody';
+    const sigImage = accountantSignature || user?.signatureImage;
 
     const html = `
       <!DOCTYPE html>
@@ -548,9 +564,11 @@ export const GovernancePage: React.FC = () => {
           @page { size: A4; margin: 15mm; }
           body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a; margin: 0; padding: 24px; background: #fff; line-height: 1.5; }
           .header { text-align: center; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 24px; }
-          .org-title { font-size: 26px; font-weight: 800; color: #0f172a; letter-spacing: 1px; text-transform: uppercase; margin: 0; }
+          .brand-row { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 8px; }
+          .voucher-logo { height: 64px; width: 64px; object-fit: contain; border-radius: 8px; }
+          .org-title { font-size: 24px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px; text-transform: uppercase; margin: 0; }
           .org-sub { font-size: 13px; color: #475569; margin-top: 4px; font-weight: 500; }
-          .voucher-title { display: inline-block; margin-top: 14px; padding: 6px 20px; background: #0f172a; color: #fff; font-size: 13px; font-weight: 700; border-radius: 4px; letter-spacing: 0.5px; text-transform: uppercase; }
+          .voucher-title { display: inline-block; margin-top: 12px; padding: 6px 20px; background: #0f172a; color: #fff; font-size: 13px; font-weight: 700; border-radius: 4px; letter-spacing: 0.5px; text-transform: uppercase; }
           .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; font-size: 13px; }
           .card { border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px; background: #f8fafc; }
           .card-title { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
@@ -564,9 +582,11 @@ export const GovernancePage: React.FC = () => {
           tr:nth-child(even) td { background: #f8fafc; }
           .text-right { text-align: right; }
           .total-row td { font-weight: 700; font-size: 15px; border-top: 2px solid #0f172a; border-bottom: 2px solid #0f172a; background: #f1f5f9; color: #0f172a; }
-          .declaration { background: #f8fafc; border-left: 4px solid #0f172a; padding: 12px 16px; font-size: 12px; color: #334155; line-height: 1.6; margin-bottom: 40px; border-radius: 0 4px 4px 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; }
-          .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-top: 40px; }
+          .declaration { background: #f8fafc; border-left: 4px solid #0f172a; padding: 12px 16px; font-size: 12px; color: #334155; line-height: 1.6; margin-bottom: 36px; border-radius: 0 4px 4px 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; }
+          .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-top: 36px; }
           .sig-box { text-align: center; }
+          .sig-holder { height: 50px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 4px; }
+          .sig-img { max-height: 48px; max-width: 140px; object-fit: contain; display: block; }
           .sig-line { border-top: 1px dashed #475569; padding-top: 8px; font-size: 12px; font-weight: 600; color: #0f172a; }
           .sig-sub { font-size: 11px; color: #64748b; margin-top: 2px; }
           .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
@@ -579,8 +599,13 @@ export const GovernancePage: React.FC = () => {
       </head>
       <body>
         <div class="header">
-          <h1 class="org-title">NS Foundation</h1>
-          <div class="org-sub">Cooperative Society Registration & Mutual Finance Governance</div>
+          <div class="brand-row">
+            ${logo ? `<img class="voucher-logo" src="${logo}" alt="NS Foundation Logo" />` : ''}
+            <div>
+              <h1 class="org-title">NS Foundation</h1>
+              <div class="org-sub">Cooperative Society Registration & Mutual Finance Governance</div>
+            </div>
+          </div>
           <div class="voucher-title">Official Member Exit & Settlement Voucher</div>
         </div>
 
@@ -643,12 +668,14 @@ export const GovernancePage: React.FC = () => {
 
         <div class="signatures">
           <div class="sig-box">
-            <div style="height: 45px;"></div>
+            <div class="sig-holder"></div>
             <div class="sig-line">Exiting Member Signature</div>
             <div class="sig-sub">${member?.name || 'Member'} — Date</div>
           </div>
           <div class="sig-box">
-            <div style="height: 45px;"></div>
+            <div class="sig-holder">
+              ${sigImage ? `<img class="sig-img" src="${sigImage}" alt="Authorized Accountant Signature" />` : ''}
+            </div>
             <div class="sig-line">Authorized Signatory / Accountant</div>
             <div class="sig-sub">${exit.authorizerName || 'NS Foundation Authority'} — Date</div>
           </div>
@@ -1323,15 +1350,6 @@ export const GovernancePage: React.FC = () => {
                       </option>
                     ))}
                   </optgroup>
-                  {groupedCustody.external.length > 0 && (
-                    <optgroup label={`${t('Investment / Partner Wallets')} (৳${groupedCustody.externalTotal.toLocaleString()})`}>
-                      {groupedCustody.external.map((c) => (
-                        <option key={c._id} value={c._id}>
-                          {c.name} (Balance: ৳{c.cachedBalance?.toFixed(2)})
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
                 </select>
               </div>
 
@@ -1428,15 +1446,6 @@ export const GovernancePage: React.FC = () => {
                       </option>
                     ))}
                   </optgroup>
-                  {groupedCustody.external.length > 0 && (
-                    <optgroup label={`${t('Investment / Partner Wallets')} (৳${groupedCustody.externalTotal.toLocaleString()})`}>
-                      {groupedCustody.external.map((c) => (
-                        <option key={c._id} value={c._id}>
-                          {c.name} (Balance: ৳{c.cachedBalance?.toFixed(2)})
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
                 </select>
               </div>
             </div>
@@ -1467,9 +1476,12 @@ export const GovernancePage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
           <div className="glass-card max-w-2xl w-full p-6 space-y-4 border border-white/20 shadow-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-white/10 flex-wrap gap-2">
-              <div className="flex items-center gap-2">
-                <Eye className="text-blue-400" size={20} />
-                <h3 className="text-base font-bold text-white">{t('Member Exit Settlement Details')}</h3>
+              <div className="flex items-center gap-2.5">
+                <BrandLogo size="sm" />
+                <div>
+                  <h3 className="text-base font-bold text-white">{t('Member Exit Settlement Details')}</h3>
+                  <span className="text-[11px] text-gray-400">NS Foundation Cooperative Society</span>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -1560,6 +1572,12 @@ export const GovernancePage: React.FC = () => {
               <div>
                 <span className="text-gray-400 block">{t('Authorized By')}</span>
                 <strong className="text-amber-300 mt-0.5 block">{viewingExit.authorizerName || '—'}</strong>
+                {(accountantSignature || user?.signatureImage) && (
+                  <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-400">
+                    <CheckCircle2 size={12} />
+                    <span>{t('Accountant Signature Attached')}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1860,15 +1878,6 @@ export const GovernancePage: React.FC = () => {
                       </option>
                     ))}
                   </optgroup>
-                  {groupedCustody.external.length > 0 && (
-                    <optgroup label={`${t('Investment / Partner Wallets')} (৳${groupedCustody.externalTotal.toLocaleString()})`}>
-                      {groupedCustody.external.map((c) => (
-                        <option key={c._id} value={c._id}>
-                          {c.name} (Balance: ৳{c.cachedBalance?.toFixed(2)})
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
                 </select>
               </div>
 

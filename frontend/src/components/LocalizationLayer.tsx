@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { usePreferences } from '../context/PreferencesContext';
 import { translateText } from '../i18n/translations';
 
-const attributes = ['placeholder', 'title', 'aria-label'];
+const attributes = ['placeholder', 'title', 'aria-label', 'label'];
 
 function localizeNode(node: Text, language: 'en' | 'bn') {
   const original = node.nodeValue || '';

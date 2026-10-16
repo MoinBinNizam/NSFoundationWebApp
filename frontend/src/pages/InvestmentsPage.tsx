@@ -1404,7 +1404,7 @@ export const InvestmentsPage: React.FC = () => {
                           >
                             <option value="">{t('Select accountant custody account...')}</option>
                             {groupedCustody.moin.length > 0 && (
-                              <optgroup label={`Accountant Moin's Custody (Subtotal: BDT ${groupedCustody.moinTotal.toLocaleString()})`}>
+                              <optgroup label={`${t("Accountant Moin's Custody")} (${t("Subtotal")}: BDT ${groupedCustody.moinTotal.toLocaleString()})`}>
                                 {groupedCustody.moin.map((acc) => (
                                   <option key={acc._id} value={acc._id}>
                                     {acc.name} ({acc.channel}) — Available: BDT {acc.derivedBalance.toLocaleString()}
@@ -1413,7 +1413,7 @@ export const InvestmentsPage: React.FC = () => {
                               </optgroup>
                             )}
                             {groupedCustody.samrat.length > 0 && (
-                              <optgroup label={`Accountant Samrat's Custody (Subtotal: BDT ${groupedCustody.samratTotal.toLocaleString()})`}>
+                              <optgroup label={`${t("Accountant Samrat's Custody")} (${t("Subtotal")}: BDT ${groupedCustody.samratTotal.toLocaleString()})`}>
                                 {groupedCustody.samrat.map((acc) => (
                                   <option key={acc._id} value={acc._id}>
                                     {acc.name} ({acc.channel}) — Available: BDT {acc.derivedBalance.toLocaleString()}
@@ -1422,7 +1422,7 @@ export const InvestmentsPage: React.FC = () => {
                               </optgroup>
                             )}
                             {groupedCustody.external.length > 0 && (
-                              <optgroup label={`Investment / Partner Wallets (Subtotal: BDT ${groupedCustody.externalTotal.toLocaleString()})`}>
+                              <optgroup label={`${t("Investment / Partner Wallets")} (${t("Subtotal")}: BDT ${groupedCustody.externalTotal.toLocaleString()})`}>
                                 {groupedCustody.external.map((acc) => (
                                   <option key={acc._id} value={acc._id}>
                                     {acc.name} ({acc.channel}) — Available: BDT {acc.derivedBalance.toLocaleString()}
@@ -1610,7 +1610,7 @@ export const InvestmentsPage: React.FC = () => {
                             >
                               <option value="">Select custody account...</option>
                               {groupedCustody.moin.length > 0 && (
-                                <optgroup label={`Accountant Moin's Custody (Subtotal: BDT ${groupedCustody.moinTotal.toLocaleString()})`}>
+                                <optgroup label={`${t("Accountant Moin's Custody")} (${t("Subtotal")}: BDT ${groupedCustody.moinTotal.toLocaleString()})`}>
                                   {groupedCustody.moin.map((acc) => (
                                     <option key={acc._id} value={acc._id} disabled={acc.derivedBalance <= 0}>
                                       {acc.name} ({acc.channel}) — Avail: BDT {acc.derivedBalance.toLocaleString()}
@@ -1619,7 +1619,7 @@ export const InvestmentsPage: React.FC = () => {
                                 </optgroup>
                               )}
                               {groupedCustody.samrat.length > 0 && (
-                                <optgroup label={`Accountant Samrat's Custody (Subtotal: BDT ${groupedCustody.samratTotal.toLocaleString()})`}>
+                                <optgroup label={`${t("Accountant Samrat's Custody")} (${t("Subtotal")}: BDT ${groupedCustody.samratTotal.toLocaleString()})`}>
                                   {groupedCustody.samrat.map((acc) => (
                                     <option key={acc._id} value={acc._id} disabled={acc.derivedBalance <= 0}>
                                       {acc.name} ({acc.channel}) — Avail: BDT {acc.derivedBalance.toLocaleString()}
@@ -1628,7 +1628,7 @@ export const InvestmentsPage: React.FC = () => {
                                 </optgroup>
                               )}
                               {groupedCustody.external.length > 0 && (
-                                <optgroup label={`Investment / Partner Wallets (Subtotal: BDT ${groupedCustody.externalTotal.toLocaleString()})`}>
+                                <optgroup label={`${t("Investment / Partner Wallets")} (${t("Subtotal")}: BDT ${groupedCustody.externalTotal.toLocaleString()})`}>
                                   {groupedCustody.external.map((acc) => (
                                     <option key={acc._id} value={acc._id} disabled={acc.derivedBalance <= 0}>
                                       {acc.name} ({acc.channel}) — Avail: BDT {acc.derivedBalance.toLocaleString()}
@@ -1856,25 +1856,25 @@ export const InvestmentsPage: React.FC = () => {
                     >
                       <option value="">Select deposit account...</option>
                       {groupedCustody.moin.length > 0 && (
-                        <optgroup label={`Accountant Moin's Custody (Subtotal: BDT ${groupedCustody.moinTotal.toLocaleString()})`}>
+                        <optgroup label={`${t("Accountant Moin's Custody")} (${t("Subtotal")}: BDT ${groupedCustody.moinTotal.toLocaleString()})`}>
                           {groupedCustody.moin.map((acc) => (
                             <option key={acc._id} value={acc._id}>
-                              {acc.name} ({acc.channel}) — {acc.holderId?.name || 'Moin Custody'}
+                              {acc.name} ({acc.channel}) — {acc.holderId?.name || t("Moin's Custody")}
                             </option>
                           ))}
                         </optgroup>
                       )}
                       {groupedCustody.samrat.length > 0 && (
-                        <optgroup label={`Accountant Samrat's Custody (Subtotal: BDT ${groupedCustody.samratTotal.toLocaleString()})`}>
+                        <optgroup label={`${t("Accountant Samrat's Custody")} (${t("Subtotal")}: BDT ${groupedCustody.samratTotal.toLocaleString()})`}>
                           {groupedCustody.samrat.map((acc) => (
                             <option key={acc._id} value={acc._id}>
-                              {acc.name} ({acc.channel}) — {acc.holderId?.name || 'Samrat Custody'}
+                              {acc.name} ({acc.channel}) — {acc.holderId?.name || t("Samrat Custody")}
                             </option>
                           ))}
                         </optgroup>
                       )}
                       {groupedCustody.external.length > 0 && (
-                        <optgroup label={`Investment / Partner Wallets (Subtotal: BDT ${groupedCustody.externalTotal.toLocaleString()})`}>
+                        <optgroup label={`${t("Investment / Partner Wallets")} (${t("Subtotal")}: BDT ${groupedCustody.externalTotal.toLocaleString()})`}>
                           {groupedCustody.external.map((acc) => (
                             <option key={acc._id} value={acc._id}>
                               {acc.name} ({acc.channel}) — Partner Wallet
@@ -2029,7 +2029,7 @@ export const InvestmentsPage: React.FC = () => {
                       </optgroup>
                     )}
                     {groupedCustody.moin.length > 0 && (
-                      <optgroup label={`Accountant Moin's Custody (Subtotal: BDT ${groupedCustody.moinTotal.toLocaleString()})`}>
+                      <optgroup label={`${t("Accountant Moin's Custody")} (${t("Subtotal")}: BDT ${groupedCustody.moinTotal.toLocaleString()})`}>
                         {groupedCustody.moin.map((acc) => (
                           <option key={acc._id} value={acc._id}>
                             {acc.name} — Avail: BDT {acc.derivedBalance.toLocaleString()}
@@ -2038,7 +2038,7 @@ export const InvestmentsPage: React.FC = () => {
                       </optgroup>
                     )}
                     {groupedCustody.samrat.length > 0 && (
-                      <optgroup label={`Accountant Samrat's Custody (Subtotal: BDT ${groupedCustody.samratTotal.toLocaleString()})`}>
+                      <optgroup label={`${t("Accountant Samrat's Custody")} (${t("Subtotal")}: BDT ${groupedCustody.samratTotal.toLocaleString()})`}>
                         {groupedCustody.samrat.map((acc) => (
                           <option key={acc._id} value={acc._id}>
                             {acc.name} — Avail: BDT {acc.derivedBalance.toLocaleString()}
@@ -2091,7 +2091,7 @@ export const InvestmentsPage: React.FC = () => {
                     >
                       <option value="">Select top-up custody account...</option>
                       {groupedCustody.moin.length > 0 && (
-                        <optgroup label={`Accountant Moin's Custody (Subtotal: BDT ${groupedCustody.moinTotal.toLocaleString()})`}>
+                        <optgroup label={`${t("Accountant Moin's Custody")} (${t("Subtotal")}: BDT ${groupedCustody.moinTotal.toLocaleString()})`}>
                           {groupedCustody.moin.map((acc) => (
                             <option key={acc._id} value={acc._id}>
                               {acc.name} ({acc.channel}) — BDT {acc.derivedBalance.toLocaleString()}
@@ -2100,7 +2100,7 @@ export const InvestmentsPage: React.FC = () => {
                         </optgroup>
                       )}
                       {groupedCustody.samrat.length > 0 && (
-                        <optgroup label={`Accountant Samrat's Custody (Subtotal: BDT ${groupedCustody.samratTotal.toLocaleString()})`}>
+                        <optgroup label={`${t("Accountant Samrat's Custody")} (${t("Subtotal")}: BDT ${groupedCustody.samratTotal.toLocaleString()})`}>
                           {groupedCustody.samrat.map((acc) => (
                             <option key={acc._id} value={acc._id}>
                               {acc.name} ({acc.channel}) — BDT {acc.derivedBalance.toLocaleString()}

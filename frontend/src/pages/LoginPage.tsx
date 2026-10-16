@@ -187,7 +187,7 @@ export const LoginPage: React.FC = () => {
 
         {/* Footer */}
         <p className="text-center text-xs text-slate-500 mt-6 font-medium">
-          {t('Designed & Developed by')} <span className="text-slate-300">Moin Uddin</span> © {t('All Rights Reserved.')}
+          {t('Designed & Developed by')} <span className="text-slate-300">{t('Moin Uddin')}</span> © {t('All Rights Reserved.')}
         </p>
       </div>
     </div>

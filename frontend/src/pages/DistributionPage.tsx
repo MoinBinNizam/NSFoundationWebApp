@@ -1228,7 +1228,7 @@ export const DistributionPage: React.FC = () => {
                   className="form-select text-xs"
                 >
                   {groupedCustody.moin.length > 0 && (
-                    <optgroup label={`Accountant Moin's Custody (${money(groupedCustody.moinTotal)})`}>
+                    <optgroup label={`${t("Accountant Moin's Custody")} (${money(groupedCustody.moinTotal)})`}>
                       {groupedCustody.moin.map((acc) => (
                         <option key={acc._id} value={acc._id}>
                           {acc.name} ({acc.channel}) — Available: {money(acc.derivedBalance)}
@@ -1237,7 +1237,7 @@ export const DistributionPage: React.FC = () => {
                     </optgroup>
                   )}
                   {groupedCustody.samrat.length > 0 && (
-                    <optgroup label={`Accountant Samrat's Custody (${money(groupedCustody.samratTotal)})`}>
+                    <optgroup label={`${t("Accountant Samrat's Custody")} (${money(groupedCustody.samratTotal)})`}>
                       {groupedCustody.samrat.map((acc) => (
                         <option key={acc._id} value={acc._id}>
                           {acc.name} ({acc.channel}) — Available: {money(acc.derivedBalance)}
@@ -1246,7 +1246,7 @@ export const DistributionPage: React.FC = () => {
                     </optgroup>
                   )}
                   {groupedCustody.external.length > 0 && (
-                    <optgroup label={`Partner Wallets (${money(groupedCustody.externalTotal)})`}>
+                    <optgroup label={`${t("Investment / Partner Wallets")} (${money(groupedCustody.externalTotal)})`}>
                       {groupedCustody.external.map((acc) => (
                         <option key={acc._id} value={acc._id}>
                           {acc.name} ({acc.channel}) — Available: {money(acc.derivedBalance)}
