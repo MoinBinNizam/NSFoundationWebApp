@@ -420,34 +420,58 @@ export async function syncMember2024YearAndLedgers(
   // 2. Annual Obligation for 2024 is strictly calculated from the closing December shares
   const annualObligation = finalShares * shareValue * activeMonths;
 
-  // 3. Aggregate actual payments made in 2024
+  // 3. Aggregate actual payments and monthly ledgers for 2024
   const startOfYear = new Date('2024-01-01T00:00:00.000Z');
   const endOfYear = new Date('2024-12-31T23:59:59.999Z');
 
   const payments = await Payment.find({
     memberId: member._id,
-    paymentDate: { $gte: startOfYear, $lte: endOfYear },
     status: { $ne: 'CANCELLED' },
+    $or: [
+      { paymentDate: { $gte: startOfYear, $lte: endOfYear } },
+      { receiptNumber: /^HIST-2024/i },
+    ],
   }).lean();
 
-  let totalPrincipalPaid = payments.reduce((sum, p) => sum + (p.principalAmount || 0), 0);
-  let totalPenaltyPaid = payments.reduce((sum, p) => sum + (p.penaltyAmount || 0), 0);
-  let totalCashoutPaid = payments.reduce((sum, p) => sum + (p.cashoutCharge || 0), 0);
-  let totalPaid = payments.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+  const rawPaymentPrincipal = payments.reduce((sum, p) => sum + (p.principalAmount || 0), 0);
+  const rawPaymentAdvance = payments.reduce((sum, p) => sum + (p.advanceAmount || 0), 0);
+  const totalPenaltyPaid = payments.reduce((sum, p) => sum + (p.penaltyAmount || 0), 0);
+  const totalCashoutPaid = payments.reduce((sum, p) => sum + (p.cashoutCharge || 0), 0);
+  const totalContributionFunds = rawPaymentPrincipal + rawPaymentAdvance;
 
-  if (totalPrincipalPaid === 0 && payments.length === 0) {
-    const ledgers = await MonthlyLedger.find({
-      memberId: member._id,
-      month: { $gte: '2024-01', $lte: '2024-12' },
-    }).lean();
-    totalPrincipalPaid = ledgers.reduce((sum, l) => sum + (l.principalPaid || 0), 0);
-    totalPenaltyPaid = ledgers.reduce((sum, l) => sum + (l.penaltyPaid || 0), 0);
-    totalCashoutPaid = ledgers.reduce((sum, l) => sum + ((l as any).cashoutPaid || 0), 0);
-    totalPaid = totalPrincipalPaid + totalPenaltyPaid + totalCashoutPaid;
+  const ledgers = await MonthlyLedger.find({
+    memberId: member._id,
+    month: { $gte: '2024-01', $lte: '2024-12' },
+  }).lean();
+
+  const ledgerPrincipalPaid = ledgers.reduce((sum, l) => sum + (l.principalPaid || 0), 0);
+  const ledgerPenaltyPaid = ledgers.reduce((sum, l) => sum + (l.penaltyPaid || 0), 0);
+  const ledgerCashoutPaid = ledgers.reduce((sum, l) => sum + ((l as any).cashoutPaid || 0), 0);
+
+  let totalPrincipalPaid = 0;
+  let excessAdvance = 0;
+  let finalPenaltyPaid = totalPenaltyPaid;
+  let finalCashoutPaid = totalCashoutPaid;
+  let totalPaid = 0;
+
+  if (payments.length > 0) {
+    if (totalContributionFunds >= annualObligation) {
+      totalPrincipalPaid = annualObligation;
+      excessAdvance = totalContributionFunds - annualObligation;
+    } else {
+      totalPrincipalPaid = Math.min(annualObligation, Math.max(ledgerPrincipalPaid, totalContributionFunds));
+      excessAdvance = Math.max(0, totalContributionFunds - totalPrincipalPaid);
+    }
+    totalPaid = totalPrincipalPaid + finalPenaltyPaid + finalCashoutPaid + excessAdvance;
+  } else {
+    totalPrincipalPaid = Math.min(annualObligation, ledgerPrincipalPaid);
+    excessAdvance = Math.max(0, ledgerPrincipalPaid - annualObligation);
+    finalPenaltyPaid = ledgerPenaltyPaid;
+    finalCashoutPaid = ledgerCashoutPaid;
+    totalPaid = totalPrincipalPaid + finalPenaltyPaid + finalCashoutPaid + excessAdvance;
   }
 
   const shortfall = Math.max(0, annualObligation - totalPrincipalPaid);
-  const excessAdvance = Math.max(0, totalPrincipalPaid - annualObligation);
   const isSettled = shortfall === 0;
 
   // 4. Update or Upsert MemberYearAccount for 2024
@@ -593,34 +617,58 @@ export async function reconcileMemberYearAccount(
 
   const annualObligation = finalShares * shareValue * activeMonths;
 
-  // Aggregate actual principal, penalty, and cashout payments made in that year
+  // Aggregate actual payments and monthly ledgers for that year
   const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
   const endOfYear = new Date(`${year}-12-31T23:59:59.999Z`);
 
   const payments = await Payment.find({
     memberId: member._id,
-    paymentDate: { $gte: startOfYear, $lte: endOfYear },
     status: { $ne: 'CANCELLED' },
+    $or: [
+      { paymentDate: { $gte: startOfYear, $lte: endOfYear } },
+      { receiptNumber: new RegExp(`^HIST-${year}`, 'i') },
+    ],
   }).lean();
 
-  let totalPrincipalPaid = payments.reduce((sum, p) => sum + (p.principalAmount || 0), 0);
-  let totalPenaltyPaid = payments.reduce((sum, p) => sum + (p.penaltyAmount || 0), 0);
-  let totalCashoutPaid = payments.reduce((sum, p) => sum + (p.cashoutCharge || 0), 0);
-  let totalPaid = payments.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+  const rawPaymentPrincipal = payments.reduce((sum, p) => sum + (p.principalAmount || 0), 0);
+  const rawPaymentAdvance = payments.reduce((sum, p) => sum + (p.advanceAmount || 0), 0);
+  const totalPenaltyPaid = payments.reduce((sum, p) => sum + (p.penaltyAmount || 0), 0);
+  const totalCashoutPaid = payments.reduce((sum, p) => sum + (p.cashoutCharge || 0), 0);
+  const totalContributionFunds = rawPaymentPrincipal + rawPaymentAdvance;
 
-  if (totalPrincipalPaid === 0 && payments.length === 0) {
-    const ledgers = await MonthlyLedger.find({
-      memberId: member._id,
-      month: { $gte: `${year}-01`, $lte: `${year}-12` },
-    }).lean();
-    totalPrincipalPaid = ledgers.reduce((sum, l) => sum + (l.principalPaid || 0), 0);
-    totalPenaltyPaid = ledgers.reduce((sum, l) => sum + (l.penaltyPaid || 0), 0);
-    totalCashoutPaid = ledgers.reduce((sum, l) => sum + ((l as any).cashoutPaid || 0), 0);
-    totalPaid = totalPrincipalPaid + totalPenaltyPaid + totalCashoutPaid;
+  const ledgers = await MonthlyLedger.find({
+    memberId: member._id,
+    month: { $gte: `${year}-01`, $lte: `${year}-12` },
+  }).lean();
+
+  const ledgerPrincipalPaid = ledgers.reduce((sum, l) => sum + (l.principalPaid || 0), 0);
+  const ledgerPenaltyPaid = ledgers.reduce((sum, l) => sum + (l.penaltyPaid || 0), 0);
+  const ledgerCashoutPaid = ledgers.reduce((sum, l) => sum + ((l as any).cashoutPaid || 0), 0);
+
+  let totalPrincipalPaid = 0;
+  let excessAdvance = 0;
+  let finalPenaltyPaid = totalPenaltyPaid;
+  let finalCashoutPaid = totalCashoutPaid;
+  let totalPaid = 0;
+
+  if (payments.length > 0) {
+    if (totalContributionFunds >= annualObligation) {
+      totalPrincipalPaid = annualObligation;
+      excessAdvance = totalContributionFunds - annualObligation;
+    } else {
+      totalPrincipalPaid = Math.min(annualObligation, Math.max(ledgerPrincipalPaid, totalContributionFunds));
+      excessAdvance = Math.max(0, totalContributionFunds - totalPrincipalPaid);
+    }
+    totalPaid = totalPrincipalPaid + finalPenaltyPaid + finalCashoutPaid + excessAdvance;
+  } else {
+    totalPrincipalPaid = Math.min(annualObligation, ledgerPrincipalPaid);
+    excessAdvance = Math.max(0, ledgerPrincipalPaid - annualObligation);
+    finalPenaltyPaid = ledgerPenaltyPaid;
+    finalCashoutPaid = ledgerCashoutPaid;
+    totalPaid = totalPrincipalPaid + finalPenaltyPaid + finalCashoutPaid + excessAdvance;
   }
 
   const shortfall = Math.max(0, annualObligation - totalPrincipalPaid);
-  const excessAdvance = Math.max(0, totalPrincipalPaid - annualObligation);
   const isSettled = shortfall === 0;
 
   const yearAccount = await MemberYearAccount.findOneAndUpdate(
