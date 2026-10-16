@@ -9,6 +9,7 @@ import { ShareHistory } from '../models/ShareHistory.js';
 import { PenaltyRule } from '../models/PenaltyRule.js';
 import { PenaltyWaiver } from '../models/PenaltyWaiver.js';
 import { MemberYearAccount } from '../models/MemberYearAccount.js';
+import { MemberExitSettlement } from '../models/MemberExitSettlement.js';
 import { AuditLog } from '../models/AuditLog.js';
 import {
   AllocationType,
@@ -1475,16 +1476,25 @@ export class PaymentService {
     // Ensure totalPrincipalPaid + totalAdvancedPaid + totalPenaltyPaid + cashoutCharge = totalPayments
     const totalPrincipalPaid = Math.max(0, totalPayments - totalAdvancedPaid - totalPenaltyPaid - totalCashoutChargePaid);
 
-    const totalPrincipalDue = ledgers.reduce(
+    const exitSettlement = await MemberExitSettlement.findOne({
+      memberId: member._id,
+      status: 'SETTLED',
+    }).lean();
+
+    let totalPrincipalDue = ledgers.reduce(
       (sum, l) => sum + Math.max(0, Number(l.principalDue || 0) - Number(l.principalPaid || 0)),
       0
     );
-    const totalPenaltyDue = ledgers.reduce(
+    let totalPenaltyDue = ledgers.reduce(
       (sum, l) => sum + Math.max(0, Number(l.penaltyDue || 0) - Number(l.penaltyPaid || 0) - Number(l.penaltyWaived || 0)),
       0
     );
+    if (exitSettlement) {
+      totalPrincipalDue = 0;
+      totalPenaltyDue = 0;
+    }
     const isFilteredPeriod = Boolean(query?.year || query?.month || query?.day);
-    const cashoutDue = isFilteredPeriod ? 0 : Number(member.cashoutDue || 0);
+    const cashoutDue = isFilteredPeriod || exitSettlement ? 0 : Number(member.cashoutDue || 0);
     const totalDues = totalPrincipalDue + totalPenaltyDue + cashoutDue;
     const currentShares = share?.shareCount || 1;
 

@@ -11,7 +11,18 @@ export class GovernanceService {
   static async annualSummary(year: number) {
     const start = new Date(year, 0, 1); const end = new Date(year, 11, 31, 23, 59, 59, 999);
     const [payments, expenses, returns, ledgers, members] = await Promise.all([
-      Payment.aggregate([{ $match: { paymentDate: { $gte: start, $lte: end }, status: { $ne: 'CANCELLED' } } }, { $group: { _id: null, collections: { $sum: '$totalAmount' }, principal: { $sum: '$principalAmount' }, penalties: { $sum: '$penaltyAmount' }, cashout: { $sum: '$cashoutCharge' } } }]),
+      Payment.aggregate([
+        {
+          $match: {
+            status: { $ne: 'CANCELLED' },
+            $or: [
+              { paymentDate: { $gte: start, $lte: end } },
+              { receiptNumber: new RegExp(`^HIST-${year}`, 'i') },
+            ],
+          },
+        },
+        { $group: { _id: null, collections: { $sum: '$totalAmount' }, principal: { $sum: '$principalAmount' }, penalties: { $sum: '$penaltyAmount' }, cashout: { $sum: '$cashoutCharge' } } },
+      ]),
       Expense.aggregate([{ $match: { date: { $gte: start, $lte: end } } }, { $group: { _id: null, expenses: { $sum: '$amount' } } }]),
       InvestmentReturn.aggregate([{ $match: { maturityDate: { $gte: start, $lte: end } } }, { $group: { _id: null, returns: { $sum: '$totalReturn' }, profit: { $sum: '$actualProfit' }, loss: { $sum: '$actualLoss' } } }]),
       MonthlyLedger.aggregate([{ $match: { month: { $gte: `${year}-01`, $lte: `${year}-12` } } }, { $group: { _id: null, dues: { $sum: { $subtract: ['$principalDue', '$principalPaid'] } }, advance: { $sum: '$excessAdvance' } } }]),
