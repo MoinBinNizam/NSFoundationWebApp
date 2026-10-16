@@ -30,6 +30,21 @@ const memberYearAccountSchema = new Schema<IMemberYearAccount>(
       default: 0,
       min: [0, 'Paid principal cannot be negative'],
     },
+    totalPenaltyPaid: {
+      type: Number,
+      default: 0,
+      min: [0, 'Paid penalty cannot be negative'],
+    },
+    totalCashoutPaid: {
+      type: Number,
+      default: 0,
+      min: [0, 'Paid cashout cannot be negative'],
+    },
+    totalPaid: {
+      type: Number,
+      default: 0,
+      min: [0, 'Total paid cannot be negative'],
+    },
     shortfall: {
       type: Number,
       default: 0,

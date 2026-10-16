@@ -4,7 +4,8 @@ import { MemberYearAccount } from '../models/MemberYearAccount.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { Payment } from '../models/Payment.js';
 import { MonthlyLedger } from '../models/MonthlyLedger.js';
-import { ShareEventType, IUser, IMemberYearAccount, IShareHistory, MonthlyLedgerStatus } from '../types/models.js';
+import { MemberExitSettlement } from '../models/MemberExitSettlement.js';
+import { ShareEventType, IUser, IMemberYearAccount, IShareHistory, MonthlyLedgerStatus, MemberExitStatus } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 import { HydratedDocument, Types } from 'mongoose';
 import { getMonthlyShareValue } from './settings.service.js';
@@ -405,7 +406,10 @@ export async function syncMember2024YearAndLedgers(
   }
 
   let activeMonths = 12;
-  if (member.status === 'DROPPED') {
+  const exitSettlement = await MemberExitSettlement.findOne({ memberId: member._id, status: MemberExitStatus.SETTLED });
+  const isDroppedOrExited = member.status === 'DROPPED' || !!exitSettlement;
+
+  if (isDroppedOrExited) {
     const activeLedgersCount = await MonthlyLedger.countDocuments({
       memberId: member._id,
       month: { $gte: '2024-01', $lte: '2024-12' },
@@ -416,7 +420,7 @@ export async function syncMember2024YearAndLedgers(
   // 2. Annual Obligation for 2024 is strictly calculated from the closing December shares
   const annualObligation = finalShares * shareValue * activeMonths;
 
-  // 3. Aggregate actual principal payments made in 2024
+  // 3. Aggregate actual payments made in 2024
   const startOfYear = new Date('2024-01-01T00:00:00.000Z');
   const endOfYear = new Date('2024-12-31T23:59:59.999Z');
 
@@ -427,13 +431,19 @@ export async function syncMember2024YearAndLedgers(
   }).lean();
 
   let totalPrincipalPaid = payments.reduce((sum, p) => sum + (p.principalAmount || 0), 0);
+  let totalPenaltyPaid = payments.reduce((sum, p) => sum + (p.penaltyAmount || 0), 0);
+  let totalCashoutPaid = payments.reduce((sum, p) => sum + (p.cashoutCharge || 0), 0);
+  let totalPaid = payments.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
 
-  if (totalPrincipalPaid === 0) {
+  if (totalPrincipalPaid === 0 && payments.length === 0) {
     const ledgers = await MonthlyLedger.find({
       memberId: member._id,
       month: { $gte: '2024-01', $lte: '2024-12' },
     }).lean();
     totalPrincipalPaid = ledgers.reduce((sum, l) => sum + (l.principalPaid || 0), 0);
+    totalPenaltyPaid = ledgers.reduce((sum, l) => sum + (l.penaltyPaid || 0), 0);
+    totalCashoutPaid = ledgers.reduce((sum, l) => sum + ((l as any).cashoutPaid || 0), 0);
+    totalPaid = totalPrincipalPaid + totalPenaltyPaid + totalCashoutPaid;
   }
 
   const shortfall = Math.max(0, annualObligation - totalPrincipalPaid);
@@ -447,11 +457,16 @@ export async function syncMember2024YearAndLedgers(
       finalShares,
       annualObligation,
       totalPrincipalPaid,
+      totalPenaltyPaid,
+      totalCashoutPaid,
+      totalPaid,
       shortfall,
       excessAdvance,
       isSettled,
       settledAt: isSettled ? new Date() : undefined,
-      notes: `Annual reconciliation for 2024 computed against final share count of ${finalShares}`,
+      notes: isDroppedOrExited
+        ? `Reconciled for ${activeMonths} active months in 2024 (Dropped/Exited member).`
+        : `Annual reconciliation for 2024 computed against final share count of ${finalShares}`,
     },
     { upsert: true, new: true }
   );
@@ -565,7 +580,10 @@ export async function reconcileMemberYearAccount(
   }
 
   let activeMonths = 12;
-  if (member.status === 'DROPPED') {
+  const exitSettlement = await MemberExitSettlement.findOne({ memberId: member._id, status: MemberExitStatus.SETTLED });
+  const isDroppedOrExited = member.status === 'DROPPED' || !!exitSettlement;
+
+  if (isDroppedOrExited) {
     const activeLedgersCount = await MonthlyLedger.countDocuments({
       memberId: member._id,
       month: { $gte: `${year}-01`, $lte: `${year}-12` },
@@ -575,7 +593,7 @@ export async function reconcileMemberYearAccount(
 
   const annualObligation = finalShares * shareValue * activeMonths;
 
-  // Aggregate actual principal payments made in that year
+  // Aggregate actual principal, penalty, and cashout payments made in that year
   const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`);
   const endOfYear = new Date(`${year}-12-31T23:59:59.999Z`);
 
@@ -586,13 +604,19 @@ export async function reconcileMemberYearAccount(
   }).lean();
 
   let totalPrincipalPaid = payments.reduce((sum, p) => sum + (p.principalAmount || 0), 0);
+  let totalPenaltyPaid = payments.reduce((sum, p) => sum + (p.penaltyAmount || 0), 0);
+  let totalCashoutPaid = payments.reduce((sum, p) => sum + (p.cashoutCharge || 0), 0);
+  let totalPaid = payments.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
 
-  if (totalPrincipalPaid === 0) {
+  if (totalPrincipalPaid === 0 && payments.length === 0) {
     const ledgers = await MonthlyLedger.find({
       memberId: member._id,
       month: { $gte: `${year}-01`, $lte: `${year}-12` },
     }).lean();
     totalPrincipalPaid = ledgers.reduce((sum, l) => sum + (l.principalPaid || 0), 0);
+    totalPenaltyPaid = ledgers.reduce((sum, l) => sum + (l.penaltyPaid || 0), 0);
+    totalCashoutPaid = ledgers.reduce((sum, l) => sum + ((l as any).cashoutPaid || 0), 0);
+    totalPaid = totalPrincipalPaid + totalPenaltyPaid + totalCashoutPaid;
   }
 
   const shortfall = Math.max(0, annualObligation - totalPrincipalPaid);
@@ -605,11 +629,16 @@ export async function reconcileMemberYearAccount(
       finalShares,
       annualObligation,
       totalPrincipalPaid,
+      totalPenaltyPaid,
+      totalCashoutPaid,
+      totalPaid,
       shortfall,
       excessAdvance,
       isSettled,
       settledAt: isSettled ? new Date() : undefined,
-      notes: `Annual reconciliation for ${year} computed against final share count of ${finalShares}`,
+      notes: isDroppedOrExited
+        ? `Reconciled for ${activeMonths} active months in ${year} (Dropped/Exited member).`
+        : `Annual reconciliation for ${year} computed against final share count of ${finalShares}`,
     },
     { upsert: true, new: true }
   );
@@ -655,11 +684,22 @@ export async function getYearAccounts(options: { year?: number; memberId?: strin
   if (options.memberId) filter.memberId = options.memberId;
 
   const accounts = await MemberYearAccount.find(filter)
-    .sort({ year: -1 })
-    .populate('memberId', 'memberId name phone status')
+    .populate('memberId', 'memberId name phone status currentShares')
     .lean();
 
-  return accounts;
+  // Natural numeric sort by member ID (NSF001, NSF002, ..., NSF035)
+  accounts.sort((a: any, b: any) => {
+    const idA = a.memberId?.memberId || '';
+    const idB = b.memberId?.memberId || '';
+    return idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  return accounts.map((acc: any) => ({
+    ...acc,
+    totalPenaltyPaid: acc.totalPenaltyPaid ?? 0,
+    totalCashoutPaid: acc.totalCashoutPaid ?? 0,
+    totalPaid: acc.totalPaid ?? ((acc.totalPrincipalPaid || 0) + (acc.totalPenaltyPaid || 0) + (acc.totalCashoutPaid || 0)),
+  }));
 }
 
 /**

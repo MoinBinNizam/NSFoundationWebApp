@@ -242,9 +242,23 @@ export async function getYearAccountsHandler(
       memberId: memberId as string,
     });
 
+    const summary = {
+      totalMembers: accounts.length,
+      settledMembers: accounts.filter((a: any) => a.isSettled).length,
+      unsettledMembers: accounts.filter((a: any) => !a.isSettled).length,
+      totalAnnualObligation: accounts.reduce((sum: number, a: any) => sum + (a.annualObligation || 0), 0),
+      totalPrincipalPaid: accounts.reduce((sum: number, a: any) => sum + (a.totalPrincipalPaid || 0), 0),
+      totalPenaltyPaid: accounts.reduce((sum: number, a: any) => sum + (a.totalPenaltyPaid || 0), 0),
+      totalCashoutPaid: accounts.reduce((sum: number, a: any) => sum + (a.totalCashoutPaid || 0), 0),
+      totalPaid: accounts.reduce((sum: number, a: any) => sum + (a.totalPaid || 0), 0),
+      totalShortfall: accounts.reduce((sum: number, a: any) => sum + (a.shortfall || 0), 0),
+      totalAdvance: accounts.reduce((sum: number, a: any) => sum + (a.excessAdvance || 0), 0),
+    };
+
     res.status(200).json({
       success: true,
       data: accounts,
+      summary,
     });
   } catch (error) {
     next(error);

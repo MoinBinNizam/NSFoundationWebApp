@@ -252,6 +252,9 @@ export interface IMemberYearAccount {
   finalShares: number;
   annualObligation: number;
   totalPrincipalPaid: number;
+  totalPenaltyPaid?: number;
+  totalCashoutPaid?: number;
+  totalPaid?: number;
   shortfall: number;
   excessAdvance: number;
   isSettled: boolean;

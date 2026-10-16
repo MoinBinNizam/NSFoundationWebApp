@@ -11,6 +11,7 @@ import {
   ArrowRightLeft,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   X,
   Info,
   Calendar,
@@ -68,6 +69,9 @@ interface YearAccountItem {
   finalShares: number;
   annualObligation: number;
   totalPrincipalPaid: number;
+  totalPenaltyPaid?: number;
+  totalCashoutPaid?: number;
+  totalPaid?: number;
   shortfall: number;
   excessAdvance: number;
   isSettled: boolean;
@@ -114,6 +118,39 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
   const [yearAccounts, setYearAccounts] = useState<YearAccountItem[]>([]);
   const [selectedYear, setSelectedYear] = useState<number>(2024);
   const [loadingAnnual, setLoadingAnnual] = useState<boolean>(false);
+  const [reconcilingMemberId, setReconcilingMemberId] = useState<string | null>(null);
+
+  // Dynamic summary across year accounts for current selected year
+  const computedSummary = React.useMemo(() => {
+    const totalMembers = yearAccounts.length;
+    const settledMembers = yearAccounts.filter((a) => a.isSettled).length;
+    const unsettledMembers = totalMembers - settledMembers;
+    const totalFinalShares = yearAccounts.reduce((sum, a) => sum + (a.finalShares || 0), 0);
+    const totalAnnualObligation = yearAccounts.reduce((sum, a) => sum + (a.annualObligation || 0), 0);
+    const totalPrincipalPaid = yearAccounts.reduce((sum, a) => sum + (a.totalPrincipalPaid || 0), 0);
+    const totalPenaltyPaid = yearAccounts.reduce((sum, a) => sum + (a.totalPenaltyPaid || 0), 0);
+    const totalCashoutPaid = yearAccounts.reduce((sum, a) => sum + (a.totalCashoutPaid || 0), 0);
+    const totalPaid = yearAccounts.reduce(
+      (sum, a) => sum + ((a.totalPaid !== undefined ? a.totalPaid : a.totalPrincipalPaid) || 0),
+      0
+    );
+    const totalShortfall = yearAccounts.reduce((sum, a) => sum + (a.shortfall || 0), 0);
+    const totalAdvance = yearAccounts.reduce((sum, a) => sum + (a.excessAdvance || 0), 0);
+
+    return {
+      totalMembers,
+      settledMembers,
+      unsettledMembers,
+      totalFinalShares,
+      totalAnnualObligation,
+      totalPrincipalPaid,
+      totalPenaltyPaid,
+      totalCashoutPaid,
+      totalPaid,
+      totalShortfall,
+      totalAdvance,
+    };
+  }, [yearAccounts]);
 
   // Modals state
   const [showAdjustModal, setShowAdjustModal] = useState<boolean>(false);
@@ -235,7 +272,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
     setFormError(null);
     setReconcileData({
       memberId: m ? m._id : membersShares[0]?._id || '',
-      year: 2024,
+      year: selectedYear,
     });
     setShowReconcileModal(true);
   };
@@ -336,7 +373,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
   // Quick single-member reconcile
   const handleQuickReconcile = async (memberId?: string, year?: number) => {
     if (!memberId) return;
-    setSubmitting(true);
+    setReconcilingMemberId(memberId);
     setFormError(null);
     try {
       await apiRequest('/shares/reconcile-year', {
@@ -344,11 +381,11 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
         body: JSON.stringify({ memberId, year: year || selectedYear }),
       });
       fetchPositions();
-      fetchAnnual();
+      await fetchAnnual();
     } catch (err: unknown) {
       setFormError((err as Error).message);
     } finally {
-      setSubmitting(false);
+      setReconcilingMemberId(null);
     }
   };
 
@@ -681,27 +718,106 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
             </div>
           </div>
 
+          {/* Dynamic KPI Summary Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div className="glass-card p-3.5 border border-emerald-500/20 bg-emerald-500/5 rounded-xl">
+              <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                <span className="font-medium text-emerald-300">{t('Total Collections')}</span>
+                <Coins size={15} className="text-emerald-400" />
+              </div>
+              <p className="text-lg font-bold text-white tracking-tight">
+                ৳{computedSummary.totalPaid.toLocaleString()}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                {t('All payment receipts')} ({selectedYear})
+              </p>
+            </div>
+
+            <div className="glass-card p-3.5 border border-blue-500/20 bg-blue-500/5 rounded-xl">
+              <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                <span className="font-medium text-blue-300">{t('Principal Collected')}</span>
+                <CheckCircle2 size={15} className="text-blue-400" />
+              </div>
+              <p className="text-lg font-bold text-white tracking-tight">
+                ৳{computedSummary.totalPrincipalPaid.toLocaleString()}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                {t('Obligation')}: ৳{computedSummary.totalAnnualObligation.toLocaleString()}
+              </p>
+            </div>
+
+            <div className="glass-card p-3.5 border border-amber-500/20 bg-amber-500/5 rounded-xl">
+              <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                <span className="font-medium text-amber-300">{t('Penalty Collected')}</span>
+                <AlertTriangle size={15} className="text-amber-400" />
+              </div>
+              <p className="text-lg font-bold text-amber-300 tracking-tight">
+                ৳{computedSummary.totalPenaltyPaid.toLocaleString()}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                {t('Late penalty fines')}
+              </p>
+            </div>
+
+            <div className="glass-card p-3.5 border border-cyan-500/20 bg-cyan-500/5 rounded-xl">
+              <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                <span className="font-medium text-cyan-300">{t('Cash Out Charges')}</span>
+                <ArrowRightLeft size={15} className="text-cyan-400" />
+              </div>
+              <p className="text-lg font-bold text-cyan-300 tracking-tight">
+                ৳{computedSummary.totalCashoutPaid.toLocaleString()}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                {t('Gateway fees collected')}
+              </p>
+            </div>
+
+            <div className="glass-card p-3.5 border border-purple-500/20 bg-purple-500/5 rounded-xl">
+              <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                <span className="font-medium text-purple-300">{t('Advance Credits')}</span>
+                <Layers size={15} className="text-purple-400" />
+              </div>
+              <p className="text-lg font-bold text-purple-300 tracking-tight">
+                ৳{computedSummary.totalAdvance.toLocaleString()}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                {t('Surplus carryover')}
+              </p>
+            </div>
+
+            <div className="glass-card p-3.5 border border-rose-500/20 bg-rose-500/5 rounded-xl">
+              <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
+                <span className="font-medium text-rose-300">{t('Outstanding Shortfall')}</span>
+                <AlertCircle size={15} className="text-rose-400" />
+              </div>
+              <p className="text-lg font-bold text-rose-300 tracking-tight">
+                ৳{computedSummary.totalShortfall.toLocaleString()}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                {computedSummary.settledMembers}/{computedSummary.totalMembers} {t('Settled')}
+              </p>
+            </div>
+          </div>
+
           {/* Year selector and action controls */}
           <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <Calendar size={18} className="text-blue-400" />
-              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              <label htmlFor="annual-year-select" className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
                 {t('Accounting Year:')}
-              </span>
-              {[2024, 2025].map((yr) => (
-                <button
-                  key={yr}
-                  type="button"
-                  onClick={() => setSelectedYear(yr)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                    selectedYear === yr
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25'
-                      : 'bg-white/5 text-gray-400 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  {t(`Year ${yr}`)}
-                </button>
-              ))}
+              </label>
+              <select
+                id="annual-year-select"
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="bg-white/10 border border-white/15 text-white font-bold text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors hover:bg-white/15"
+              >
+                {[2024, 2025, 2026, 2027, 2028].map((yr) => (
+                  <option key={yr} value={yr} className="bg-slate-900 text-white font-medium">
+                    {t(`Year ${yr}`)}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {canModify && (
@@ -710,12 +826,12 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                   type="button"
                   onClick={() => handleBulkReconcile(selectedYear)}
                   disabled={submitting}
-                  className="btn btn-primary btn-sm text-xs"
+                  className="btn btn-primary btn-sm text-xs inline-flex items-center gap-1.5"
                 >
                   <RefreshCw size={14} className={submitting ? 'animate-spin' : ''} />
                   <span>{t(`Reconcile All Members (${selectedYear})`)}</span>
                 </button>
-                <button type="button" onClick={() => handleOpenReconcile()} className="btn btn-secondary btn-sm text-xs">
+                <button type="button" onClick={() => handleOpenReconcile()} className="btn btn-secondary btn-sm text-xs inline-flex items-center gap-1.5">
                   <CalendarCheck size={16} />
                   <span>{t('Reconcile Member')}</span>
                 </button>
@@ -724,15 +840,18 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
           </div>
 
           <div className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
-            <table className="data-table min-w-[1020px]">
+            <table className="data-table min-w-[1240px]">
               <thead>
                 <tr>
                   <th>{t('Member')}</th>
                   <th>{t(`Final Shares (${selectedYear})`)}</th>
                   <th>{t('Annual Obligation')}</th>
                   <th>{t('Principal Paid')}</th>
-                  <th>{t('Shortfall Due')}</th>
+                  <th>{t('Penalty Paid')}</th>
+                  <th>{t('Cash Out / Service Charge')}</th>
                   <th>{t('Advance Credit (Next Year)')}</th>
+                  <th>{t('Total Paid')}</th>
+                  <th>{t('Shortfall Due')}</th>
                   <th>{t('Settlement Status')}</th>
                   {canModify && <th className="text-right">{t('Action')}</th>}
                 </tr>
@@ -740,14 +859,14 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
               <tbody>
                 {loadingAnnual ? (
                   <tr>
-                    <td colSpan={canModify ? 8 : 7} className="text-center py-12 text-gray-400">
+                    <td colSpan={canModify ? 11 : 10} className="text-center py-12 text-gray-400">
                       <div className="w-8 h-8 border-2 border-white/10 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
                       <span>{t('Loading annual accounts...')}</span>
                     </td>
                   </tr>
                 ) : yearAccounts.length === 0 ? (
                   <tr>
-                    <td colSpan={canModify ? 8 : 7} className="text-center py-12 text-gray-400">
+                    <td colSpan={canModify ? 11 : 10} className="text-center py-12 text-gray-400">
                       {t(`No reconciliation records generated for year ${selectedYear} yet.`)}
                     </td>
                   </tr>
@@ -767,27 +886,46 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                       </td>
                       <td>
                         <span className="font-bold text-white text-sm">
-                          ৳ {ya.annualObligation.toLocaleString()}
+                          ৳{ya.annualObligation.toLocaleString()}
                         </span>
                       </td>
                       <td>
-                        <span className="text-blue-400 text-sm">৳ {ya.totalPrincipalPaid.toLocaleString()}</span>
+                        <span className="text-blue-400 text-sm font-medium">৳{ya.totalPrincipalPaid.toLocaleString()}</span>
+                      </td>
+                      <td>
+                        <span className={`text-sm ${(ya.totalPenaltyPaid || 0) > 0 ? 'text-amber-400 font-medium' : 'text-gray-500'}`}>
+                          ৳{(ya.totalPenaltyPaid || 0).toLocaleString()}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`text-sm ${(ya.totalCashoutPaid || 0) > 0 ? 'text-cyan-400 font-medium' : 'text-gray-500'}`}>
+                          ৳{(ya.totalCashoutPaid || 0).toLocaleString()}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={`text-sm font-bold ${ya.excessAdvance > 0 ? 'text-purple-400' : 'text-gray-500'}`}>
+                          ৳{ya.excessAdvance.toLocaleString()}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="text-white text-sm font-bold">
+                          ৳{((ya.totalPaid !== undefined ? ya.totalPaid : ya.totalPrincipalPaid) || 0).toLocaleString()}
+                        </span>
                       </td>
                       <td>
                         <span className={`text-sm font-bold ${ya.shortfall > 0 ? 'text-rose-400' : 'text-gray-500'}`}>
-                          ৳ {ya.shortfall.toLocaleString()}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`text-sm font-bold ${ya.excessAdvance > 0 ? 'text-emerald-400' : 'text-gray-500'}`}>
-                          ৳ {ya.excessAdvance.toLocaleString()}
+                          ৳{ya.shortfall.toLocaleString()}
                         </span>
                       </td>
                       <td>
                         {ya.isSettled ? (
-                          <span className="badge badge-active text-[10px]">{t('Settled')}</span>
+                          <span className="badge badge-active text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                            <CheckCircle2 size={11} /> {t('Settled')}
+                          </span>
                         ) : (
-                          <span className="badge badge-inactive text-[10px]">{t('Unsettled Shortfall')}</span>
+                          <span className="badge badge-inactive text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                            <AlertTriangle size={11} /> {t('Shortfall')} (৳{ya.shortfall.toLocaleString()})
+                          </span>
                         )}
                       </td>
                       {canModify && (
@@ -795,11 +933,15 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                           <button
                             type="button"
                             onClick={() => handleQuickReconcile(ya.memberId?._id, selectedYear)}
-                            disabled={submitting}
+                            disabled={submitting || reconcilingMemberId === ya.memberId?._id}
                             className="btn btn-secondary btn-sm text-[11px] py-1 px-2.5 inline-flex items-center gap-1"
                             title={t('Reconcile this member account')}
                           >
-                            <CalendarCheck size={13} />
+                            {reconcilingMemberId === ya.memberId?._id ? (
+                              <RefreshCw size={12} className="animate-spin text-blue-400" />
+                            ) : (
+                              <CalendarCheck size={13} />
+                            )}
                             <span>{t('Reconcile')}</span>
                           </button>
                         </td>
@@ -808,6 +950,45 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                   ))
                 )}
               </tbody>
+              {yearAccounts.length > 0 && (
+                <tfoot className="border-t-2 border-white/10 font-bold bg-white/[0.03]">
+                  <tr>
+                    <td className="text-white py-3">
+                      {t('Total')} ({yearAccounts.length} {t('Members')})
+                    </td>
+                    <td className="text-emerald-400">
+                      {computedSummary.totalFinalShares} {t('Shares')}
+                    </td>
+                    <td className="text-white">
+                      ৳{computedSummary.totalAnnualObligation.toLocaleString()}
+                    </td>
+                    <td className="text-blue-400">
+                      ৳{computedSummary.totalPrincipalPaid.toLocaleString()}
+                    </td>
+                    <td className="text-amber-400">
+                      ৳{computedSummary.totalPenaltyPaid.toLocaleString()}
+                    </td>
+                    <td className="text-cyan-400">
+                      ৳{computedSummary.totalCashoutPaid.toLocaleString()}
+                    </td>
+                    <td className="text-purple-400">
+                      ৳{computedSummary.totalAdvance.toLocaleString()}
+                    </td>
+                    <td className="text-white font-extrabold">
+                      ৳{computedSummary.totalPaid.toLocaleString()}
+                    </td>
+                    <td className="text-rose-400">
+                      ৳{computedSummary.totalShortfall.toLocaleString()}
+                    </td>
+                    <td>
+                      <span className="text-[11px] font-semibold text-gray-300">
+                        {computedSummary.settledMembers}/{computedSummary.totalMembers} {t('Settled')}
+                      </span>
+                    </td>
+                    {canModify && <td />}
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>
@@ -1120,6 +1301,9 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                 >
                   <option value={2024}>{t('2024 (Adjustment & Finalization Baseline)')}</option>
                   <option value={2025}>2025</option>
+                  <option value={2026}>2026</option>
+                  <option value={2027}>2027</option>
+                  <option value={2028}>2028</option>
                 </select>
               </div>
 
