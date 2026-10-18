@@ -1425,10 +1425,15 @@ export class PaymentService {
       ledgerFilter.month = monthStr;
     } else if (query?.year && /^\d{4}$/.test(query.year)) {
       const yearNum = Number(query.year);
-      paymentFilter.paymentDate = {
-        $gte: new Date(Date.UTC(yearNum, 0, 1, 0, 0, 0, 0)),
-        $lte: new Date(Date.UTC(yearNum, 11, 31, 23, 59, 59, 999)),
-      };
+      paymentFilter.$or = [
+        {
+          paymentDate: {
+            $gte: new Date(Date.UTC(yearNum, 0, 1, 0, 0, 0, 0)),
+            $lte: new Date(Date.UTC(yearNum, 11, 31, 23, 59, 59, 999)),
+          },
+        },
+        { receiptNumber: new RegExp(`^HIST-${yearNum}`, 'i') },
+      ];
       ledgerFilter.month = { $gte: `${yearNum}-01`, $lte: `${yearNum}-12` };
     }
 
@@ -1449,28 +1454,34 @@ export class PaymentService {
     const totalPenaltyPaid = Math.max(paymentPenalties, ledgerPenalties);
     const totalCashoutChargePaid = payments.reduce((sum, p) => sum + Number(p.cashoutCharge || 0), 0);
 
-    // Dynamic advance calculation across year accounts, monthly ledgers, and payment advance amounts
-    let totalAdvancedPaid = paymentAdvanceSum;
-    if (query?.year) {
-      const yearAccount = await MemberYearAccount.findOne({ memberId: member._id, year: Number(query.year) }).lean();
-      if (yearAccount && (yearAccount.excessAdvance || 0) > 0) {
-        totalAdvancedPaid = Math.max(totalAdvancedPaid, yearAccount.excessAdvance);
-      }
+    // Dynamic advance calculation:
+    // Intra-year prepayments (e.g. May paying for June) are consumed within that same year.
+    // For a year view, an advance exists ONLY if contributions in that year extend beyond that year (excessAdvance for future years).
+    let totalAdvancedPaid = 0;
+    if (query?.day) {
+      totalAdvancedPaid = paymentAdvanceSum;
     } else if (query?.month) {
       const monthStr = query.month.includes('-')
         ? query.month
         : `${query.year || new Date().getFullYear()}-${query.month.padStart(2, '0')}`;
       const ledger = ledgers.find((l) => l.month === monthStr);
-      if (ledger && (ledger.excessAdvance || 0) > 0) {
-        totalAdvancedPaid = Math.max(totalAdvancedPaid, ledger.excessAdvance);
+      totalAdvancedPaid = ledger && (ledger.excessAdvance || 0) > 0 ? ledger.excessAdvance : paymentAdvanceSum;
+    } else if (query?.year) {
+      const yearAccount = await MemberYearAccount.findOne({ memberId: member._id, year: Number(query.year) }).lean();
+      if (yearAccount) {
+        totalAdvancedPaid = Number(yearAccount.excessAdvance || 0);
+      } else {
+        const yearObligation = ledgers.reduce((sum, l) => sum + Number(l.principalDue || 0), 0);
+        const totalContributionFunds = Math.max(0, totalPayments - totalPenaltyPaid - totalCashoutChargePaid);
+        totalAdvancedPaid = Math.max(0, totalContributionFunds - yearObligation);
       }
-    } else if (!query?.day) {
-      // All-time: check all MemberYearAccount records for excess advance
+    } else {
+      // All-time: Advance is true unconsumed prepayment beyond all accrued obligations.
+      // If member has remaining principal dues, any past advance has already been absorbed or does not exist.
       const allMyas = await MemberYearAccount.find({ memberId: member._id }).lean();
       const myasExcess = allMyas.reduce((sum: number, m: any) => sum + Number(m.excessAdvance || 0), 0);
-      if (myasExcess > 0) {
-        totalAdvancedPaid = Math.max(totalAdvancedPaid, myasExcess);
-      }
+      const totalPrincipalDue = ledgers.reduce((sum, l) => sum + Math.max(0, Number(l.principalDue || 0) - Number(l.principalPaid || 0)), 0);
+      totalAdvancedPaid = totalPrincipalDue > 0 ? 0 : myasExcess;
     }
 
     // Ensure totalPrincipalPaid + totalAdvancedPaid + totalPenaltyPaid + cashoutCharge = totalPayments
