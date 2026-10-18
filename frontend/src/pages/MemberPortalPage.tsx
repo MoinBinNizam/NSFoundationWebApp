@@ -407,8 +407,8 @@ export const MemberPortalPage: React.FC = () => {
             <thead>
               <tr>
                 <th>{t('Date')}</th>
-                <th>{t('Receipt')}</th>
-                <th>{t('Method')}</th>
+                <th className="min-w-[180px]">{t('Receipt #')}</th>
+                <th className="min-w-[130px]">{t('Method')}</th>
                 <th>{t('Amount')}</th>
                 <th>{t('Status')}</th>
               </tr>
@@ -418,8 +418,8 @@ export const MemberPortalPage: React.FC = () => {
                 data.payments.map((p) => (
                   <tr key={p._id}>
                     <td>{new Date(p.paymentDate).toLocaleDateString()}</td>
-                    <td className="font-mono text-blue-300 font-semibold">{p.receiptNumber}</td>
-                    <td>{p.paymentMethod}</td>
+                    <td className="font-mono text-blue-300 font-semibold pr-6 whitespace-nowrap">{p.receiptNumber}</td>
+                    <td className="whitespace-nowrap">{p.paymentMethod}</td>
                     <td className="font-semibold text-emerald-400">{money(p.totalAmount)}</td>
                     <td>
                       <span className={`badge ${p.status === 'PAID' ? 'badge-active' : 'badge-inactive'}`}>

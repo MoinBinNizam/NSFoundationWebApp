@@ -4,5 +4,70 @@ import { createError } from '../middlewares/error.js';
 import { DocumentService } from '../services/document.service.js';
 import { UserRole } from '../types/models.js';
 import { getMemberTransparencySettings } from '../services/settings.service.js';
-function send(res: Response, buffer: Buffer, name: string) { res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', `attachment; filename="${name}"`); res.send(buffer); }
-export class DocumentController { static async statement(req: AuthRequest, res: Response, next: NextFunction) { try { if (!req.user) return next(createError('Authentication required.', 401)); if (req.user.role === UserRole.MEMBER && String(req.user.memberId || '') !== req.params.memberId) return next(createError('Members may download only their own statement.', 403)); send(res, await DocumentService.memberStatement(req.params.memberId, req.user), `member-statement-${req.params.memberId}.pdf`); } catch (error) { next(error); } } static async annual(req: AuthRequest, res: Response, next: NextFunction) { try { if (!req.user) return next(createError('Authentication required.', 401)); if (req.user.role === UserRole.MEMBER && !(await getMemberTransparencySettings()).allowAnnualProfitLossDownload) return next(createError('Annual profit and loss reports are currently unavailable to member accounts.', 403)); send(res, await DocumentService.annualReport(Number(req.params.year), req.user), `annual-profit-loss-${req.params.year}.pdf`); } catch (error) { next(error); } } static async audit(req: AuthRequest, res: Response, next: NextFunction) { try { if (!req.user) return next(createError('Authentication required.', 401)); if (req.user.role !== UserRole.SUPER_ADMIN) return next(createError('Audit packs require Super Admin access.', 403)); send(res, await DocumentService.auditPack(Number(req.params.year), req.user), `audit-pack-${req.params.year}.pdf`); } catch (error) { next(error); } } }
+
+function send(res: Response, buffer: Buffer, name: string) {
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+  res.send(buffer);
+}
+
+export class DocumentController {
+  static async statement(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      if (req.user.role === UserRole.MEMBER && String(req.user.memberId || '') !== req.params.memberId) {
+        return next(createError('Members may download only their own statement.', 403));
+      }
+      send(res, await DocumentService.memberStatement(req.params.memberId, req.user), `member-statement-${req.params.memberId}.pdf`);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async annual(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      if (req.user.role === UserRole.MEMBER && !(await getMemberTransparencySettings()).allowAnnualProfitLossDownload) {
+        return next(createError('Annual profit and loss reports are currently unavailable to member accounts.', 403));
+      }
+      send(res, await DocumentService.annualReport(Number(req.params.year), req.user), `annual-report-${req.params.year}.pdf`);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async annualData(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const data = await DocumentService.annualReportData(Number(req.params.year), req.user);
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async audit(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      if (req.user.role !== UserRole.SUPER_ADMIN) {
+        return next(createError('Audit packs require Super Admin access.', 403));
+      }
+      send(res, await DocumentService.auditPack(Number(req.params.year), req.user), `audit-pack-${req.params.year}.pdf`);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async auditData(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      if (req.user.role !== UserRole.SUPER_ADMIN) {
+        return next(createError('Audit packs require Super Admin access.', 403));
+      }
+      const data = await DocumentService.auditPackData(Number(req.params.year), req.user);
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+}

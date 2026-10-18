@@ -31,6 +31,7 @@ import {
   Clock,
   Users,
   FileSignature,
+  Loader2,
 } from 'lucide-react';
 import { downloadMemberReportImage } from '../utils/report-image';
 import { ReceiptOcrManager } from '../components/ReceiptOcrManager';
@@ -342,6 +343,16 @@ export const PaymentsPage: React.FC = () => {
   const [signatureSaving, setSignatureSaving] = useState<boolean>(false);
   const [signatureError, setSignatureError] = useState<string | null>(null);
 
+  // Download Report Image Confirmation & Success States
+  const [showDownloadConfirmModal, setShowDownloadConfirmModal] = useState<boolean>(false);
+  const [isDownloadingReport, setIsDownloadingReport] = useState<boolean>(false);
+  const [downloadSuccessModal, setDownloadSuccessModal] = useState<{
+    open: boolean;
+    fileName: string;
+    memberName: string;
+    memberId: string;
+  } | null>(null);
+
   // Modal States
   const [showCollectModal, setShowCollectModal] = useState<boolean>(false);
   const [editingPayment, setEditingPayment] = useState<PaymentItem | null>(null);
@@ -568,6 +579,51 @@ export const PaymentsPage: React.FC = () => {
       setSignatureError((err as Error).message || 'Failed to remove signature');
     } finally {
       setSignatureSaving(false);
+    }
+  };
+
+  const handleStartReportDownload = async () => {
+    if (!selectedMemberSummary) return;
+    setIsDownloadingReport(true);
+    try {
+      const reportPayments = (selectedMemberSummary.recentPayments && selectedMemberSummary.recentPayments.length > 0)
+        ? selectedMemberSummary.recentPayments.map((p) => ({
+            ...p,
+            receiverName: p.receiverName || (p.receiverId as any)?.name || '-',
+            accountantName: p.accountantName || (p.receiverId as any)?.name || '-',
+          }))
+        : payments
+            .filter(
+              (p) =>
+                String((p.memberId as any)?._id || (p.memberId as any)) ===
+                String(selectedMemberSummary.member._id)
+            )
+            .map((p) => ({
+              ...p,
+              receiverName: (p.receiverId as any)?.name || '-',
+              accountantName: (p.receiverId as any)?.name || '-',
+            }));
+
+      const filename = await downloadMemberReportImage({
+        member: selectedMemberSummary.member,
+        summary: selectedMemberSummary.summary,
+        payments: reportPayments,
+        logo,
+        signatureImage: accountantSignature || user?.signatureImage || null,
+      });
+
+      setShowDownloadConfirmModal(false);
+      setDownloadSuccessModal({
+        open: true,
+        fileName: filename || `NSF_Report_${selectedMemberSummary.member.memberId}_${(selectedMemberSummary.member.name || '').trim().replace(/[^a-zA-Z0-9\u0980-\u09FF]+/g, '_')}_${new Date().toISOString().slice(0, 10)}.png`,
+        memberName: selectedMemberSummary.member.name,
+        memberId: selectedMemberSummary.member.memberId,
+      });
+    } catch (err: unknown) {
+      console.error('Failed to download report image:', err);
+      alert('Failed to generate report image: ' + ((err as Error)?.message || 'Unknown error'));
+    } finally {
+      setIsDownloadingReport(false);
     }
   };
 
@@ -1576,7 +1632,35 @@ export const PaymentsPage: React.FC = () => {
           {/* Search bar, Member filter & Redesigned Date Picker */}
           <div className="glass-card p-4 space-y-3">
             <div className="flex flex-wrap items-center gap-3">
-              {/* Search text input */}
+              {/* Member Selector Dropdown (Swapped to first place, with wide flex-1 matching Search) */}
+              <div className="flex items-center gap-2 min-w-[240px] flex-1">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
+                  {t('Member:')}
+                </label>
+                <select
+                  aria-label={t('Member:')}
+                  className="form-select text-xs py-2 px-3 bg-slate-900 border-gray-700 rounded-lg text-white flex-1"
+                  value={ledgerMemberId || (selectedMemberSummary?.member ? (membersList.find((m) => m._id === selectedMemberSummary.member._id || m.memberId === selectedMemberSummary.member.memberId)?._id || selectedMemberSummary.member._id || '') : '')}
+                  onChange={(e) => {
+                    setLedgerMemberId(e.target.value);
+                    setLedgerPage(1);
+                  }}
+                >
+                  <option value="">{t('All Members')}</option>
+                  {selectedMemberSummary?.member && !membersList.some((m) => m._id === selectedMemberSummary.member._id || m.memberId === selectedMemberSummary.member.memberId) && (
+                    <option value={selectedMemberSummary.member._id || selectedMemberSummary.member.memberId}>
+                      {selectedMemberSummary.member.memberId} — {selectedMemberSummary.member.name}
+                    </option>
+                  )}
+                  {membersList.map((m) => (
+                    <option key={m._id} value={m._id}>
+                      {m.memberId} — {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Search text input (Swapped to second place) */}
               <div className="relative min-w-[240px] flex-1">
                 <Search
                   size={18}
@@ -1584,7 +1668,7 @@ export const PaymentsPage: React.FC = () => {
                 />
                 <input
                   type="text"
-                  className="form-input pl-10 text-sm"
+                  className="form-input pl-10 text-sm w-full"
                   placeholder={t('Search by receipt #, member name, ID, or phone...')}
                   value={ledgerSearch}
                   onChange={(e) => {
@@ -1592,29 +1676,6 @@ export const PaymentsPage: React.FC = () => {
                     setLedgerPage(1);
                   }}
                 />
-              </div>
-
-              {/* Member Selector Dropdown */}
-              <div className="flex items-center gap-2 min-w-[220px]">
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
-                  {t('Member:')}
-                </label>
-                <select
-                  aria-label={t('Member:')}
-                  className="form-select text-xs py-2 px-3 bg-slate-900 border-gray-700 rounded-lg text-white flex-1"
-                  value={ledgerMemberId}
-                  onChange={(e) => {
-                    setLedgerMemberId(e.target.value);
-                    setLedgerPage(1);
-                  }}
-                >
-                  <option value="">{t('All Members')}</option>
-                  {membersList.map((m) => (
-                    <option key={m._id} value={m._id}>
-                      {m.memberId} — {m.name}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               <span className="shrink-0 text-xs font-semibold text-gray-400">
@@ -1656,7 +1717,7 @@ export const PaymentsPage: React.FC = () => {
                           setLedgerMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
                           setLedgerDay('');
                         } else if (key === 'yearly') {
-                          setLedgerYear(String(new Date().getFullYear()));
+                          setLedgerYear('2024');
                           setLedgerMonth('');
                           setLedgerDay('');
                         }
@@ -1828,7 +1889,7 @@ export const PaymentsPage: React.FC = () => {
                       title={t('Previous Year')}
                       aria-label={t('Previous Year')}
                       onClick={() => {
-                        const yr = Number(ledgerYear || new Date().getFullYear()) - 1;
+                        const yr = Number(ledgerYear || '2024') - 1;
                         setLedgerYear(String(yr));
                         setLedgerMonth('');
                         setLedgerPage(1);
@@ -1840,7 +1901,7 @@ export const PaymentsPage: React.FC = () => {
                     <select
                       aria-label={t('Year')}
                       className="bg-slate-950 text-xs text-white font-medium py-0.5 px-2 border border-white/15 rounded-lg focus:outline-none cursor-pointer"
-                      value={ledgerYear || String(new Date().getFullYear())}
+                      value={ledgerYear || '2024'}
                       onChange={(e) => {
                         setLedgerYear(e.target.value);
                         setLedgerMonth('');
@@ -1858,7 +1919,7 @@ export const PaymentsPage: React.FC = () => {
                       title={t('Next Year')}
                       aria-label={t('Next Year')}
                       onClick={() => {
-                        const yr = Number(ledgerYear || new Date().getFullYear()) + 1;
+                        const yr = Number(ledgerYear || '2024') + 1;
                         setLedgerYear(String(yr));
                         setLedgerMonth('');
                         setLedgerPage(1);
@@ -1929,34 +1990,8 @@ export const PaymentsPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      const reportPayments = (selectedMemberSummary.recentPayments && selectedMemberSummary.recentPayments.length > 0)
-                        ? selectedMemberSummary.recentPayments.map((p) => ({
-                            ...p,
-                            receiverName: p.receiverName || (p.receiverId as any)?.name || '-',
-                            accountantName: p.accountantName || (p.receiverId as any)?.name || '-',
-                          }))
-                        : payments
-                            .filter(
-                              (p) =>
-                                String((p.memberId as any)?._id || (p.memberId as any)) ===
-                                String(selectedMemberSummary.member._id)
-                            )
-                            .map((p) => ({
-                              ...p,
-                              receiverName: (p.receiverId as any)?.name || '-',
-                              accountantName: (p.receiverId as any)?.name || '-',
-                            }));
-
-                      downloadMemberReportImage({
-                        member: selectedMemberSummary.member,
-                        summary: selectedMemberSummary.summary,
-                        payments: reportPayments,
-                        logo,
-                        signatureImage: accountantSignature || user?.signatureImage || null,
-                      });
-                    }}
-                    className="btn btn-primary btn-sm flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md shadow-blue-500/20"
+                    onClick={() => setShowDownloadConfirmModal(true)}
+                    className="btn btn-primary btn-sm flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition"
                   >
                     <ImageIcon size={15} />
                     {t('Download Report Image')}
@@ -1975,105 +2010,162 @@ export const PaymentsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Metric Cards: 6 default, 7 when member has Due Cash Out Charge */}
-              <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${Number(selectedMemberSummary.summary.cashoutDue || 0) > 0 ? 'lg:grid-cols-7' : 'lg:grid-cols-6'} gap-3`}>
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">
-                      {t('Total Paid')}
-                    </span>
-                    <CheckCircle2 size={15} className="text-emerald-400" />
-                  </div>
-                  <p className="text-xl font-black text-white mt-1.5">
-                    ৳ {(selectedMemberSummary.summary.totalPayments || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-[10px] text-emerald-300/80 mt-1">{t('Total payments and contributions collected')}</p>
-                </div>
+              {/* Metric Cards: Paid Summary + Dues Breakdown (Zero-value dues hidden; All-cleared state when totalDue === 0) */}
+              {(() => {
+                const s = selectedMemberSummary.summary;
+                const principalDue = Number(s.totalPrincipalDue || 0);
+                const penaltyDue = Number(s.totalPenaltyDue || 0);
+                const cashoutDue = Number(s.cashoutDue || 0);
+                const totalDue = Number(s.totalDues ?? (principalDue + penaltyDue + cashoutDue));
+                const totalPaid = Number(s.totalPayments || 0);
+                const principalPaid = Number(s.totalPrincipalPaid || 0);
+                const advancedPaid = Number(s.totalAdvancedPaid || 0);
+                const penaltyPaid = Number(s.totalPenaltyPaid || 0);
 
-                <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-3.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">
-                      {t('Total Principal Paid')}
-                    </span>
-                    <Layers size={15} className="text-cyan-400" />
-                  </div>
-                  <p className="text-xl font-black text-white mt-1.5">
-                    ৳ {(selectedMemberSummary.summary.totalPrincipalPaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-[10px] text-cyan-300/80 mt-1">{t('Principal collected towards obligation')}</p>
-                </div>
-
-                <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-3.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider">
-                      {t('Total Advanced Paid')}
-                    </span>
-                    <Sparkles size={15} className="text-indigo-400" />
-                  </div>
-                  <p className="text-xl font-black text-white mt-1.5">
-                    ৳ {(selectedMemberSummary.summary.totalAdvancedPaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-[10px] text-indigo-300/80 mt-1">{t('Prepaid advance for future months')}</p>
-                </div>
-
-                <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-3.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-rose-400 uppercase tracking-wider">
-                      {t('Total Dues')}
-                    </span>
-                    <AlertCircle size={15} className="text-rose-400" />
-                  </div>
-                  <p className="text-xl font-black text-white mt-1.5">
-                    ৳ {(selectedMemberSummary.summary.totalDues || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-[10px] text-rose-300/80 mt-1">
-                    {Number(selectedMemberSummary.summary.cashoutDue || 0) > 0
-                      ? t('Principal dues + penalty + cash-out')
-                      : t('Principal dues + penalty')}
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-blue-500/30 bg-blue-950/20 p-3.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider">
-                      {t('Total Penalty Paid')}
-                    </span>
-                    <Clock size={15} className="text-blue-400" />
-                  </div>
-                  <p className="text-xl font-black text-white mt-1.5">
-                    ৳ {(selectedMemberSummary.summary.totalPenaltyPaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-[10px] text-blue-300/80 mt-1">{t('Late penalty fines already paid')}</p>
-                </div>
-
-                <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">
-                      {t('Total Penalty Due')}
-                    </span>
-                    <AlertCircle size={15} className="text-amber-400" />
-                  </div>
-                  <p className="text-xl font-black text-white mt-1.5">
-                    ৳ {(selectedMemberSummary.summary.totalPenaltyDue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-[10px] text-amber-300/80 mt-1">{t('Outstanding late penalty fines')}</p>
-                </div>
-
-                {Number(selectedMemberSummary.summary.cashoutDue || 0) > 0 && (
-                  <div className="rounded-xl border border-fuchsia-500/30 bg-fuchsia-950/20 p-3.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold text-fuchsia-400 uppercase tracking-wider">
-                        {t('Due Cash Out Charge')}
-                      </span>
-                      <AlertCircle size={15} className="text-fuchsia-400" />
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                    {/* Total Paid (Always shown) */}
+                    <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3.5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">
+                          {t('Total Paid')}
+                        </span>
+                        <CheckCircle2 size={15} className="text-emerald-400" />
+                      </div>
+                      <p className="text-xl font-black text-white mt-1.5">
+                        ৳ {totalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[10px] text-emerald-300/80 mt-1">{t('Total payments and contributions collected')}</p>
                     </div>
-                    <p className="text-xl font-black text-white mt-1.5">
-                      ৳ {(selectedMemberSummary.summary.cashoutDue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-[10px] text-fuchsia-300/80 mt-1">{t('Unpaid gateway cash-out fee')}</p>
+
+                    {/* Total Principal Paid (Always shown) */}
+                    <div className="rounded-xl border border-cyan-500/30 bg-cyan-950/20 p-3.5 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">
+                          {t('Total Principal Paid')}
+                        </span>
+                        <Layers size={15} className="text-cyan-400" />
+                      </div>
+                      <p className="text-xl font-black text-white mt-1.5">
+                        ৳ {principalPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[10px] text-cyan-300/80 mt-1">{t('Principal collected towards obligation')}</p>
+                    </div>
+
+                    {/* Total Advanced Paid (Shown ONLY when > 0) */}
+                    {advancedPaid > 0 && (
+                      <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/20 p-3.5 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider">
+                            {t('Total Advanced Paid')}
+                          </span>
+                          <Sparkles size={15} className="text-indigo-400" />
+                        </div>
+                        <p className="text-xl font-black text-white mt-1.5">
+                          ৳ {advancedPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-[10px] text-indigo-300/80 mt-1">{t('Prepaid advance for future months')}</p>
+                      </div>
+                    )}
+
+                    {/* Total Penalty Paid (Shown ONLY when > 0) */}
+                    {penaltyPaid > 0 && (
+                      <div className="rounded-xl border border-blue-500/30 bg-blue-950/20 p-3.5 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-blue-400 uppercase tracking-wider">
+                            {t('Total Penalty Paid')}
+                          </span>
+                          <Clock size={15} className="text-blue-400" />
+                        </div>
+                        <p className="text-xl font-black text-white mt-1.5">
+                          ৳ {penaltyPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-[10px] text-blue-300/80 mt-1">{t('Late penalty fines already paid')}</p>
+                      </div>
+                    )}
+
+                    {/* DUES BREAKDOWN: If totalDue is 0, show single Green "All Dues Cleared" card */}
+                    {totalDue === 0 ? (
+                      <div className="rounded-xl border border-emerald-500/40 bg-emerald-950/25 p-3.5 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">
+                            {t('All Dues Cleared')}
+                          </span>
+                          <CheckCircle2 size={16} className="text-emerald-400" />
+                        </div>
+                        <p className="text-xl font-black text-emerald-300 mt-1.5">
+                          ৳ 0.00
+                        </p>
+                        <p className="text-[10px] text-emerald-300/80 mt-1">{t('No outstanding dues for this member')}</p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Total Due Card */}
+                        <div className="rounded-xl border border-rose-500/40 bg-rose-950/25 p-3.5 shadow-sm">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-semibold text-rose-400 uppercase tracking-wider">
+                              {t('Total Due')}
+                            </span>
+                            <AlertCircle size={15} className="text-rose-400" />
+                          </div>
+                          <p className="text-xl font-black text-rose-200 mt-1.5">
+                            ৳ {totalDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-[10px] text-rose-300/80 mt-1">{t('Total outstanding obligation')}</p>
+                        </div>
+
+                        {/* Principal Due (Shown ONLY when > 0) */}
+                        {principalDue > 0 && (
+                          <div className="rounded-xl border border-sky-500/30 bg-sky-950/20 p-3.5 shadow-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-semibold text-sky-400 uppercase tracking-wider">
+                                {t('Principal Due')}
+                              </span>
+                              <Layers size={15} className="text-sky-400" />
+                            </div>
+                            <p className="text-xl font-black text-white mt-1.5">
+                              ৳ {principalDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </p>
+                            <p className="text-[10px] text-sky-300/80 mt-1">{t('Unpaid monthly principal shares')}</p>
+                          </div>
+                        )}
+
+                        {/* Penalty Due (Shown ONLY when > 0) */}
+                        {penaltyDue > 0 && (
+                          <div className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-3.5 shadow-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">
+                                {t('Penalty Due')}
+                              </span>
+                              <AlertCircle size={15} className="text-amber-400" />
+                            </div>
+                            <p className="text-xl font-black text-white mt-1.5">
+                              ৳ {penaltyDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </p>
+                            <p className="text-[10px] text-amber-300/80 mt-1">{t('Outstanding late penalty fines')}</p>
+                          </div>
+                        )}
+
+                        {/* Due Cash Out Charge (Shown ONLY when > 0) */}
+                        {cashoutDue > 0 && (
+                          <div className="rounded-xl border border-fuchsia-500/30 bg-fuchsia-950/20 p-3.5 shadow-sm">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[11px] font-semibold text-fuchsia-400 uppercase tracking-wider">
+                                {t('Due Cash Out Charge')}
+                              </span>
+                              <CreditCard size={15} className="text-fuchsia-400" />
+                            </div>
+                            <p className="text-xl font-black text-white mt-1.5">
+                              ৳ {cashoutDue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </p>
+                            <p className="text-[10px] text-fuchsia-300/80 mt-1">{t('Unpaid gateway cash-out fee')}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
-                )}
-              </div>
+                );
+              })()}
             </div>
           ) : (
             <div className="px-4 py-2.5 rounded-xl border border-blue-500/20 bg-blue-500/5 flex items-center justify-between text-xs text-blue-200">
@@ -3322,6 +3414,113 @@ export const PaymentsPage: React.FC = () => {
                   )}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Download Report Image Confirmation Modal */}
+      {showDownloadConfirmModal && selectedMemberSummary && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="glass-card max-w-md w-full p-6 space-y-5 border border-blue-500/30 shadow-2xl bg-slate-900/95 rounded-2xl">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+                <ImageIcon size={24} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  {t('Confirm Report Image Download')}
+                </h3>
+                <p className="text-xs text-gray-400">
+                  {selectedMemberSummary.member.name} ({selectedMemberSummary.member.memberId})
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-white/5 space-y-2 text-xs text-gray-300">
+              <p>
+                {t('Are you sure you want to generate and download the financial report image for')}{' '}
+                <strong className="text-white">{selectedMemberSummary.member.name}</strong>?
+              </p>
+              <div className="pt-2 border-t border-white/5 grid grid-cols-2 gap-2 text-[11px] text-gray-400">
+                <div>
+                  {t('ID:')} <span className="text-blue-300 font-mono font-semibold">{selectedMemberSummary.member.memberId}</span>
+                </div>
+                <div>
+                  {t('Shares:')} <span className="text-white font-semibold">{selectedMemberSummary.member.currentShares || 1}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                disabled={isDownloadingReport}
+                onClick={() => setShowDownloadConfirmModal(false)}
+                className="btn btn-secondary btn-sm"
+              >
+                {t('Cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={isDownloadingReport}
+                onClick={handleStartReportDownload}
+                className="btn btn-primary btn-sm flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md shadow-blue-500/20 hover:from-blue-500 hover:to-indigo-500 transition"
+              >
+                {isDownloadingReport ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin text-white" />
+                    <span>{t('Generating and downloading report image...')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={15} />
+                    <span>{t('Start Download')}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Download Report Image Success Modal */}
+      {downloadSuccessModal?.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="glass-card max-w-md w-full p-6 space-y-5 border border-emerald-500/30 shadow-2xl bg-slate-900/95 rounded-2xl">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <CheckCircle2 size={24} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  {t('Report image downloaded successfully!')}
+                </h3>
+                <p className="text-xs text-emerald-300/80">
+                  {downloadSuccessModal.memberName} ({downloadSuccessModal.memberId})
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-slate-950/70 border border-emerald-500/20 space-y-2 text-xs text-gray-300">
+              <p className="text-gray-200">
+                {t('The statement image has been saved to your downloads folder.')}
+              </p>
+              <div className="pt-2 border-t border-white/5 flex items-center gap-2 text-[11px] font-mono text-emerald-300 break-all">
+                <Download size={13} className="shrink-0 text-emerald-400" />
+                <span>{downloadSuccessModal.fileName}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end pt-2">
+              <button
+                type="button"
+                onClick={() => setDownloadSuccessModal(null)}
+                className="btn btn-primary btn-sm flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold shadow-md shadow-emerald-500/20"
+              >
+                <CheckCircle2 size={15} />
+                <span>{t('OK')}</span>
+              </button>
             </div>
           </div>
         </div>

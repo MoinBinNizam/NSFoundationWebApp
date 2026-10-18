@@ -42,6 +42,7 @@ export class PaymentController {
         return {
           ...m,
           shareCount,
+          currentShares: shareCount,
           monthlyObligation: shareCount * shareAmount,
         };
       });
