@@ -821,7 +821,15 @@ export class PaymentService {
     }
 
     if (startDate && endDate) {
-      matchQuery.paymentDate = { $gte: startDate, $lte: endDate };
+      if (timeframe === 'yearly') {
+        const year = filters.date ? parseInt(filters.date, 10) : now.getFullYear();
+        matchQuery.$or = [
+          { paymentDate: { $gte: startDate, $lte: endDate } },
+          { receiptNumber: new RegExp(`^HIST-${year}`, 'i') },
+        ];
+      } else {
+        matchQuery.paymentDate = { $gte: startDate, $lte: endDate };
+      }
     }
 
     // Determine the latest input month from payments in the system
@@ -1010,38 +1018,57 @@ export class PaymentService {
 
     // Deleted receipts are retained as cancelled audit records, but are not
     // shown in the active payment-history list or its totals.
-    const filter: Record<string, unknown> = { status: { $ne: PaymentStatus.CANCELLED } };
+    const andConditions: Record<string, unknown>[] = [
+      { status: { $ne: PaymentStatus.CANCELLED } },
+    ];
 
     if (query.memberId) {
-      filter.memberId = query.memberId;
+      andConditions.push({ memberId: query.memberId });
     }
 
     if (query.receiverId && query.receiverId !== 'ALL') {
-      filter.receiverId = query.receiverId;
+      andConditions.push({ receiverId: query.receiverId });
     }
 
     if (query.paymentMethod && query.paymentMethod !== 'ALL') {
-      filter.paymentMethod = query.paymentMethod;
+      andConditions.push({ paymentMethod: query.paymentMethod });
     }
 
     if (query.day && /^\d{4}-\d{2}-\d{2}$/.test(query.day)) {
       const [y, m, d] = query.day.split('-').map(Number);
-      filter.paymentDate = {
-        $gte: new Date(y, m - 1, d),
-        $lt: new Date(y, m - 1, d + 1),
-      };
+      andConditions.push({
+        paymentDate: {
+          $gte: new Date(y, m - 1, d),
+          $lt: new Date(y, m - 1, d + 1),
+        },
+      });
     } else if (query.month) {
       const [y, m] = query.month.split('-').map(Number);
-      filter.paymentDate = {
-        $gte: new Date(y, m - 1, 1),
-        $lt: new Date(y, m, 1),
-      };
+      const mm = String(m).padStart(2, '0');
+      andConditions.push({
+        $or: [
+          {
+            paymentDate: {
+              $gte: new Date(y, m - 1, 1),
+              $lt: new Date(y, m, 1),
+            },
+          },
+          { receiptNumber: new RegExp(`^HIST-${y}${mm}`, 'i') },
+        ],
+      });
     } else if (query.year && /^\d{4}$/.test(query.year)) {
       const year = Number(query.year);
-      filter.paymentDate = {
-        $gte: new Date(year, 0, 1),
-        $lt: new Date(year + 1, 0, 1),
-      };
+      andConditions.push({
+        $or: [
+          {
+            paymentDate: {
+              $gte: new Date(year, 0, 1),
+              $lt: new Date(year + 1, 0, 1),
+            },
+          },
+          { receiptNumber: new RegExp(`^HIST-${year}`, 'i') },
+        ],
+      });
     }
 
     if (query.search && query.search.trim()) {
@@ -1054,12 +1081,17 @@ export class PaymentService {
         ],
       }).select('_id');
 
-      filter.$or = [
-        { receiptNumber: { $regex: term, $options: 'i' } },
-        { transactionReference: { $regex: term, $options: 'i' } },
-        { memberId: { $in: matchingMembers.map((m) => m._id) } },
-      ];
+      andConditions.push({
+        $or: [
+          { receiptNumber: { $regex: term, $options: 'i' } },
+          { transactionReference: { $regex: term, $options: 'i' } },
+          { memberId: { $in: matchingMembers.map((m) => m._id) } },
+        ],
+      });
     }
+
+    const filter: Record<string, unknown> =
+      andConditions.length > 1 ? { $and: andConditions } : andConditions[0] || {};
 
     const [payments, total] = await Promise.all([
       Payment.find(filter)

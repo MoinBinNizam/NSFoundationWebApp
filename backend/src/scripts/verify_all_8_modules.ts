@@ -3,16 +3,9 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import {
-  User,
-  Member,
   Payment,
   MonthlyLedger,
-  MemberYearAccount,
-  CustodyAccount,
-  CustodyMovement,
-  AnnualClosing,
   MemberExitSettlement,
-  Policy,
 } from '../models/index.js';
 import { PaymentService } from '../services/payment.service.js';
 import { getYearAccounts } from '../services/share.service.js';
