@@ -319,6 +319,8 @@ export const PaymentsPage: React.FC = () => {
       totalPenaltyPaid: number;
       totalPenaltyDue: number;
       totalPrincipalDue?: number;
+      totalCashoutPaid?: number;
+      totalCashoutChargePaid?: number;
       cashoutDue?: number;
     };
     recentPayments?: any[];
@@ -651,6 +653,8 @@ export const PaymentsPage: React.FC = () => {
         totalPenaltyPaid: number;
         totalPenaltyDue: number;
         totalPrincipalDue?: number;
+        totalCashoutPaid?: number;
+        totalCashoutChargePaid?: number;
         cashoutDue?: number;
       };
       recentPayments?: any[];
@@ -2021,6 +2025,7 @@ export const PaymentsPage: React.FC = () => {
                 const principalPaid = Number(s.totalPrincipalPaid || 0);
                 const advancedPaid = Number(s.totalAdvancedPaid || 0);
                 const penaltyPaid = Number(s.totalPenaltyPaid || 0);
+                const cashoutPaid = Number(s.totalCashoutPaid ?? s.totalCashoutChargePaid ?? 0);
 
                 return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
@@ -2081,6 +2086,22 @@ export const PaymentsPage: React.FC = () => {
                           ৳ {penaltyPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </p>
                         <p className="text-[10px] text-blue-300/80 mt-1">{t('Late penalty fines already paid')}</p>
+                      </div>
+                    )}
+
+                    {/* Total Cash-out Charge Paid (Shown ONLY when > 0) */}
+                    {cashoutPaid > 0 && (
+                      <div className="rounded-xl border border-fuchsia-500/30 bg-fuchsia-950/20 p-3.5 shadow-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-semibold text-fuchsia-400 uppercase tracking-wider">
+                            {t('Total Cash-out Charge Paid')}
+                          </span>
+                          <CreditCard size={15} className="text-fuchsia-400" />
+                        </div>
+                        <p className="text-xl font-black text-white mt-1.5">
+                          ৳ {cashoutPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-[10px] text-fuchsia-300/80 mt-1">{t('Gateway cash-out fees already paid')}</p>
                       </div>
                     )}
 

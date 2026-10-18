@@ -15,6 +15,8 @@ export interface MemberFinancialReportData {
     totalPenaltyPaid: number;
     totalPenaltyDue: number;
     totalPrincipalDue?: number;
+    totalCashoutPaid?: number;
+    totalCashoutChargePaid?: number;
     cashoutDue?: number;
   };
   payments?: Array<{
@@ -164,10 +166,31 @@ export async function downloadMemberReportImage(data: MemberFinancialReportData)
   const gap = 20;
   const startX = 70;
 
+  const prinPaid = data.summary.totalPrincipalPaid;
+  const advPaid = data.summary.totalAdvancedPaid;
+  const penPaid = data.summary.totalPenaltyPaid;
+  const coPaid = data.summary.totalCashoutPaid ?? data.summary.totalCashoutChargePaid ?? 0;
+
+  const paidSubParts: string[] = [];
+  if (prinPaid !== undefined) paidSubParts.push(`মূল: ${formatMoney(prinPaid)}`);
+  if (advPaid && advPaid > 0) paidSubParts.push(`অগ্রিম: ${formatMoney(advPaid)}`);
+  if (penPaid && penPaid > 0) paidSubParts.push(`জরিমানা: ${formatMoney(penPaid)}`);
+  if (coPaid && coPaid > 0) paidSubParts.push(`ক্যাশআউট: ${formatMoney(coPaid)}`);
+
+  const duesSubParts: string[] = [];
+  if (data.summary.totalDues === 0) {
+    duesSubParts.push('বকেয়ামুক্ত (All Cleared)');
+  } else {
+    if (data.summary.totalPrincipalDue && data.summary.totalPrincipalDue > 0) duesSubParts.push(`মূল: ${formatMoney(data.summary.totalPrincipalDue)}`);
+    if (data.summary.totalPenaltyDue && data.summary.totalPenaltyDue > 0) duesSubParts.push(`জরিমানা: ${formatMoney(data.summary.totalPenaltyDue)}`);
+    if (data.summary.cashoutDue && data.summary.cashoutDue > 0) duesSubParts.push(`ক্যাশআউট: ${formatMoney(data.summary.cashoutDue)}`);
+  }
+
   const metricCards = [
     {
       label: 'মোট পরিশোধিত (Total Paid)',
       amount: formatMoney(data.summary.totalPayments || 0),
+      sub: paidSubParts.join(' | '),
       bg: '#f0fdf4',
       border: '#86efac',
       titleColor: '#166534',
@@ -176,6 +199,7 @@ export async function downloadMemberReportImage(data: MemberFinancialReportData)
     {
       label: 'মোট বকেয়া (Total Dues)',
       amount: formatMoney(data.summary.totalDues || 0),
+      sub: duesSubParts.join(' | '),
       bg: '#fef2f2',
       border: '#fca5a5',
       titleColor: '#991b1b',
@@ -184,6 +208,7 @@ export async function downloadMemberReportImage(data: MemberFinancialReportData)
     {
       label: 'পরিশোধিত জরিমানা (Penalty Paid)',
       amount: formatMoney(data.summary.totalPenaltyPaid || 0),
+      sub: 'দেরির কারণে প্রদত্ত জরিমানা ফি',
       bg: '#eff6ff',
       border: '#93c5fd',
       titleColor: '#1e40af',
@@ -192,6 +217,7 @@ export async function downloadMemberReportImage(data: MemberFinancialReportData)
     {
       label: 'বকেয়া জরিমানা (Penalty Due)',
       amount: formatMoney(data.summary.totalPenaltyDue || 0),
+      sub: 'অনাদায়ী বিলম্ব জরিমানার পরিমাণ',
       bg: '#fffbeb',
       border: '#fcd34d',
       titleColor: '#92400e',
@@ -207,8 +233,11 @@ export async function downloadMemberReportImage(data: MemberFinancialReportData)
     ctx.lineWidth = 1.5;
     ctx.strokeRect(cx, cardsY, cardW, cardH);
 
-    drawText(card.label, cx + 15, cardsY + 32, 'bold 13px Arial', card.titleColor);
-    drawText(card.amount, cx + 15, cardsY + 68, 'bold 20px Arial', card.valColor);
+    drawText(card.label, cx + 15, cardsY + 27, 'bold 12.5px Arial', card.titleColor, 'left', cardW - 30);
+    drawText(card.amount, cx + 15, cardsY + 58, 'bold 19px Arial', card.valColor, 'left', cardW - 30);
+    if (card.sub) {
+      drawText(card.sub, cx + 15, cardsY + 80, '10px Arial', card.titleColor, 'left', cardW - 30);
+    }
   });
 
   // 5. Payment History Section Title

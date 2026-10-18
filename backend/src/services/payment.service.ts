@@ -1571,6 +1571,8 @@ export class PaymentService {
         totalPenaltyPaid,
         totalPenaltyDue,
         totalPrincipalDue,
+        totalCashoutPaid: totalCashoutChargePaid,
+        totalCashoutChargePaid,
         cashoutDue,
         paymentCount: payments.length,
       },
