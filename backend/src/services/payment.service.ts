@@ -61,30 +61,16 @@ export class PaymentService {
    * separate cache, so a posted or voided receipt is reflected immediately.
    */
   static async getOutstandingDues(query: { year?: string; month?: string; search?: string }) {
-    const latestPayment = await Payment.findOne({ status: { $ne: PaymentStatus.CANCELLED } })
-      .sort({ paymentDate: -1 })
-      .select('paymentDate')
-      .lean();
-    const latestSystemMonth = latestPayment ? toYearMonth(new Date(latestPayment.paymentDate)) : '2025-04';
-    const systemYear = latestSystemMonth.slice(0, 4);
-
     const year = /^\d{4}$/.test(query.year || '') ? String(query.year) : undefined;
     const monthNumber = Number(query.month);
     const month = monthNumber >= 1 && monthNumber <= 12 ? String(monthNumber).padStart(2, '0') : undefined;
     const ledgerFilter: Record<string, unknown> = {};
     if (year && month) {
-      const targetMonth = `${year}-${month}`;
-      if (targetMonth > latestSystemMonth) ledgerFilter.month = '__NONE__';
-      else ledgerFilter.month = targetMonth;
+      ledgerFilter.month = `${year}-${month}`;
     } else if (year) {
-      if (year > systemYear) {
-        ledgerFilter.month = '__NONE__';
-      } else {
-        const endMonth = year === systemYear ? latestSystemMonth : `${year}-12`;
-        ledgerFilter.month = { $gte: `${year}-01`, $lte: endMonth };
-      }
+      ledgerFilter.month = { $gte: `${year}-01`, $lte: `${year}-12` };
     } else {
-      ledgerFilter.month = { $gte: '2024-01', $lte: latestSystemMonth };
+      ledgerFilter.month = { $gte: '2024-01', $lte: '2028-12' };
     }
 
     const allLedgers = await MonthlyLedger.find(ledgerFilter)
@@ -94,7 +80,7 @@ export class PaymentService {
 
     // Map latest active shares per member from ShareHistory
     const latestShareRecords = await ShareHistory.aggregate([
-      { $match: { effectiveMonth: { $lte: '2025-12' } } },
+      { $match: { effectiveMonth: { $lte: '2028-12' } } },
       { $sort: { effectiveMonth: -1, createdAt: -1 } },
       { $group: { _id: '$memberId', latestShares: { $first: '$shareCount' } } },
     ]);
@@ -181,7 +167,7 @@ export class PaymentService {
 
     return {
       filters: { year: year || 'ALL', month: month || 'ALL', referencePeriod, previousPeriod },
-      availableYears: [...new Set(allPeriods.map((period) => Number(period.slice(0, 4))))].sort((a, b) => b - a),
+      availableYears: [...new Set([2028, 2027, 2026, 2025, 2024, ...allPeriods.map((period) => Number(period.slice(0, 4)))])].sort((a, b) => b - a),
       summary: {
         total: currency(rows.reduce((sum, row) => sum + row.totalDue, 0)),
         principal: total('principalDue'),
@@ -1554,8 +1540,10 @@ export class PaymentService {
     } else if (query?.month || query?.year) {
       const periodCashoutIncurred = ledgers.reduce((sum, l) => sum + Number(l.cashoutDue || 0), 0);
       const netPeriodCashout = Math.max(0, periodCashoutIncurred - totalCashoutChargePaid);
-      const isCurrentYear = query.year && Number(query.year) === new Date().getFullYear();
-      cashoutDue = isCurrentYear && member.cashoutDue
+      const currentYearStr = String(new Date().getFullYear());
+      const currentMonthStr = toYearMonth(new Date());
+      const isCurrentPeriod = (query.year && query.year === currentYearStr) || (query.month && (query.month === currentMonthStr || `${query.year}-${query.month.padStart(2, '0')}` === currentMonthStr));
+      cashoutDue = isCurrentPeriod && member.cashoutDue
         ? Math.max(netPeriodCashout, Number(member.cashoutDue || 0))
         : netPeriodCashout;
     } else {

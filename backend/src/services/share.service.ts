@@ -26,7 +26,7 @@ export async function getMemberCurrentShares(
   if (effectiveMonthLimit) {
     query.effectiveMonth = { $lte: effectiveMonthLimit };
   } else {
-    query.effectiveMonth = { $lte: '2025-12' };
+    query.effectiveMonth = { $lte: '2028-12' };
   }
 
   const latestEvent = await ShareHistory.findOne(query)
@@ -86,8 +86,8 @@ export async function recordShareChange(
   const current = await getMemberCurrentShares(member._id);
   const previousShareCount = current.shareCount;
 
-  // Clean up any rogue future test records (> 2025-12)
-  await ShareHistory.deleteMany({ memberId: member._id, effectiveMonth: { $gt: '2025-12' } });
+  // Clean up any rogue future test records (> 2028-12)
+  await ShareHistory.deleteMany({ memberId: member._id, effectiveMonth: { $gt: '2028-12' } });
 
   const shareEvent = await ShareHistory.create({
     memberId: member._id,
@@ -385,8 +385,8 @@ export async function syncMember2024YearAndLedgers(
 
   const shareValue = await getMonthlyShareValue();
 
-  // Clean up any rogue future share records (> 2025-12)
-  await ShareHistory.deleteMany({ memberId: member._id, effectiveMonth: { $gt: '2025-12' } });
+  // Clean up any rogue future share records (> 2028-12)
+  await ShareHistory.deleteMany({ memberId: member._id, effectiveMonth: { $gt: '2028-12' } });
 
   // 1. Resolve closing December 2024 shares (or latest share record on or before 2024-12)
   const decEvent = await ShareHistory.findOne({
