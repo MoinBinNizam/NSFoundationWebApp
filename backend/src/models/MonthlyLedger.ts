@@ -30,6 +30,11 @@ const monthlyLedgerSchema = new Schema<IMonthlyLedger>(
       default: 0,
       min: 0,
     },
+    cashoutDue: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
     principalPaid: {
       type: Number,
       default: 0,

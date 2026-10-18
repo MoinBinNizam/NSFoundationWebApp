@@ -52,6 +52,7 @@ type Portal = {
     totalPenaltyPaid: number;
     totalPenaltyDue: number;
     totalPrincipalDue?: number;
+    cashoutDue?: number;
   };
 };
 
@@ -166,6 +167,7 @@ export const MemberPortalPage: React.FC = () => {
   const summaryTotalPenaltyDue =
     data.summary?.totalPenaltyDue ??
     data.ledgers.reduce((s, l) => s + Math.max(0, Number(l.penaltyDue || 0) - Number(l.penaltyPaid || 0)), 0);
+  const summaryCashoutDue = data.summary?.cashoutDue ?? Number(data.member?.cashoutDue || 0);
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -326,8 +328,8 @@ export const MemberPortalPage: React.FC = () => {
           </button>
         </div>
 
-        {/* 4 Total Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Metric Cards: 4 default, 5 when member has Due Cash Out Charge */}
+        <div className={`grid grid-cols-1 sm:grid-cols-2 ${summaryCashoutDue > 0 ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-3`}>
           <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
@@ -347,7 +349,9 @@ export const MemberPortalPage: React.FC = () => {
               <AlertCircle size={16} className="text-rose-400" />
             </div>
             <p className="text-2xl font-black text-white mt-2">{money(summaryTotalDues)}</p>
-            <p className="text-[11px] text-rose-300/80 mt-1">মূল বকেয়া + জরিমানা + অন্যান্য</p>
+            <p className="text-[11px] text-rose-300/80 mt-1">
+              {summaryCashoutDue > 0 ? 'মূল বকেয়া + জরিমানা + ক্যাশআউট' : 'মূল বকেয়া + জরিমানা + অন্যান্য'}
+            </p>
           </div>
 
           <div className="rounded-xl border border-blue-500/30 bg-blue-950/20 p-4">
@@ -371,6 +375,19 @@ export const MemberPortalPage: React.FC = () => {
             <p className="text-2xl font-black text-white mt-2">{money(summaryTotalPenaltyDue)}</p>
             <p className="text-[11px] text-amber-300/80 mt-1">অনাদায়ী বিলম্ব জরিমানার পরিমাণ</p>
           </div>
+
+          {summaryCashoutDue > 0 && (
+            <div className="rounded-xl border border-fuchsia-500/30 bg-fuchsia-950/20 p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-fuchsia-400 uppercase tracking-wider">
+                  {t('Due Cash Out Charge')}
+                </span>
+                <AlertCircle size={16} className="text-fuchsia-400" />
+              </div>
+              <p className="text-2xl font-black text-white mt-2">{money(summaryCashoutDue)}</p>
+              <p className="text-[11px] text-fuchsia-300/80 mt-1">অপরিশোধিত গেটওয়ে ক্যাশআউট ফি</p>
+            </div>
+          )}
         </div>
       </section>
 

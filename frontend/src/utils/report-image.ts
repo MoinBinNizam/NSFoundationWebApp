@@ -15,6 +15,7 @@ export interface MemberFinancialReportData {
     totalPenaltyPaid: number;
     totalPenaltyDue: number;
     totalPrincipalDue?: number;
+    cashoutDue?: number;
   };
   payments?: Array<{
     _id?: string;

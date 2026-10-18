@@ -309,7 +309,7 @@ export const PaymentsPage: React.FC = () => {
   const [ledgerTimeframe, setLedgerTimeframe] = useState<'all' | 'daily' | 'monthly' | 'yearly'>('all');
   const [ledgerMemberId, setLedgerMemberId] = useState<string>('');
   const [selectedMemberSummary, setSelectedMemberSummary] = useState<{
-    member: { _id?: string; memberId: string; name: string; phone: string; currentShares?: number; status?: string };
+    member: { _id?: string; memberId: string; name: string; phone: string; currentShares?: number; status?: string; cashoutDue?: number };
     summary: {
       totalPayments: number;
       totalPrincipalPaid?: number;
@@ -318,6 +318,7 @@ export const PaymentsPage: React.FC = () => {
       totalPenaltyPaid: number;
       totalPenaltyDue: number;
       totalPrincipalDue?: number;
+      cashoutDue?: number;
     };
     recentPayments?: any[];
   } | null>(null);
@@ -585,7 +586,7 @@ export const PaymentsPage: React.FC = () => {
 
     const queryStr = params.toString() ? `?${params.toString()}` : '';
     apiRequest<{
-      member: { _id?: string; memberId: string; name: string; phone: string; currentShares?: number; status?: string };
+      member: { _id?: string; memberId: string; name: string; phone: string; currentShares?: number; status?: string; cashoutDue?: number };
       summary: {
         totalPayments: number;
         totalPrincipalPaid?: number;
@@ -594,6 +595,7 @@ export const PaymentsPage: React.FC = () => {
         totalPenaltyPaid: number;
         totalPenaltyDue: number;
         totalPrincipalDue?: number;
+        cashoutDue?: number;
       };
       recentPayments?: any[];
     }>(`/payments/member-summary/${ledgerMemberId}${queryStr}`)
@@ -1973,8 +1975,8 @@ export const PaymentsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* 6 Total Metric Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {/* Metric Cards: 6 default, 7 when member has Due Cash Out Charge */}
+              <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${Number(selectedMemberSummary.summary.cashoutDue || 0) > 0 ? 'lg:grid-cols-7' : 'lg:grid-cols-6'} gap-3`}>
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3.5">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">
@@ -2024,7 +2026,11 @@ export const PaymentsPage: React.FC = () => {
                   <p className="text-xl font-black text-white mt-1.5">
                     ৳ {(selectedMemberSummary.summary.totalDues || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </p>
-                  <p className="text-[10px] text-rose-300/80 mt-1">{t('Principal dues + penalty')}</p>
+                  <p className="text-[10px] text-rose-300/80 mt-1">
+                    {Number(selectedMemberSummary.summary.cashoutDue || 0) > 0
+                      ? t('Principal dues + penalty + cash-out')
+                      : t('Principal dues + penalty')}
+                  </p>
                 </div>
 
                 <div className="rounded-xl border border-blue-500/30 bg-blue-950/20 p-3.5">
@@ -2052,6 +2058,21 @@ export const PaymentsPage: React.FC = () => {
                   </p>
                   <p className="text-[10px] text-amber-300/80 mt-1">{t('Outstanding late penalty fines')}</p>
                 </div>
+
+                {Number(selectedMemberSummary.summary.cashoutDue || 0) > 0 && (
+                  <div className="rounded-xl border border-fuchsia-500/30 bg-fuchsia-950/20 p-3.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-fuchsia-400 uppercase tracking-wider">
+                        {t('Due Cash Out Charge')}
+                      </span>
+                      <AlertCircle size={15} className="text-fuchsia-400" />
+                    </div>
+                    <p className="text-xl font-black text-white mt-1.5">
+                      ৳ {(selectedMemberSummary.summary.cashoutDue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-[10px] text-fuchsia-300/80 mt-1">{t('Unpaid gateway cash-out fee')}</p>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
@@ -2617,6 +2638,24 @@ export const PaymentsPage: React.FC = () => {
                         setFormData({ ...formData, cashoutChargePaid: e.target.value })
                       }
                     />
+                    {memberDueSnapshot && memberDueSnapshot.cashout > 0 && (
+                      <div className="mt-1 flex items-center justify-between text-[11px] text-amber-300 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1">
+                        <span>Due Cash-out: ৳ {memberDueSnapshot.cashout.toLocaleString()}</span>
+                        <button
+                          type="button"
+                          className="text-[10px] text-white bg-amber-600 hover:bg-amber-500 px-1.5 py-0.5 rounded font-semibold transition"
+                          onClick={() => {
+                            setFormData((prev) => ({
+                              ...prev,
+                              cashoutChargePaid: String(memberDueSnapshot.cashout),
+                            }));
+                            setAllocationPreview(null);
+                          }}
+                        >
+                          Settle Full Due (৳ {memberDueSnapshot.cashout})
+                        </button>
+                      </div>
+                    )}
                     <span className="text-[10px] text-gray-500 mt-0.5 block">
                       Includes a prior carried charge if the member settles it now.
                     </span>

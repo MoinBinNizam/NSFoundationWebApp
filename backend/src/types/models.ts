@@ -354,6 +354,7 @@ export interface IMonthlyLedger {
   shareCount: number;
   principalDue: number;
   penaltyDue: number;
+  cashoutDue?: number;
   principalPaid: number;
   penaltyPaid: number;
   penaltyWaived?: number;

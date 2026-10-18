@@ -120,17 +120,24 @@ export class PaymentService {
         member: ledger.memberId,
         principalDue: money(Number(ledger.principalDue || 0) - Number(ledger.principalPaid || 0)),
         penaltyDue: money(Number(ledger.penaltyDue || 0) - Number(ledger.penaltyPaid || 0) - Number(ledger.penaltyWaived || 0)),
+        ledgerCashoutDue: money(Number(ledger.cashoutDue || 0)),
       }))
-      .filter(({ member, principalDue, penaltyDue }) => member && matchesSearch(member) && (principalDue > 0 || penaltyDue > 0));
+      .filter(({ member, principalDue, penaltyDue, ledgerCashoutDue }) => member && matchesSearch(member) && (principalDue > 0 || penaltyDue > 0 || ledgerCashoutDue > 0));
 
-    // A cash-out balance belongs to the member, rather than a MonthlyLedger.
-    // Attach it once to that member's newest outstanding month.  If there is no
-    // outstanding principal/penalty ledger, show a dedicated cash-out row.
+    // A cash-out balance can belong to a MonthlyLedger (month-specific) or to the member.
+    // If the ledger has cashoutDue, assign it to that month. Otherwise, attach member.cashoutDue
+    // once to that member's newest outstanding month.
     const cashoutAssigned = new Set<string>();
-    const ledgerRows = outstanding.map(({ ledger, member, principalDue, penaltyDue }) => {
+    const ledgerRows = outstanding.map(({ ledger, member, principalDue, penaltyDue, ledgerCashoutDue }) => {
       const memberKey = String(member._id);
-      const cashoutDue = cashoutAssigned.has(memberKey) ? 0 : money(Number(member.cashoutDue || 0));
-      cashoutAssigned.add(memberKey);
+      let cashoutDue = 0;
+      if (ledgerCashoutDue > 0) {
+        cashoutDue = ledgerCashoutDue;
+        cashoutAssigned.add(memberKey);
+      } else if (!cashoutAssigned.has(memberKey)) {
+        cashoutDue = money(Number(member.cashoutDue || 0));
+        if (cashoutDue > 0) cashoutAssigned.add(memberKey);
+      }
       const shareCount = resolveMemberShares(member, ledger.shareCount);
       return {
         _id: String(ledger._id), month: ledger.month, shareCount,
@@ -712,6 +719,31 @@ export class PaymentService {
     // 6. Update Member's cashoutDue
     member.cashoutDue = preview.member.newCashoutDue;
     await member.save();
+
+    if (preview.breakdown.unpaidCashoutCharge && preview.breakdown.unpaidCashoutCharge > 0) {
+      const paymentMonth = toYearMonth(paymentDate);
+      const paymentMonthLedger = await MonthlyLedger.findOne({ memberId: member._id, month: paymentMonth });
+      if (paymentMonthLedger) {
+        paymentMonthLedger.cashoutDue = (paymentMonthLedger.cashoutDue || 0) + preview.breakdown.unpaidCashoutCharge;
+        await paymentMonthLedger.save();
+      } else {
+        const shareCount = await this.getMemberShareCount(member._id, paymentMonth);
+        const monthlyObligation = shareCount * (await getMonthlyShareValue());
+        await MonthlyLedger.create({
+          memberId: member._id,
+          month: paymentMonth,
+          shareCount,
+          principalDue: monthlyObligation,
+          penaltyDue: 0,
+          cashoutDue: preview.breakdown.unpaidCashoutCharge,
+          principalPaid: 0,
+          penaltyPaid: 0,
+          excessAdvance: 0,
+          status: MonthlyLedgerStatus.DUE,
+          lastRebuiltAt: new Date(),
+        });
+      }
+    }
 
     // 7. Create verified CustodyMovement (docs/fianl-docs_analysis_report.md Section B)
     await CustodyMovement.create({
@@ -1512,8 +1544,24 @@ export class PaymentService {
       totalPrincipalDue = 0;
       totalPenaltyDue = 0;
     }
-    const isFilteredPeriod = Boolean(query?.year || query?.month || query?.day);
-    const cashoutDue = isFilteredPeriod || exitSettlement ? 0 : Number(member.cashoutDue || 0);
+    let cashoutDue = 0;
+    if (exitSettlement) {
+      cashoutDue = 0;
+    } else if (query?.day) {
+      const dayPaid = payments.reduce((sum, p) => sum + Number(p.cashoutCharge || 0), 0);
+      const dayUnpaid = payments.reduce((sum, p) => sum + Number(p.unpaidCashoutCharge || 0), 0);
+      cashoutDue = Math.max(0, dayUnpaid - dayPaid);
+    } else if (query?.month || query?.year) {
+      const periodCashoutIncurred = ledgers.reduce((sum, l) => sum + Number(l.cashoutDue || 0), 0);
+      const netPeriodCashout = Math.max(0, periodCashoutIncurred - totalCashoutChargePaid);
+      const isCurrentYear = query.year && Number(query.year) === new Date().getFullYear();
+      cashoutDue = isCurrentYear && member.cashoutDue
+        ? Math.max(netPeriodCashout, Number(member.cashoutDue || 0))
+        : netPeriodCashout;
+    } else {
+      // All-time view: member's current active outstanding cashout charge
+      cashoutDue = Number(member.cashoutDue || 0);
+    }
     const totalDues = totalPrincipalDue + totalPenaltyDue + cashoutDue;
     const currentShares = share?.shareCount || 1;
 
