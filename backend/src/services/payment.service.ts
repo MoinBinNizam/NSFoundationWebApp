@@ -821,15 +821,7 @@ export class PaymentService {
     }
 
     if (startDate && endDate) {
-      if (timeframe === 'yearly') {
-        const year = filters.date ? parseInt(filters.date, 10) : now.getFullYear();
-        matchQuery.$or = [
-          { paymentDate: { $gte: startDate, $lte: endDate } },
-          { receiptNumber: new RegExp(`^HIST-${year}`, 'i') },
-        ];
-      } else {
-        matchQuery.paymentDate = { $gte: startDate, $lte: endDate };
-      }
+      matchQuery.paymentDate = { $gte: startDate, $lte: endDate };
     }
 
     // Determine the latest input month from payments in the system
@@ -1044,30 +1036,19 @@ export class PaymentService {
       });
     } else if (query.month) {
       const [y, m] = query.month.split('-').map(Number);
-      const mm = String(m).padStart(2, '0');
       andConditions.push({
-        $or: [
-          {
-            paymentDate: {
-              $gte: new Date(y, m - 1, 1),
-              $lt: new Date(y, m, 1),
-            },
-          },
-          { receiptNumber: new RegExp(`^HIST-${y}${mm}`, 'i') },
-        ],
+        paymentDate: {
+          $gte: new Date(y, m - 1, 1),
+          $lt: new Date(y, m, 1),
+        },
       });
     } else if (query.year && /^\d{4}$/.test(query.year)) {
       const year = Number(query.year);
       andConditions.push({
-        $or: [
-          {
-            paymentDate: {
-              $gte: new Date(year, 0, 1),
-              $lt: new Date(year + 1, 0, 1),
-            },
-          },
-          { receiptNumber: new RegExp(`^HIST-${year}`, 'i') },
-        ],
+        paymentDate: {
+          $gte: new Date(year, 0, 1),
+          $lt: new Date(year + 1, 0, 1),
+        },
       });
     }
 
@@ -1457,15 +1438,10 @@ export class PaymentService {
       ledgerFilter.month = monthStr;
     } else if (query?.year && /^\d{4}$/.test(query.year)) {
       const yearNum = Number(query.year);
-      paymentFilter.$or = [
-        {
-          paymentDate: {
-            $gte: new Date(Date.UTC(yearNum, 0, 1, 0, 0, 0, 0)),
-            $lte: new Date(Date.UTC(yearNum, 11, 31, 23, 59, 59, 999)),
-          },
-        },
-        { receiptNumber: new RegExp(`^HIST-${yearNum}`, 'i') },
-      ];
+      paymentFilter.paymentDate = {
+        $gte: new Date(Date.UTC(yearNum, 0, 1, 0, 0, 0, 0)),
+        $lte: new Date(Date.UTC(yearNum, 11, 31, 23, 59, 59, 999)),
+      };
       ledgerFilter.month = { $gte: `${yearNum}-01`, $lte: `${yearNum}-12` };
     }
 

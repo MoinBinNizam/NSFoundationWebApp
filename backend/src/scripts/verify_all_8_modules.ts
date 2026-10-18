@@ -67,10 +67,7 @@ async function main() {
   console.log('\n--- 3. CONTRIBUTIONS & PAYMENTS (2024) ---');
   const payments2024 = await Payment.find({
     status: { $ne: 'CANCELLED' },
-    $or: [
-      { paymentDate: { $gte: new Date('2024-01-01T00:00:00Z'), $lte: new Date('2024-12-31T23:59:59Z') } },
-      { receiptNumber: /^HIST-2024/i },
-    ],
+    paymentDate: { $gte: new Date('2024-01-01T00:00:00Z'), $lte: new Date('2024-12-31T23:59:59Z') },
   }).populate('receiverId', 'name');
   
   const payTot = payments2024.reduce((s, p) => s + (p.totalAmount || 0), 0);

@@ -427,10 +427,7 @@ export async function syncMember2024YearAndLedgers(
   const payments = await Payment.find({
     memberId: member._id,
     status: { $ne: 'CANCELLED' },
-    $or: [
-      { paymentDate: { $gte: startOfYear, $lte: endOfYear } },
-      { receiptNumber: /^HIST-2024/i },
-    ],
+    paymentDate: { $gte: startOfYear, $lte: endOfYear },
   }).lean();
 
   const rawPaymentPrincipal = payments.reduce((sum, p) => sum + (p.principalAmount || 0), 0);
@@ -456,8 +453,8 @@ export async function syncMember2024YearAndLedgers(
 
   if (payments.length > 0) {
     if (totalContributionFunds >= annualObligation) {
-      totalPrincipalPaid = annualObligation;
-      excessAdvance = totalContributionFunds - annualObligation;
+      totalPrincipalPaid = Math.max(annualObligation, ledgerPrincipalPaid);
+      excessAdvance = Math.max(0, totalContributionFunds - annualObligation);
     } else {
       totalPrincipalPaid = Math.min(annualObligation, Math.max(ledgerPrincipalPaid, totalContributionFunds));
       excessAdvance = Math.max(0, totalContributionFunds - totalPrincipalPaid);
@@ -624,10 +621,7 @@ export async function reconcileMemberYearAccount(
   const payments = await Payment.find({
     memberId: member._id,
     status: { $ne: 'CANCELLED' },
-    $or: [
-      { paymentDate: { $gte: startOfYear, $lte: endOfYear } },
-      { receiptNumber: new RegExp(`^HIST-${year}`, 'i') },
-    ],
+    paymentDate: { $gte: startOfYear, $lte: endOfYear },
   }).lean();
 
   const rawPaymentPrincipal = payments.reduce((sum, p) => sum + (p.principalAmount || 0), 0);

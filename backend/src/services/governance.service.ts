@@ -15,10 +15,7 @@ export class GovernanceService {
         {
           $match: {
             status: { $ne: 'CANCELLED' },
-            $or: [
-              { paymentDate: { $gte: start, $lte: end } },
-              { receiptNumber: new RegExp(`^HIST-${year}`, 'i') },
-            ],
+            paymentDate: { $gte: start, $lte: end },
           },
         },
         { $group: { _id: null, collections: { $sum: '$totalAmount' }, principal: { $sum: '$principalAmount' }, penalties: { $sum: '$penaltyAmount' }, cashout: { $sum: '$cashoutCharge' } } },
@@ -151,6 +148,11 @@ export class GovernanceService {
     if (!member) throw createError('Member not found.', 404);
     if (member.status !== 'ACTIVE' && member.status !== 'DROPPED') {
       throw createError('Only active or dropped members can have an exit settlement.', 400);
+    }
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    if (member.joinDate && new Date(member.joinDate) > oneYearAgo && member.status !== 'DROPPED') {
+      throw createError('Member exit is not permitted during the first year of membership.', 400);
     }
     if (await MemberExitSettlement.exists({ memberId: member._id })) {
       throw createError('An exit settlement already exists for this member.', 409);
