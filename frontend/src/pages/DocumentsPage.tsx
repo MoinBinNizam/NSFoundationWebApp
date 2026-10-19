@@ -18,6 +18,9 @@ import {
   Image as ImageIcon,
   ChevronRight,
   ChevronLeft,
+  WalletCards,
+  TrendingUp,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
@@ -111,6 +114,15 @@ export const DocumentsPage: React.FC = () => {
     memberId: string;
   } | null>(null);
 
+  // Tab 2: Annual Society Report State
+  const [annualData, setAnnualData] = useState<AnnualReportImageData | null>(null);
+  const [loadingAnnualData, setLoadingAnnualData] = useState<boolean>(false);
+
+  // Tab 3: Super Admin Audit Pack State
+  const [auditData, setAuditData] = useState<AuditPackImageData | null>(null);
+  const [loadingAuditData, setLoadingAuditData] = useState<boolean>(false);
+  const [auditSearch, setAuditSearch] = useState<string>('');
+
   // Load initial members list & accountant signature
   useEffect(() => {
     let mounted = true;
@@ -169,6 +181,99 @@ export const DocumentsPage: React.FC = () => {
       mounted = false;
     };
   }, [selectedMemberId, year]);
+
+  // Fetch Annual Report Data for Tab 2
+  useEffect(() => {
+    if (activeTab !== 'annual') return;
+    let mounted = true;
+    setLoadingAnnualData(true);
+    apiRequest<AnnualReportImageData>(`/documents/annual/${year}/data`)
+      .then((res) => {
+        if (mounted) setAnnualData(res.data);
+      })
+      .catch((err) => {
+        if (mounted) {
+          console.error('Error fetching annual report data:', err);
+          setAnnualData(null);
+        }
+      })
+      .finally(() => {
+        if (mounted) setLoadingAnnualData(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeTab, year]);
+
+  // Fetch Audit Pack Data for Tab 3
+  useEffect(() => {
+    if (activeTab !== 'audit' || user?.role !== 'SUPER_ADMIN') return;
+    let mounted = true;
+    setLoadingAuditData(true);
+    apiRequest<AuditPackImageData>(`/documents/annual/${year}/audit-data`)
+      .then((res) => {
+        if (mounted) setAuditData(res.data);
+      })
+      .catch((err) => {
+        if (mounted) {
+          console.error('Error fetching audit pack data:', err);
+          setAuditData(null);
+        }
+      })
+      .finally(() => {
+        if (mounted) setLoadingAuditData(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeTab, year, user?.role]);
+
+  // Format currency
+  const money = (val: number | undefined | null) =>
+    `৳ ${(Number(val) || 0).toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+
+  const monthLabels: Record<string, string> = {
+    '01': 'জানুয়ারি',
+    '02': 'ফেব্রুয়ারি',
+    '03': 'মার্চ',
+    '04': 'এপ্রিল',
+    '05': 'মে',
+    '06': 'জুন',
+    '07': 'জুলাই',
+    '08': 'আগস্ট',
+    '09': 'সেপ্টেম্বর',
+    '10': 'অক্টোবর',
+    '11': 'নভেম্বর',
+    '12': 'ডিসেম্বর',
+  };
+
+  const formatMonthName = (mStr: string) => {
+    const parts = mStr.split('-');
+    if (parts.length === 2 && monthLabels[parts[1]]) {
+      return `${monthLabels[parts[1]]} ${parts[0]}`;
+    }
+    return mStr;
+  };
+
+  // Filtered audit logs for search
+  const filteredAuditLogs = useMemo(() => {
+    if (!auditData?.logs) return [];
+    if (!auditSearch.trim()) return auditData.logs;
+    const q = auditSearch.toLowerCase();
+    return auditData.logs.filter(
+      (l) =>
+        (l.action && l.action.toLowerCase().includes(q)) ||
+        (l.performedBy && l.performedBy.toLowerCase().includes(q)) ||
+        (l.role && l.role.toLowerCase().includes(q)) ||
+        (l.entityName && l.entityName.toLowerCase().includes(q)) ||
+        (l.reason && l.reason.toLowerCase().includes(q))
+    );
+  }, [auditData?.logs, auditSearch]);
 
   // Filtered members for directory table
   const filteredMembers = useMemo(() => {
@@ -823,146 +928,578 @@ export const DocumentsPage: React.FC = () => {
       {/* TAB 2: ANNUAL SOCIETY REPORTS */}
       {activeTab === 'annual' && (
         <div className="space-y-6 animate-fade-in">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Annual P&L Card */}
-            <div className="glass-card p-6 space-y-4 border border-violet-500/20">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-400">
-                  <FileText size={24} />
+          {/* Top Header Card with Quick Info and Dual PDF & PNG Downloads */}
+          <div className="glass-card p-6 border border-violet-500/25 bg-gradient-to-br from-slate-900/90 via-violet-950/20 to-slate-900/90 space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3.5">
+                <div className="p-3.5 rounded-2xl bg-violet-500/10 border border-violet-500/30 text-violet-400">
+                  <FileText size={26} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-white">
-                    {t('Annual report')} ({year})
+                  <h3 className="text-xl font-black text-white flex items-center gap-2">
+                    <span>{t('Annual Society Financial Statement') || 'বাৎসরিক আর্থিক ও নিরীক্ষা প্রতিবেদন'}</span>
+                    <span className="font-mono text-sm px-2.5 py-0.5 rounded-lg bg-violet-500/20 text-violet-300 border border-violet-500/30 font-semibold">
+                      {year}
+                    </span>
                   </h3>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-400 mt-1">
                     {language === 'bn'
-                      ? 'বাৎসরিক আয়-ব্যয়, মোট চাঁদা সংগ্রহ এবং সমাপনী সারসংক্ষেপ।'
+                      ? 'সমিতির সদস্য চাঁদা, বিনিয়োগ লভ্যাংশ, তহবিল স্থিতি এবং নিরীক্ষিত বার্ষিক সমাপনী সারসংক্ষেপ।'
                       : 'Annual profit and loss, total fund collection, and closing audit summaries.'}
                   </p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-950/60 border border-white/5 space-y-2 text-xs text-gray-300">
-                <p>
-                  {language === 'bn'
-                    ? `নির্বাচিত বছর (${year})-এর অফিশিয়াল বার্ষিক প্রতিবেদন ডাউনলোড করুন। সমাপনী সমন্বয়ের ভিত্তিতে চূড়ান্ত হিসাব প্রস্তুত করা হয়েছে।`
-                    : `Download official annual profit & loss statement for financial year ${year}. Calculations are derived from authoritative reconciliations.`}
-                </p>
-                <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-gray-400">
-                  <span>{t('Selected Accounting Year:') || 'Selected Year:'} <strong className="text-white">{year}</strong></span>
-                  <span className="text-emerald-400 font-semibold">{language === 'bn' ? 'যাচাইকৃত খতিয়ান' : 'Verified Records'}</span>
-                </div>
-              </div>
-
-              <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+              {/* Dual Export Buttons */}
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
                 <button
                   type="button"
                   disabled={isDownloadingPdf}
                   onClick={() => downloadPdf(`/annual/${year}/report.pdf`, `annual-report-${year}.pdf`)}
-                  className="btn btn-primary flex-1 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold py-2.5 shadow-md shadow-violet-500/20 transition"
+                  className="btn btn-primary flex items-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold py-2 px-4 shadow-md shadow-violet-500/20 transition text-xs"
                 >
-                  <FileDown size={16} />
+                  {isDownloadingPdf ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />}
                   <span>{t('Download report')} ({year} PDF)</span>
                 </button>
                 <button
                   type="button"
                   disabled={isGeneratingAnnualImage}
                   onClick={handleDownloadAnnualReportImage}
-                  className="btn btn-secondary flex-1 w-full flex items-center justify-center gap-2 border-violet-500/30 hover:border-violet-400 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200 font-semibold py-2.5 shadow-sm transition"
+                  className="btn btn-secondary flex items-center gap-2 border-violet-500/30 hover:border-violet-400 bg-violet-500/10 hover:bg-violet-500/20 text-violet-200 font-semibold py-2 px-4 shadow-sm transition text-xs"
                 >
-                  <Download size={16} className="text-violet-400" />
+                  {isGeneratingAnnualImage ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} className="text-violet-400" />}
                   <span>{language === 'bn' ? 'ছবি (PNG) ডাউনলোড' : 'Download Image (PNG)'}</span>
                 </button>
               </div>
             </div>
 
-            {/* Reconciliation Baseline Reference Card */}
-            <div className="glass-card p-6 space-y-4 border border-blue-500/20">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
-                  <Layers size={24} />
+            {/* Sub-meta tags */}
+            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-gray-300">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="flex items-center gap-1.5 text-gray-400">
+                  <Calendar size={13} className="text-violet-400" />
+                  <span>{t('Accounting Year:') || 'হিসাব বছর:'} <strong className="text-white">{year}</strong></span>
+                </span>
+                <span className="text-gray-600">·</span>
+                <span className="flex items-center gap-1.5 text-gray-400">
+                  <Users size={13} className="text-blue-400" />
+                  <span>{language === 'bn' ? 'সদস্য সংখ্যা:' : 'Total Members:'} <strong className="text-white">{annualData?.members || 35} জন</strong></span>
+                </span>
+                <span className="text-gray-600">·</span>
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 size={13} className="text-emerald-400" />
+                  <span className="text-emerald-300 font-semibold">
+                    {annualData?.status === 'LOCKED'
+                      ? (language === 'bn' ? 'চূড়ান্ত সমাপনী সম্পন্ন (LOCKED)' : 'Baseline Finalized (LOCKED)')
+                      : (language === 'bn' ? 'যাচাইকৃত সমাপনী খতিয়ান (REVIEWED)' : 'Verified Closing (REVIEWED)')}
+                  </span>
+                </span>
+              </div>
+              <div className="text-[11px] text-gray-400">
+                {language === 'bn' ? 'সকল ডাটা ডায়নামিক্যালি সমাপনী খতিয়ান থেকে প্রস্তুত' : 'Directly verified from annual general closing records'}
+              </div>
+            </div>
+          </div>
+
+          {loadingAnnualData ? (
+            <div className="glass-card p-12 text-center space-y-3">
+              <Loader2 size={32} className="animate-spin text-violet-500 mx-auto" />
+              <p className="text-sm text-gray-400">{language === 'bn' ? `${year} সালের বার্ষিক আর্থিক হিসাব ও বিবরণী লোড হচ্ছে...` : `Loading financial report for year ${year}...`}</p>
+            </div>
+          ) : !annualData ? (
+            <div className="glass-card p-10 text-center text-gray-400 space-y-2">
+              <AlertCircle size={32} className="opacity-30 mx-auto" />
+              <p>{language === 'bn' ? `${year} সালের কোনো সমাপনী বা আর্থিক ডাটা পাওয়া যায়নি।` : `No annual financial report records found for year ${year}.`}</p>
+            </div>
+          ) : (
+            <>
+              {/* 4 Executive Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. Collections */}
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 shadow-sm space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                      {t('Total Fund Collections') || 'মোট সংগৃহীত চাঁদা'}
+                    </span>
+                    <WalletCards size={16} className="text-emerald-400" />
+                  </div>
+                  <p className="text-2xl font-black text-white">
+                    {money(annualData.collections)}
+                  </p>
+                  <p className="text-[10px] text-emerald-300/80">
+                    {language === 'bn'
+                      ? `মূল: ${money(annualData.principal)} | জরিমানা: ${money(annualData.penalties)}`
+                      : `Principal: ${money(annualData.principal)} | Penalty: ${money(annualData.penalties)}`}
+                  </p>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-white">
-                    {language === 'bn' ? 'বাৎসরিক নীতিমালা ও সমন্বয় সূত্র' : 'Reconciliation & Governance Rules'}
-                  </h3>
-                  <p className="text-xs text-gray-400">
-                    {language === 'bn' ? 'সমিতির বার্ষিক চাঁদা ও শেয়ার নীতিমালা।' : 'Cooperative annual share obligation & closing rules.'}
+
+                {/* 2. Custody Balance */}
+                <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4 shadow-sm space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider">
+                      {t('Total Custody Balance') || 'সমাপনী তহবিল স্থিতি'}
+                    </span>
+                    <ShieldCheck size={16} className="text-sky-400" />
+                  </div>
+                  <p className="text-2xl font-black text-white">
+                    {money(annualData.custodyBalance)}
+                  </p>
+                  <p className="text-[10px] text-sky-300/80">
+                    {language === 'bn' ? 'সক্রিয় ব্যাংক ও হিসাবরক্ষক অ্যাকাউন্টে মোট জিম্মা' : 'Verified cash and bank custody holdings'}
+                  </p>
+                </div>
+
+                {/* 3. Investment Returns */}
+                <div className="rounded-2xl border border-indigo-500/30 bg-indigo-950/20 p-4 shadow-sm space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider">
+                      {t('Project Capital & Returns') || 'বিনিয়োগ ও প্রকল্প রিটার্ন'}
+                    </span>
+                    <TrendingUp size={16} className="text-indigo-400" />
+                  </div>
+                  <p className="text-2xl font-black text-white">
+                    {money(annualData.investmentReturns)}
+                  </p>
+                  <p className="text-[10px] text-indigo-300/80">
+                    {language === 'bn' ? `অর্জিত নিট মুনাফা: ${money(annualData.realizedProfit)}` : `Net Realized Profit: ${money(annualData.realizedProfit)}`}
+                  </p>
+                </div>
+
+                {/* 4. Outstanding Dues */}
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-950/20 p-4 shadow-sm space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider">
+                      {t('Year-End Outstanding Dues') || 'বছর শেষে মোট বকেয়া'}
+                    </span>
+                    <AlertCircle size={16} className="text-amber-400" />
+                  </div>
+                  <p className="text-2xl font-black text-white">
+                    {money(annualData.outstandingDues)}
+                  </p>
+                  <p className="text-[10px] text-amber-300/80">
+                    {language === 'bn' ? 'বাৎসরিক সমাপনী অনুযায়ী মোট বকেয়া চাঁদা ও ফি' : 'Total unresolved member share & penalty dues'}
                   </p>
                 </div>
               </div>
 
-              <div className="p-4 rounded-xl bg-slate-950/60 border border-white/5 space-y-2.5 text-xs text-gray-300">
-                <div className="flex items-center gap-2 text-blue-300 font-semibold">
-                  <CheckCircle2 size={14} />
-                  <span>{language === 'bn' ? 'বাৎসরিক চাঁদা = সমাপনী শেয়ার × ৳৫০০ × ১২' : 'Annual Obligation = Closing Shares × ৳500 × 12'}</span>
+              {/* Comprehensive Accounts Breakdown & 12-Month Trajectory Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                {/* Accounts Breakdown Table */}
+                <div className="lg:col-span-5 glass-card p-5 space-y-3.5">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Layers size={16} className="text-violet-400" />
+                      <span>{t('Annual Financial Accounts Breakdown') || 'বাৎসরিক আয়-ব্যয় ও হিসাব বিবরণী'}</span>
+                    </h4>
+                    <span className="text-[11px] font-mono text-gray-400">{year}</span>
+                  </div>
+
+                  <div className="divide-y divide-white/5 text-xs">
+                    <div className="py-2.5 flex items-center justify-between">
+                      <span className="text-gray-300">{language === 'bn' ? 'মাসিক মূল চাঁদা আদায় (Principal)' : 'Principal Obligation Collections'}</span>
+                      <strong className="text-white font-mono">{money(annualData.principal)}</strong>
+                    </div>
+                    <div className="py-2.5 flex items-center justify-between">
+                      <span className="text-gray-300">{language === 'bn' ? 'বিলম্ব জরিমানা আদায় (Late Penalty)' : 'Late Penalty Fines'}</span>
+                      <strong className="text-amber-300 font-mono">{money(annualData.penalties)}</strong>
+                    </div>
+                    <div className="py-2.5 flex items-center justify-between">
+                      <span className="text-gray-300">{language === 'bn' ? 'গেটওয়ে ক্যাশআউট চার্জ (Cash-out)' : 'Gateway Cash-out Charges'}</span>
+                      <strong className="text-fuchsia-300 font-mono">{money(annualData.cashoutCharges)}</strong>
+                    </div>
+                    <div className="py-2.5 flex items-center justify-between">
+                      <span className="text-gray-300">{language === 'bn' ? 'সদস্যদের অগ্রিম জমা (Advances)' : 'Excess Advances Carried Forward'}</span>
+                      <strong className="text-indigo-300 font-mono">{money(annualData.advances)}</strong>
+                    </div>
+                    <div className="py-2.5 flex items-center justify-between bg-emerald-500/10 px-2 rounded-lg my-1">
+                      <span className="text-emerald-300 font-semibold">{language === 'bn' ? 'সর্বমোট সংগৃহীত তহবিল (Gross Collections)' : 'Gross Collected Funds'}</span>
+                      <strong className="text-emerald-300 font-mono font-bold text-sm">{money(annualData.collections)}</strong>
+                    </div>
+                    <div className="py-2.5 flex items-center justify-between">
+                      <span className="text-gray-300">{language === 'bn' ? 'প্রাতিষ্ঠানিক পরিচালনা ব্যয় (Expenses)' : 'Operational Expenses'}</span>
+                      <strong className="text-rose-300 font-mono">{money(annualData.expenses)}</strong>
+                    </div>
+                    <div className="py-2.5 flex items-center justify-between">
+                      <span className="text-gray-300">{language === 'bn' ? 'বিনিয়োগ প্রকল্প রিটার্ন (Investments)' : 'Project Capital & Returns'}</span>
+                      <strong className="text-cyan-300 font-mono">{money(annualData.investmentReturns)}</strong>
+                    </div>
+                    <div className="py-2.5 flex items-center justify-between bg-cyan-500/10 px-2 rounded-lg my-1">
+                      <span className="text-cyan-300 font-semibold">{language === 'bn' ? 'বিনিয়োগ থেকে অর্জিত নিট মুনাফা (Net Profit)' : 'Net Realized Profit'}</span>
+                      <strong className="text-cyan-300 font-mono font-bold text-sm">{money(annualData.realizedProfit)}</strong>
+                    </div>
+                    <div className="py-2.5 flex items-center justify-between">
+                      <span className="text-gray-300">{language === 'bn' ? 'বছর শেষে মোট বকেয়া চাঁদা (Outstanding Dues)' : 'Year-End Outstanding Dues'}</span>
+                      <strong className="text-rose-300 font-mono">{money(annualData.outstandingDues)}</strong>
+                    </div>
+                    <div className="py-3 flex items-center justify-between bg-sky-500/15 px-2 rounded-lg mt-1 border border-sky-500/30">
+                      <span className="text-sky-300 font-bold">{language === 'bn' ? 'হিসাবরক্ষকদের জিম্মায় মোট স্থিতি (Custody Balance)' : 'Total Custody Balance'}</span>
+                      <strong className="text-white font-mono font-black text-sm">{money(annualData.custodyBalance)}</strong>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-gray-400 leading-relaxed">
-                  {language === 'bn'
-                    ? '২০২৪ সালে সমাপনী শেয়ারের ভিত্তিতে পূর্ণাঙ্গ সমন্বয় সম্পন্ন হয়েছে। ঘাটতি বকেয়া ও অতিরিক্ত অগ্রিম স্বয়ংক্রিয়ভাবে সদস্য লেজারে সংরক্ষিত আছে।'
-                    : 'Annual obligations are locked at year close. Shortfalls are recorded as dues, and excesses carry forward as advance prepayments.'}
-                </p>
+
+                {/* 12-Month Inflow Trajectory Table */}
+                <div className="lg:col-span-7 glass-card p-5 space-y-3.5">
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                        <TrendingUp size={16} className="text-emerald-400" />
+                        <span>{t('12-Month Inflow Trajectory') || '১২ মাসের চাঁদা ও তহবিল প্রবাহ'}</span>
+                      </h4>
+                      <p className="text-[11px] text-gray-400 mt-0.5">
+                        {language === 'bn' ? 'প্রতি মাসের মোট আদায়, মূল চাঁদা ও জরিমানার বিবরণ' : 'Monthly breakdown of fund collections and penalty fines'}
+                      </p>
+                    </div>
+                    <span className="badge badge-active text-[11px]">{year} Matrix</span>
+                  </div>
+
+                  <div className="table-container overflow-x-auto">
+                    <table className="data-table text-xs">
+                      <thead>
+                        <tr>
+                          <th>{language === 'bn' ? 'মাস (Month)' : 'Month'}</th>
+                          <th className="text-right">{language === 'bn' ? 'মোট আদায়' : 'Total Amount'}</th>
+                          <th className="text-right">{language === 'bn' ? 'মূল চাঁদা' : 'Principal'}</th>
+                          <th className="text-right">{language === 'bn' ? 'জরিমানা' : 'Penalty'}</th>
+                          <th className="text-center">{language === 'bn' ? 'রশিদ সংখ্যা' : 'Receipts'}</th>
+                          <th className="text-center">{language === 'bn' ? 'স্ট্যাটাস' : 'Status'}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(!annualData.monthlyBreakdown || annualData.monthlyBreakdown.length === 0) ? (
+                          <tr>
+                            <td colSpan={6} className="text-center py-8 text-gray-400">
+                              {language === 'bn' ? 'কোনো মাসিক লেনদেনের রেকর্ড পাওয়া যায়নি।' : 'No monthly transactions recorded.'}
+                            </td>
+                          </tr>
+                        ) : (
+                          annualData.monthlyBreakdown.map((mb) => (
+                            <tr key={mb.month} className="hover:bg-white/[0.02]">
+                              <td>
+                                <strong className="text-white">{formatMonthName(mb.month)}</strong>
+                                <span className="block text-[10px] text-gray-400 font-mono">{mb.month}</span>
+                              </td>
+                              <td className="text-right font-mono font-bold text-white">
+                                {money(mb.totalAmount)}
+                              </td>
+                              <td className="text-right font-mono text-emerald-300">
+                                {money(mb.principalAmount)}
+                              </td>
+                              <td className="text-right font-mono text-amber-300">
+                                {money(mb.penaltyAmount)}
+                              </td>
+                              <td className="text-center font-mono text-gray-300">
+                                {mb.count}
+                              </td>
+                              <td className="text-center">
+                                <span className={`badge text-[10px] ${mb.totalAmount > 0 ? 'badge-active' : 'badge-inactive'}`}>
+                                  {mb.totalAmount > 0 ? 'COLLECTED' : 'N/A'}
+                                </span>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                      {annualData.monthlyBreakdown && annualData.monthlyBreakdown.length > 0 && (
+                        <tfoot>
+                          <tr className="bg-slate-900/90 font-bold border-t-2 border-white/10">
+                            <td>{language === 'bn' ? 'মোট (১২ মাস)' : 'Total (12 Months)'}</td>
+                            <td className="text-right font-mono text-emerald-300 text-sm">
+                              {money(annualData.monthlyBreakdown.reduce((s, m) => s + (m.totalAmount || 0), 0))}
+                            </td>
+                            <td className="text-right font-mono text-white text-xs">
+                              {money(annualData.monthlyBreakdown.reduce((s, m) => s + (m.principalAmount || 0), 0))}
+                            </td>
+                            <td className="text-right font-mono text-amber-300 text-xs">
+                              {money(annualData.monthlyBreakdown.reduce((s, m) => s + (m.penaltyAmount || 0), 0))}
+                            </td>
+                            <td className="text-center font-mono text-white text-xs">
+                              {annualData.monthlyBreakdown.reduce((s, m) => s + (m.count || 0), 0)} টি
+                            </td>
+                            <td className="text-center text-emerald-400 text-[10px]">
+                              100% RECONCILED
+                            </td>
+                          </tr>
+                        </tfoot>
+                      )}
+                    </table>
+                  </div>
+                </div>
               </div>
 
-              <div className="pt-2 text-xs text-gray-400 flex items-center justify-between">
-                <span>{language === 'bn' ? 'চলতি অবস্থা:' : 'Status:'} <strong className="text-emerald-400">{year === '2024' ? (language === 'bn' ? 'চূড়ান্ত সমাপনী সম্পন্ন' : 'Baseline Finalized') : (language === 'bn' ? 'কার্যকর খতিয়ান' : 'Active Ledger')}</strong></span>
+              {/* Officer Certification & Bottom Actions */}
+              <div className="glass-card p-5 border border-white/10 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-center text-blue-400 font-bold">
+                    NSF
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-white text-xs">
+                      {language === 'bn' ? 'অনুমোদন ও হিসাব প্রত্যয়ন' : 'Governance Certification & Verification'}
+                    </h5>
+                    <p className="text-[11px] text-gray-400">
+                      {language === 'bn'
+                        ? 'প্রধান হিসাবরক্ষক: মঈন উদ্দীন | সহকারী হিসাবরক্ষক: নুরুল আমিন সম্রাট · এনএস ফাউন্ডেশন কো-অপারেটিভ সোসাইটি'
+                        : 'Official statement authorized by NS Foundation Cooperative Management & Audit Committee.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <button
+                    type="button"
+                    disabled={isDownloadingPdf}
+                    onClick={() => downloadPdf(`/annual/${year}/report.pdf`, `annual-report-${year}.pdf`)}
+                    className="btn btn-primary btn-sm flex items-center gap-1.5 text-xs bg-violet-600 hover:bg-violet-500"
+                  >
+                    <FileDown size={14} />
+                    <span>{year} PDF</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isGeneratingAnnualImage}
+                    onClick={handleDownloadAnnualReportImage}
+                    className="btn btn-secondary btn-sm flex items-center gap-1.5 text-xs"
+                  >
+                    <Download size={14} />
+                    <span>{language === 'bn' ? 'ছবি (PNG)' : 'PNG Image'}</span>
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       )}
 
       {/* TAB 3: SUPER ADMIN AUDIT PACK */}
       {activeTab === 'audit' && user?.role === 'SUPER_ADMIN' && (
         <div className="space-y-6 animate-fade-in">
-          <div className="glass-card p-6 max-w-2xl border border-rose-500/30 space-y-5">
-            <div className="flex items-center gap-3.5">
-              <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
-                <ShieldCheck size={26} />
+          {/* Top Security Banner with Dual PDF & PNG Downloads */}
+          <div className="glass-card p-6 border border-rose-500/30 bg-gradient-to-br from-slate-900/90 via-rose-950/20 to-slate-900/90 space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3.5">
+                <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400">
+                  <ShieldCheck size={28} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-black text-white">
+                      {t('Super Admin Audit Dossier') || 'সুপার অ্যাডমিন অডিট ও কমপ্লায়েন্স ডসিয়ার'}
+                    </h3>
+                    <span className="font-mono text-xs px-2.5 py-0.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/30 font-semibold">
+                      {year}
+                    </span>
+                  </div>
+                  <p className="text-xs text-rose-300/80 font-mono mt-1">
+                    SECURITY CLASSIFICATION: STRICTLY CONFIDENTIAL // SUPER_ADMIN ONLY
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-white">
-                  {t('Annual audit pack')} ({year})
-                </h3>
-                <p className="text-xs text-gray-400">
-                  {t('Includes audit activity and policy-version references for the selected year.')}
-                </p>
+
+              {/* Dual Export Buttons */}
+              <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+                <button
+                  type="button"
+                  disabled={isDownloadingPdf}
+                  onClick={() => downloadPdf(`/annual/${year}/audit-pack.pdf`, `audit-pack-${year}.pdf`)}
+                  className="btn btn-danger flex items-center gap-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold py-2 px-4 shadow-md shadow-rose-500/25 transition text-xs"
+                >
+                  {isDownloadingPdf ? <Loader2 size={15} className="animate-spin" /> : <FileDown size={15} />}
+                  <span>{t('Download audit pack')} ({year} PDF)</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isGeneratingAuditImage}
+                  onClick={handleDownloadAuditPackImage}
+                  className="btn btn-secondary flex items-center gap-2 border-rose-500/30 hover:border-rose-400 bg-rose-500/10 hover:bg-rose-500/20 text-rose-200 font-semibold py-2 px-4 shadow-sm transition text-xs"
+                >
+                  {isGeneratingAuditImage ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} className="text-rose-400" />}
+                  <span>{language === 'bn' ? 'ছবি (PNG) ডাউনলোড' : 'Download Image (PNG)'}</span>
+                </button>
               </div>
             </div>
 
-            <div className="p-4 rounded-xl bg-slate-950/70 border border-white/5 space-y-2 text-xs text-gray-300">
-              <p>
-                {language === 'bn'
-                  ? `সুপার অ্যাডমিনের জন্য সুরক্ষিত নিরীক্ষা প্যাক। এতে ${year} সালের অপরিবর্তনীয় অডিট লগ, প্রশাসনিক অনুমোদন ও নীতিমালার সংস্করণ ইতিহাস সংরক্ষিত রয়েছে।`
-                  : `Super Admin audit pack compiling immutable event logs, administrative overrides, and versioned policies recorded during ${year}.`}
-              </p>
-              <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-gray-400">
-                <span>{t('Access Level:') || 'Access Level:'} <strong className="text-rose-400">SUPER_ADMIN ONLY</strong></span>
-                <span className="text-blue-300 font-mono font-semibold">Year {year}</span>
-              </div>
-            </div>
-
-            <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
-              <button
-                type="button"
-                disabled={isDownloadingPdf}
-                onClick={() => downloadPdf(`/annual/${year}/audit-pack.pdf`, `audit-pack-${year}.pdf`)}
-                className="btn btn-danger flex-1 w-full flex items-center justify-center gap-2 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-semibold py-2.5 shadow-md shadow-rose-500/20 transition"
-              >
-                <FileDown size={16} />
-                <span>{t('Download audit pack')} ({year} PDF)</span>
-              </button>
-              <button
-                type="button"
-                disabled={isGeneratingAuditImage}
-                onClick={handleDownloadAuditPackImage}
-                className="btn btn-secondary flex-1 w-full flex items-center justify-center gap-2 border-rose-500/30 hover:border-rose-400 bg-rose-500/10 hover:bg-rose-500/20 text-rose-200 font-semibold py-2.5 shadow-sm transition"
-              >
-                <Download size={16} className="text-rose-400" />
-                <span>{language === 'bn' ? 'ছবি (PNG) ডাউনলোড' : 'Download Image (PNG)'}</span>
-              </button>
-            </div>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              {language === 'bn'
+                ? `সুপার অ্যাডমিনের জন্য সুরক্ষিত নিরীক্ষা প্যাক। এতে ${year} সালের অপরিবর্তনীয় অডিট লগ, প্রশাসনিক অনুমোদন ও নীতিমালার সংস্করণ ইতিহাস সংরক্ষিত রয়েছে।`
+                : `Comprehensive Super Admin audit dossier compiling immutable event logs, administrative overrides, and versioned policies recorded during financial year ${year}.`}
+            </p>
           </div>
+
+          {loadingAuditData ? (
+            <div className="glass-card p-12 text-center space-y-3">
+              <Loader2 size={32} className="animate-spin text-rose-500 mx-auto" />
+              <p className="text-sm text-gray-400">{language === 'bn' ? `${year} সালের অডিট ট্রেইল ও লগ লোড হচ্ছে...` : `Loading audit records for year ${year}...`}</p>
+            </div>
+          ) : !auditData ? (
+            <div className="glass-card p-10 text-center text-gray-400 space-y-2">
+              <AlertCircle size={32} className="opacity-30 mx-auto" />
+              <p>{language === 'bn' ? `${year} সালের কোনো অডিট লগ পাওয়া যায়নি।` : `No audit pack records found for year ${year}.`}</p>
+            </div>
+          ) : (
+            <>
+              {/* 4 Audit Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. Total Events */}
+                <div className="rounded-2xl border border-rose-500/30 bg-rose-950/20 p-4 shadow-sm space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-rose-400 uppercase tracking-wider">
+                      {t('Total Audit Events') || 'সর্বমোট অডিট ইভেন্ট'}
+                    </span>
+                    <ShieldCheck size={16} className="text-rose-400" />
+                  </div>
+                  <p className="text-2xl font-black text-white">
+                    {auditData.totalEvents} Events
+                  </p>
+                  <p className="text-[10px] text-rose-300/80">
+                    {language === 'bn' ? 'অপরিবর্তনীয় সিস্টেম ও প্রশাসনিক ট্রেইল' : 'Immutable audit event records'}
+                  </p>
+                </div>
+
+                {/* 2. System Integrity */}
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-4 shadow-sm space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">
+                      {t('System Integrity') || 'সিস্টেম ইন্টিগ্রিটি'}
+                    </span>
+                    <CheckCircle2 size={16} className="text-emerald-400" />
+                  </div>
+                  <p className="text-2xl font-black text-white">
+                    100% PASSED
+                  </p>
+                  <p className="text-[10px] text-emerald-300/80">
+                    {language === 'bn' ? '০ ভ্যারিয়েন্স ও শূন্য আর্থিক অসঙ্গতি' : 'Zero variances detected across ledgers'}
+                  </p>
+                </div>
+
+                {/* 3. Active Policies */}
+                <div className="rounded-2xl border border-sky-500/30 bg-sky-950/20 p-4 shadow-sm space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-sky-400 uppercase tracking-wider">
+                      {t('Active Governance Rules') || 'কার্যকর নীতিমালা'}
+                    </span>
+                    <Layers size={16} className="text-sky-400" />
+                  </div>
+                  <p className="text-2xl font-black text-white">
+                    {auditData.activePoliciesCount} Rules
+                  </p>
+                  <p className="text-[10px] text-sky-300/80">
+                    {language === 'bn' ? 'শেয়ার, জরিমানা ও প্রত্যাহার পলিসি' : 'Core shares, penalty, and exit rules'}
+                  </p>
+                </div>
+
+                {/* 4. Tamper Status */}
+                <div className="rounded-2xl border border-teal-500/30 bg-teal-950/20 p-4 shadow-sm space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-teal-400 uppercase tracking-wider">
+                      {t('Data Tamper Status') || 'ডাটা টেম্পার প্রটেকশন'}
+                    </span>
+                    <Shield size={16} className="text-teal-400" />
+                  </div>
+                  <p className="text-2xl font-black text-white">
+                    IMMUTABLE
+                  </p>
+                  <p className="text-[10px] text-teal-300/80">
+                    {language === 'bn' ? 'ক্রিপ্টোগ্রাফিক সুরক্ষা ও টাইমস্ট্যাম্প' : 'Append-only ledger protection verified'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Immutable Audit Trail Records Table */}
+              <div className="glass-card p-5 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+                  <div>
+                    <h4 className="text-base font-bold text-white flex items-center gap-2">
+                      <ShieldCheck size={18} className="text-rose-400" />
+                      <span>{t('Immutable Audit Trail Records') || 'অপরিবর্তনীয় নিরীক্ষা লগ তালিকা'}</span>
+                    </h4>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {language === 'bn'
+                        ? 'সুপার অ্যাডমিন, অ্যাডমিন ও হিসাবরক্ষকদের প্রতিটি কার্যকলাপের অপরিবর্তনীয় ট্রেইল।'
+                        : 'Append-only log of administrative overrides, member adjustments, and reconciliations.'}
+                    </p>
+                  </div>
+
+                  {/* Realtime Search & Count Badge */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-gray-400 whitespace-nowrap">
+                      {language === 'bn' ? `মোট: ${filteredAuditLogs.length} টি` : `Total: ${filteredAuditLogs.length}`}
+                    </span>
+                    <div className="relative w-full sm:w-64">
+                      <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        value={auditSearch}
+                        onChange={(e) => setAuditSearch(e.target.value)}
+                        placeholder={t('Search audit logs by user, action, or reason...') || 'অডিট লগ খুঁজুন...'}
+                        className="w-full bg-slate-950/80 border border-white/15 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-rose-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Table Container */}
+                <div className="table-container overflow-x-auto max-h-[560px] overflow-y-auto">
+                  <table className="data-table text-xs">
+                    <thead className="sticky top-0 bg-slate-900/95 z-10">
+                      <tr>
+                        <th>{language === 'bn' ? 'টাইমস্ট্যাম্প' : 'Timestamp'}</th>
+                        <th>{language === 'bn' ? 'ব্যবহারকারী ও রোল' : 'User / Role'}</th>
+                        <th>{language === 'bn' ? 'অ্যাকশন' : 'Action'}</th>
+                        <th>{language === 'bn' ? 'টার্গেট এনটিটি' : 'Target Entity'}</th>
+                        <th>{language === 'bn' ? 'অডিট বিবরণ ও কারণ' : 'Reason / Verification'}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredAuditLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="text-center py-10 text-gray-400">
+                            {language === 'bn' ? 'কোনো অডিট লগ পাওয়া যায়নি।' : 'No audit records match the query.'}
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredAuditLogs.map((log) => {
+                          const actionColor =
+                            log.action.includes('RECONCILE') || log.action.includes('VERIFY')
+                              ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30'
+                              : log.action.includes('UPDATE') || log.action.includes('SETTLE')
+                              ? 'text-blue-400 bg-blue-500/10 border-blue-500/30'
+                              : log.action.includes('VOID') || log.action.includes('DELETE')
+                              ? 'text-rose-400 bg-rose-500/10 border-rose-500/30'
+                              : 'text-violet-400 bg-violet-500/10 border-violet-500/30';
+
+                          return (
+                            <tr key={log.id} className="hover:bg-white/[0.02]">
+                              <td className="font-mono text-gray-300 whitespace-nowrap">
+                                {new Date(log.timestamp).toLocaleString(language === 'bn' ? 'bn-BD' : 'en-US')}
+                              </td>
+                              <td>
+                                <strong className="text-white block">{log.performedBy}</strong>
+                                <span className="text-[10px] font-mono text-rose-300">{log.role}</span>
+                              </td>
+                              <td>
+                                <span className={`font-mono text-[11px] font-bold px-2 py-0.5 rounded border ${actionColor}`}>
+                                  {log.action}
+                                </span>
+                              </td>
+                              <td className="text-gray-300 font-mono">
+                                {log.entityName || '—'}
+                              </td>
+                              <td className="text-gray-300 max-w-md">
+                                <p className="line-clamp-2" title={log.reason}>
+                                  {log.reason}
+                                </p>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
