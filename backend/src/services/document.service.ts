@@ -6,6 +6,7 @@ import {
   CustodyAccount,
   Expense,
   InvestmentProject,
+  InvestmentReturn,
   Member,
   MonthlyLedger,
   Payment,
@@ -190,14 +191,25 @@ export class DocumentService {
     const startOfYear = new Date(Date.UTC(year, 0, 1, 0, 0, 0));
     const endOfYear = new Date(Date.UTC(year, 11, 31, 23, 59, 59, 999));
 
-    const [closing, membersCount, payments, custodyAccounts, ledgers, expenses, investments] = await Promise.all([
+    const [closing, membersCount, payments, custodyAccounts, ledgers, expenses, investments, investmentReturnsList] = await Promise.all([
       AnnualClosing.findOne({ year }).sort({ createdAt: -1 }).lean(),
       Member.countDocuments({ status: { $ne: 'DROPPED' } }),
       Payment.find({ paymentDate: { $gte: startOfYear, $lte: endOfYear }, status: { $ne: PaymentStatus.CANCELLED } }).lean(),
       CustodyAccount.find({ isActive: true }).select('name channel cachedBalance').lean(),
       MonthlyLedger.find({ month: { $regex: `^${year}-` } }).lean(),
-      Expense.find({ expenseDate: { $gte: startOfYear, $lte: endOfYear } }).lean(),
-      InvestmentProject.find({ createdAt: { $gte: startOfYear, $lte: endOfYear } }).lean(),
+      Expense.find({
+        $or: [
+          { date: { $gte: startOfYear, $lte: endOfYear } },
+          { expenseDate: { $gte: startOfYear, $lte: endOfYear } },
+        ],
+      }).lean(),
+      InvestmentProject.find({
+        $or: [
+          { startDate: { $gte: startOfYear, $lte: endOfYear } },
+          { createdAt: { $gte: startOfYear, $lte: endOfYear } },
+        ],
+      }).lean(),
+      InvestmentReturn.find({ maturityDate: { $gte: startOfYear, $lte: endOfYear } }).lean(),
     ]);
 
     // Use closing summary if available; else compute from dynamic records
@@ -209,9 +221,13 @@ export class DocumentService {
     const cashoutCharges = closingSummary?.cashoutCharges ?? payments.reduce((sum, p) => sum + Number(p.cashoutCharge || 0), 0);
     const advances = closingSummary?.advances ?? payments.reduce((sum, p) => sum + Number(p.advanceAmount || 0), 0);
     const totalExpenses = closingSummary?.expenses ?? expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
-    const investmentReturns = closingSummary?.investmentReturns ?? investments.reduce((sum, i) => sum + Number(i.totalFunded || 0), 0);
-    const realizedProfit = closingSummary?.realizedProfit ?? 0;
-    const realizedLoss = closingSummary?.realizedLoss ?? 0;
+    const investmentReturns = closingSummary?.investmentReturns ?? (
+      investmentReturnsList.length > 0
+        ? investmentReturnsList.reduce((sum, r) => sum + Number(r.totalReturn || 0), 0)
+        : investments.reduce((sum, i) => sum + Number(i.totalFunded || 0), 0)
+    );
+    const realizedProfit = closingSummary?.realizedProfit ?? investmentReturnsList.reduce((sum, r) => sum + Number(r.actualProfit || 0), 0);
+    const realizedLoss = closingSummary?.realizedLoss ?? investmentReturnsList.reduce((sum, r) => sum + Number(r.actualLoss || 0), 0);
     const outstandingDues = closingSummary?.outstandingDues ?? ledgers.reduce((sum, l) => sum + Math.max(0, Number(l.principalDue || 0) + Number(l.penaltyDue || 0) - Number(l.principalPaid || 0) - Number(l.penaltyPaid || 0)), 0);
     const custodyBalance = closingSummary?.custodyBalance ?? custodyAccounts.reduce((sum, a) => sum + Number(a.cachedBalance || 0), 0);
 
