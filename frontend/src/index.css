@@ -1,5 +1,5 @@
 /* Google Fonts & Bengali Web Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@300;400;500;600;700;800&family=Hind+Siliguri:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Bengali:wght@300;400;500;600;700;800&family=Noto+Serif+Bengali:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Tiro+Bangla:ital@0;1&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@300;400;500;600;700;800&family=Hind+Siliguri:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Bengali:wght@300;400;500;600;700;800&family=Noto+Serif+Bengali:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700;900&family=Tiro+Bangla:ital@0;1&display=swap');
 @import url('https://fonts.maateen.me/solaiman-lipi/font.css');
 @import url('https://fonts.maateen.me/kalpurush/font.css');
 
@@ -41,45 +41,83 @@
   --shadow-lg: 0 10px 30px -4px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 25px rgba(59, 130, 246, 0.15);
 
+  /* Bangla Fonts */
   --font-hind-siliguri: 'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-noto-sans-bengali: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-solaiman-lipi: 'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali', sans-serif;
   --font-kalpurush: 'Kalpurush', 'SolaimanLipi', 'Noto Sans Bengali', sans-serif;
   --font-tiro-bangla: 'Tiro Bangla', 'Noto Serif Bengali', 'Plus Jakarta Sans', serif;
   --font-anek-bangla: 'Anek Bangla', 'Plus Jakarta Sans', system-ui, sans-serif;
-  --font-default: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* English Fonts */
+  --font-plus-jakarta-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+  --font-outfit: 'Outfit', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+  --font-roboto: 'Roboto', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+  --font-poppins: 'Poppins', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+  --font-lora: 'Lora', Georgia, 'Tiro Bangla', serif;
+
+  --font-default: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
   --font-sans: 'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 }
 
-/* Dynamic Bangla Font Overrides */
-html[data-bangla-font="hind-siliguri"],
-html[data-bangla-font="hind-siliguri"] body {
+/* Dynamic Bangla Font Overrides (when in Bangla mode or default) */
+html:not([data-language="en"])[data-bangla-font="hind-siliguri"],
+html:not([data-language="en"])[data-bangla-font="hind-siliguri"] body {
   --font-sans: 'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif;
 }
-html[data-bangla-font="noto-sans-bengali"],
-html[data-bangla-font="noto-sans-bengali"] body {
+html:not([data-language="en"])[data-bangla-font="noto-sans-bengali"],
+html:not([data-language="en"])[data-bangla-font="noto-sans-bengali"] body {
   --font-sans: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif;
 }
-html[data-bangla-font="solaiman-lipi"],
-html[data-bangla-font="solaiman-lipi"] body {
+html:not([data-language="en"])[data-bangla-font="solaiman-lipi"],
+html:not([data-language="en"])[data-bangla-font="solaiman-lipi"] body {
   --font-sans: 'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali', sans-serif;
 }
-html[data-bangla-font="kalpurush"],
-html[data-bangla-font="kalpurush"] body {
+html:not([data-language="en"])[data-bangla-font="kalpurush"],
+html:not([data-language="en"])[data-bangla-font="kalpurush"] body {
   --font-sans: 'Kalpurush', 'SolaimanLipi', 'Noto Sans Bengali', sans-serif;
 }
-html[data-bangla-font="tiro-bangla"],
-html[data-bangla-font="tiro-bangla"] body {
+html:not([data-language="en"])[data-bangla-font="tiro-bangla"],
+html:not([data-language="en"])[data-bangla-font="tiro-bangla"] body {
   --font-sans: 'Tiro Bangla', 'Noto Serif Bengali', 'Plus Jakarta Sans', serif;
 }
-html[data-bangla-font="anek-bangla"],
-html[data-bangla-font="anek-bangla"] body {
+html:not([data-language="en"])[data-bangla-font="anek-bangla"],
+html:not([data-language="en"])[data-bangla-font="anek-bangla"] body {
   --font-sans: 'Anek Bangla', 'Plus Jakarta Sans', system-ui, sans-serif;
 }
-html[data-bangla-font="default"],
-html[data-bangla-font="default"] body {
+html:not([data-language="en"])[data-bangla-font="default"],
+html:not([data-language="en"])[data-bangla-font="default"] body {
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Dynamic English Font Overrides (when in English mode) */
+html[data-language="en"][data-english-font="plus-jakarta-sans"],
+html[data-language="en"][data-english-font="plus-jakarta-sans"] body,
+html[data-language="en"][data-english-font="default"],
+html[data-language="en"][data-english-font="default"] body {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+}
+html[data-language="en"][data-english-font="inter"],
+html[data-language="en"][data-english-font="inter"] body {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+}
+html[data-language="en"][data-english-font="outfit"],
+html[data-language="en"][data-english-font="outfit"] body {
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+}
+html[data-language="en"][data-english-font="roboto"],
+html[data-language="en"][data-english-font="roboto"] body {
+  --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+}
+html[data-language="en"][data-english-font="poppins"],
+html[data-language="en"][data-english-font="poppins"] body {
+  --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+}
+html[data-language="en"][data-english-font="lora"],
+html[data-language="en"][data-english-font="lora"] body {
+  --font-sans: 'Lora', Georgia, 'Tiro Bangla', serif;
 }
 
 /* Dynamic Font Size Control */

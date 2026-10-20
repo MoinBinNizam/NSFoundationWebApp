@@ -7,16 +7,19 @@
     <title>NS Foundation Cooperative Society</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@300;400;500;600;700;800&family=Hind+Siliguri:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Bengali:wght@300;400;500;600;700;800&family=Noto+Serif+Bengali:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Tiro+Bangla:ital@0;1&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@300;400;500;600;700;800&family=Hind+Siliguri:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Noto+Sans+Bengali:wght@300;400;500;600;700;800&family=Noto+Serif+Bengali:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700;900&family=Tiro+Bangla:ital@0;1&display=swap" rel="stylesheet">
     <link href="https://fonts.maateen.me/solaiman-lipi/font.css" rel="stylesheet">
     <link href="https://fonts.maateen.me/kalpurush/font.css" rel="stylesheet">
     <script>
       (function() {
         try {
-          var font = localStorage.getItem('banglaFont') || 'hind-siliguri';
+          var lang = localStorage.getItem('language') || 'bn';
+          var banglaFont = localStorage.getItem('banglaFont') || 'hind-siliguri';
+          var englishFont = localStorage.getItem('englishFont') || 'plus-jakarta-sans';
           var size = localStorage.getItem('fontSize') || 'medium';
           var theme = localStorage.getItem('theme') || 'dark';
-          var fontMap = {
+
+          var banglaFontMap = {
             'hind-siliguri': "'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif",
             'noto-sans-bengali': "'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif",
             'solaiman-lipi': "'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali', sans-serif",
@@ -25,12 +28,32 @@
             'anek-bangla': "'Anek Bangla', 'Plus Jakarta Sans', system-ui, sans-serif",
             'default': "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif"
           };
+
+          var englishFontMap = {
+            'plus-jakarta-sans': "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
+            'inter': "'Inter', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
+            'outfit': "'Outfit', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
+            'roboto': "'Roboto', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
+            'poppins': "'Poppins', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
+            'lora': "'Lora', Georgia, 'Tiro Bangla', serif",
+            'default': "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif"
+          };
+
           var sizeMap = { small: '14px', medium: '16px', large: '18px', xlarge: '20px' };
           var doc = document.documentElement;
-          doc.setAttribute('data-bangla-font', font);
+
+          doc.setAttribute('data-language', lang);
+          doc.setAttribute('data-bangla-font', banglaFont);
+          doc.setAttribute('data-english-font', englishFont);
           doc.setAttribute('data-font-size', size);
+
           if (theme === 'dark') { doc.classList.add('dark'); } else { doc.classList.remove('dark'); }
-          if (fontMap[font]) { doc.style.setProperty('--font-sans', fontMap[font]); }
+
+          var chosenFont = (lang === 'bn')
+            ? (banglaFontMap[banglaFont] || banglaFontMap['hind-siliguri'])
+            : (englishFontMap[englishFont] || englishFontMap['plus-jakarta-sans']);
+
+          doc.style.setProperty('--font-sans', chosenFont);
           if (sizeMap[size]) { doc.style.setProperty('font-size', sizeMap[size], 'important'); }
         } catch (e) {}
       })();

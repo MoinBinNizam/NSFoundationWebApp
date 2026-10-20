@@ -34,6 +34,7 @@ import {
   Loader2,
   Send,
   Share2,
+  ChevronDown,
 } from 'lucide-react';
 import { downloadMemberReportImage } from '../utils/report-image';
 import { ReceiptOcrManager } from '../components/ReceiptOcrManager';
@@ -254,8 +255,41 @@ interface PenaltyWaiverItem {
   };
 }
 
-const paymentMethodForChannel = (channel?: string) =>
-  channel === 'BANK' ? 'BANK_TRANSFER' : channel === 'NAGAD' ? 'NAGAD' : channel === 'CASH' ? 'CASH' : 'BKASH';
+const paymentMethodForAccount = (account?: CustodyAccountItem | { channel?: string; accountType?: string; name?: string } | null): string => {
+  if (!account) return 'CASH';
+  const ch = (account.channel || '').toUpperCase().trim();
+  const type = (account.accountType || '').toUpperCase().trim();
+  const name = (account.name || '').toLowerCase();
+
+  if (
+    ch === 'BANK' ||
+    ch === 'BANK_TRANSFER' ||
+    ch === 'IBBL' ||
+    type === 'BANK' ||
+    name.includes('bank') ||
+    name.includes('ব্যাংক') ||
+    name.includes('ibbl') ||
+    name.includes('islami') ||
+    name.includes('cellfin')
+  ) {
+    return 'BANK_TRANSFER';
+  }
+
+  if (ch === 'NAGAD' || name.includes('nagad') || name.includes('নগদ')) {
+    return 'NAGAD';
+  }
+
+  if (ch === 'BKASH' || name.includes('bkash') || name.includes('বিকাশ')) {
+    return 'BKASH';
+  }
+
+  if (ch === 'CASH' || type === 'CASH' || name.includes('cash') || name.includes('ক্যাশ')) {
+    return 'CASH';
+  }
+
+  return 'BANK_TRANSFER';
+};
+
 
 const analyticsDateForPayment = (paymentDate: string, timeframe: 'all' | 'daily' | 'monthly' | 'yearly') => {
   const calendarDate = paymentDate.slice(0, 10);
@@ -391,7 +425,7 @@ export const PaymentsPage: React.FC = () => {
     receiverId: user?.id || '',
     paymentDate: new Date().toISOString().split('T')[0],
     totalAmount: '',
-    paymentMethod: 'BKASH',
+    paymentMethod: 'CASH',
     cashoutChargePaid: '0',
     penaltyWaiverAmount: '0',
     cashoutWaiverAmount: '0',
@@ -465,7 +499,15 @@ export const PaymentsPage: React.FC = () => {
 
       // Default custody account if available
       if (custodyRes.data && custodyRes.data.length > 0 && !formData.custodyAccountId) {
-        setFormData((prev) => ({ ...prev, custodyAccountId: custodyRes.data[0]._id, paymentMethod: paymentMethodForChannel(custodyRes.data[0].channel) }));
+        const currentReceiverId = formData.receiverId || user?.id || '';
+        const matching = custodyRes.data.filter((c) => !currentReceiverId || c.holderId?._id === currentReceiverId);
+        const picked = matching[0] || custodyRes.data[0];
+        setFormData((prev) => ({
+          ...prev,
+          receiverId: prev.receiverId || picked.holderId?._id || currentReceiverId,
+          custodyAccountId: picked._id,
+          paymentMethod: paymentMethodForAccount(picked),
+        }));
       }
     } catch (err) {
       console.error('Error fetching metadata:', err);
@@ -765,6 +807,12 @@ export const PaymentsPage: React.FC = () => {
   const handleSubmitPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setCollectError(null);
+
+    if (!formData.memberId) {
+      setCollectError(language === 'bn' ? 'অনুগ্রহ করে একজন সদস্য নির্বাচন করুন।' : 'Please select a member first.');
+      return;
+    }
+
     setCollectSubmitting(true);
 
     try {
@@ -1103,17 +1151,32 @@ export const PaymentsPage: React.FC = () => {
 
             <button
               onClick={() => {
-                const defaultCustodyAccount = custodyAccounts[0];
+                const availableReceivers = custodyAccounts
+                  .filter((c) => c.holderId)
+                  .map((c) => c.holderId!)
+                  .filter((v, i, a) => a.findIndex((t) => t._id === v._id) === i);
+
+                const initialReceiverId =
+                  availableReceivers.find((r) => r._id === user?.id)?._id ||
+                  availableReceivers[0]?._id ||
+                  user?.id ||
+                  '';
+
+                const receiverCustodies = custodyAccounts.filter(
+                  (c) => !initialReceiverId || c.holderId?._id === initialReceiverId
+                );
+                const defaultCustodyAccount = receiverCustodies[0] || custodyAccounts[0];
+
                 setCollectError(null);
                 setAllocationPreview(null);
                 setEditingPayment(null);
                 setFormData({
-                  memberId: membersList[0]?._id || '',
+                  memberId: '',
                   custodyAccountId: defaultCustodyAccount?._id || '',
-                  receiverId: user?.id || '',
+                  receiverId: initialReceiverId,
                   paymentDate: new Date().toISOString().split('T')[0],
                   totalAmount: '',
-                  paymentMethod: paymentMethodForChannel(defaultCustodyAccount?.channel),
+                  paymentMethod: paymentMethodForAccount(defaultCustodyAccount),
                   cashoutChargePaid: '0',
                   penaltyWaiverAmount: '0',
                   cashoutWaiverAmount: '0',
@@ -2582,7 +2645,7 @@ export const PaymentsPage: React.FC = () => {
 
               {/* Member Selection */}
               <div className="form-group">
-                <label className="form-label">Select Member</label>
+                <label className="form-label">{t('Select Member')}</label>
                 <select
                   required
                   className="form-select"
@@ -2592,10 +2655,10 @@ export const PaymentsPage: React.FC = () => {
                     setAllocationPreview(null);
                   }}
                 >
-                  <option value="">-- Choose Member --</option>
+                  <option value="">{language === 'bn' ? '-- সদস্য নির্বাচন করুন --' : '-- Choose Member --'}</option>
                   {membersList.map((m) => (
                     <option key={m._id} value={m._id}>
-                      {m.memberId} - {m.name} ({m.shareCount || 1} {(m.shareCount || 1) === 1 ? 'share' : 'shares'} · ৳{((m.shareCount || 1) * 500).toLocaleString()}/mo)
+                      {m.memberId} - {m.name} ({m.shareCount || 1} {language === 'bn' ? 'টি শেয়ার' : ((m.shareCount || 1) === 1 ? 'share' : 'shares')} · ৳{((m.shareCount || 1) * 500).toLocaleString()}{language === 'bn' ? '/মাস' : '/mo'})
                     </option>
                   ))}
                 </select>
@@ -2606,16 +2669,16 @@ export const PaymentsPage: React.FC = () => {
                 <div className="rounded-xl border border-white/10 bg-slate-900/80 p-3.5 space-y-3">
                   <div className="flex items-center justify-between text-xs pb-2 border-b border-white/10">
                     <div>
-                      <span className="text-gray-400">Selected Member:</span>
+                      <span className="text-gray-400">{t('Selected Member:')}</span>
                       <span className="font-bold text-white ml-1">{selectedMemberObj.name}</span>
                       <span className="text-gray-400 ml-1 font-mono text-[11px]">({selectedMemberObj.memberId})</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
-                        {selectedMemberObj.shareCount ?? 1} Share{((selectedMemberObj.shareCount ?? 1) > 1) ? 's' : ''}
+                        {selectedMemberObj.shareCount ?? 1} {language === 'bn' ? 'টি শেয়ার' : `Share${((selectedMemberObj.shareCount ?? 1) > 1) ? 's' : ''}`}
                       </span>
                       <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                        ৳{((selectedMemberObj.shareCount ?? 1) * 500).toLocaleString()}/mo
+                        ৳{((selectedMemberObj.shareCount ?? 1) * 500).toLocaleString()}{language === 'bn' ? '/মাস' : '/mo'}
                       </span>
                     </div>
                   </div>
@@ -2647,26 +2710,24 @@ export const PaymentsPage: React.FC = () => {
               {/* Grid: Receiver & Custody Account */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="form-group">
-                  <label className="form-label">Receiving Accountant</label>
+                  <label className="form-label">{t('Receiving Accountant')}</label>
                   <select
                     required
                     className="form-select"
                     value={formData.receiverId}
                     onChange={(e) => {
                       const newReceiverId = e.target.value;
-                      setFormData({ ...formData, receiverId: newReceiverId });
-                      // Find default custody account for this receiver
                       const accs = custodyAccounts.filter(
                         (c) => c.holderId?._id === newReceiverId
                       );
-                      if (accs.length > 0) {
-                        setFormData((prev) => ({
-                          ...prev,
-                          receiverId: newReceiverId,
-                          custodyAccountId: accs[0]._id,
-                          paymentMethod: paymentMethodForChannel(accs[0].channel),
-                        }));
-                      }
+                      const nextCustody = accs[0] || custodyAccounts[0];
+                      setFormData((prev) => ({
+                        ...prev,
+                        receiverId: newReceiverId,
+                        custodyAccountId: nextCustody?._id || '',
+                        paymentMethod: paymentMethodForAccount(nextCustody),
+                      }));
+                      setAllocationPreview(null);
                     }}
                   >
                     {custodyAccounts
@@ -2682,14 +2743,18 @@ export const PaymentsPage: React.FC = () => {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Destination Custody Account</label>
+                  <label className="form-label">{t('Destination Custody Account')}</label>
                   <select
                     required
                     className="form-select"
                     value={formData.custodyAccountId}
                     onChange={(e) => {
                       const account = custodyAccounts.find((item) => item._id === e.target.value);
-                      setFormData({ ...formData, custodyAccountId: e.target.value, paymentMethod: paymentMethodForChannel(account?.channel) });
+                      setFormData((prev) => ({
+                        ...prev,
+                        custodyAccountId: e.target.value,
+                        paymentMethod: paymentMethodForAccount(account),
+                      }));
                       setAllocationPreview(null);
                     }}
                   >
@@ -2711,11 +2776,36 @@ export const PaymentsPage: React.FC = () => {
               {/* Gateway and payment date */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="form-group">
-                  <label className="form-label">Applied Payment Gateway</label>
-                  <div className="form-input flex items-center bg-slate-900/70 text-gray-300">
-                    {formData.paymentMethod === 'BANK_TRANSFER' ? 'Bank / CellFin' : formData.paymentMethod === 'CASH' ? 'Physical Cash' : formData.paymentMethod === 'BKASH' ? 'bKash' : 'Nagad'}
+                  <label className="form-label">{t('Applied Payment Gateway')}</label>
+                  <div className="form-input flex items-center justify-between bg-slate-900/70 border border-white/10 px-3 py-2 rounded-xl">
+                    <span className="font-semibold text-xs text-gray-200">
+                      {formData.paymentMethod === 'BANK_TRANSFER' ? (
+                        <span className="inline-flex items-center gap-1.5 text-blue-400">
+                          <span>🏛️</span>
+                          <span>{language === 'bn' ? 'ব্যাংক ট্রান্সফার / সেলফিন (Bank / CellFin)' : 'Bank / CellFin'}</span>
+                        </span>
+                      ) : formData.paymentMethod === 'CASH' ? (
+                        <span className="inline-flex items-center gap-1.5 text-emerald-400">
+                          <span>💵</span>
+                          <span>{language === 'bn' ? 'সরাসরি ক্যাশ (Physical Cash)' : 'Physical Cash'}</span>
+                        </span>
+                      ) : formData.paymentMethod === 'BKASH' ? (
+                        <span className="inline-flex items-center gap-1.5 text-pink-400">
+                          <span>📱</span>
+                          <span>{language === 'bn' ? 'বিকাশ (bKash Gateway)' : 'bKash'}</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-amber-400">
+                          <span>📱</span>
+                          <span>{language === 'bn' ? 'নগদ (Nagad Gateway)' : 'Nagad'}</span>
+                        </span>
+                      )}
+                    </span>
+                    <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-white/5 text-gray-400 border border-white/10">
+                      {formData.paymentMethod}
+                    </span>
                   </div>
-                  <p className="text-[10px] text-gray-500 mt-1">Set automatically from the destination custody account.</p>
+                  <p className="text-[10px] text-gray-500 mt-1">{t('Set automatically from the destination custody account.')}</p>
                 </div>
 
                 <div className="form-group">
@@ -2764,10 +2854,10 @@ export const PaymentsPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleCalculatePreview}
-                    disabled={previewLoading || !formData.totalAmount}
+                    disabled={previewLoading || !formData.totalAmount || !formData.memberId}
                     className="btn btn-secondary text-xs px-4 shrink-0"
                   >
-                    {previewLoading ? 'Calculating...' : 'Preview Allocation'}
+                    {previewLoading ? (language === 'bn' ? 'হিসাব করা হচ্ছে...' : 'Calculating...') : (language === 'bn' ? 'বণ্টন দেখুন' : 'Preview Allocation')}
                   </button>
                 </div>
               </div>
@@ -2821,56 +2911,101 @@ export const PaymentsPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="p-4 bg-rose-500/5 rounded-xl border border-rose-500/20 space-y-3">
-                <div>
-                  <p className="text-xs font-bold text-rose-200 uppercase tracking-wider">Per-payment waiver</p>
-                  <p className="mt-1 text-[11px] text-gray-400">
-                    An accountant may forgive outstanding penalties or cash-out charges. Penalty waivers apply to the oldest previous dues first, then the current month. The reason is stored in the payment and audit trail.
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] text-gray-400 font-semibold block mb-1">Penalty waiver (৳)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      className="form-input text-xs"
-                      value={formData.penaltyWaiverAmount}
-                      onChange={(e) => {
-                        setFormData({ ...formData, penaltyWaiverAmount: e.target.value });
-                        setAllocationPreview(null);
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-gray-400 font-semibold block mb-1">Cash-out charge waiver (৳)</label>
-                    <input
-                      type="number"
-                      min={0}
-                      className="form-input text-xs"
-                      value={formData.cashoutWaiverAmount}
-                      onChange={(e) => {
-                        setFormData({ ...formData, cashoutWaiverAmount: e.target.value });
-                        setAllocationPreview(null);
-                      }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[11px] text-gray-400 font-semibold block mb-1">Waiver reason {Number(formData.penaltyWaiverAmount) > 0 || Number(formData.cashoutWaiverAmount) > 0 ? '(required)' : '(optional)'}</label>
-                  <input
-                    type="text"
-                    className="form-input text-xs"
-                    minLength={Number(formData.penaltyWaiverAmount) > 0 || Number(formData.cashoutWaiverAmount) > 0 ? 5 : undefined}
-                    placeholder="e.g. Board-approved hardship waiver"
-                    value={formData.waiverReason}
-                    onChange={(e) => {
-                      setFormData({ ...formData, waiverReason: e.target.value });
-                      setAllocationPreview(null);
-                    }}
-                  />
-                </div>
-              </div>
+              {/* Collapsible Penalty / Fee Waiver Section */}
+              {(() => {
+                const hasActiveWaiver =
+                  (Number(formData.penaltyWaiverAmount) || 0) > 0 ||
+                  (Number(formData.cashoutWaiverAmount) || 0) > 0 ||
+                  Boolean(formData.waiverReason?.trim());
+
+                return (
+                  <details
+                    className="group rounded-xl border border-rose-500/20 bg-rose-500/5 transition-all overflow-hidden"
+                    open={hasActiveWaiver || undefined}
+                  >
+                    <summary className="flex cursor-pointer items-center justify-between p-3.5 select-none hover:bg-rose-500/10 transition-colors list-none">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">⚖️</span>
+                        <div className="text-left">
+                          <span className="text-xs font-bold text-rose-200 uppercase tracking-wider block">
+                            {language === 'bn' ? 'জরিমানা ও ফি মওকুফ (ঐচ্ছিক)' : 'Per-Payment Penalty & Fee Waiver (Optional)'}
+                          </span>
+                          <span className="text-[11px] text-gray-400 block">
+                            {language === 'bn'
+                              ? 'প্রয়োজনে বকেয়া জরিমানা বা ক্যাশআউট চার্জ মওকুফ করতে ক্লিক করুন'
+                              : 'Expand to forgive penalty or gateway cash-out charge'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {hasActiveWaiver && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                            {language === 'bn' ? 'মওকুফ সক্রিয়' : 'Waiver Active'}
+                          </span>
+                        )}
+                        <ChevronDown size={16} className="text-rose-300 transition-transform duration-200 group-open:rotate-180" />
+                      </div>
+                    </summary>
+
+                    <div className="p-4 pt-1 border-t border-rose-500/15 space-y-3">
+                      <p className="text-[11px] text-gray-400">
+                        {t('An accountant may forgive outstanding penalties or cash-out charges. Penalty waivers apply to the oldest previous dues first, then the current month. The reason is stored in the payment and audit trail.')}
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-[11px] text-gray-400 font-semibold block mb-1">
+                            {t('Penalty waiver (৳)')}
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            className="form-input text-xs"
+                            value={formData.penaltyWaiverAmount}
+                            onChange={(e) => {
+                              setFormData({ ...formData, penaltyWaiverAmount: e.target.value });
+                              setAllocationPreview(null);
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[11px] text-gray-400 font-semibold block mb-1">
+                            {t('Cash-out charge waiver (৳)')}
+                          </label>
+                          <input
+                            type="number"
+                            min={0}
+                            className="form-input text-xs"
+                            value={formData.cashoutWaiverAmount}
+                            onChange={(e) => {
+                              setFormData({ ...formData, cashoutWaiverAmount: e.target.value });
+                              setAllocationPreview(null);
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-[11px] text-gray-400 font-semibold block mb-1">
+                          {t('Waiver reason')}{' '}
+                          {Number(formData.penaltyWaiverAmount) > 0 || Number(formData.cashoutWaiverAmount) > 0
+                            ? t('(required)')
+                            : t('(optional)')}
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input text-xs"
+                          minLength={Number(formData.penaltyWaiverAmount) > 0 || Number(formData.cashoutWaiverAmount) > 0 ? 5 : undefined}
+                          placeholder={language === 'bn' ? 'যেমন: কমিটির অনুমোদিত বিশেষ মওকুফ' : 'e.g. Board-approved hardship waiver'}
+                          value={formData.waiverReason}
+                          onChange={(e) => {
+                            setFormData({ ...formData, waiverReason: e.target.value });
+                            setAllocationPreview(null);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </details>
+                );
+              })()}
 
               {/* Allocation Preview Card */}
               {allocationPreview && (
@@ -2880,7 +3015,7 @@ export const PaymentsPage: React.FC = () => {
                       Authoritative Allocation Breakdown:
                     </span>
                     <span className="text-gray-300">
-                      Member Shares: {allocationPreview.member.shares} (৳ {allocationPreview.member.monthlyObligation}/mo)
+                      {language === 'bn' ? 'সদস্যের শেয়ার:' : 'Member Shares:'} {allocationPreview.member.shares} {language === 'bn' ? 'টি' : ''} (৳ {allocationPreview.member.monthlyObligation}{language === 'bn' ? '/মাস' : '/mo'})
                     </span>
                   </div>
 
@@ -2957,7 +3092,7 @@ export const PaymentsPage: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={collectSubmitting || !formData.totalAmount}
+                  disabled={collectSubmitting || !formData.totalAmount || !formData.memberId}
                   className="btn btn-primary px-6"
                 >
                   {collectSubmitting ? t('Saving Receipt...') : editingPayment ? t('Save Receipt Correction') : t('Confirm & Save Receipt')}

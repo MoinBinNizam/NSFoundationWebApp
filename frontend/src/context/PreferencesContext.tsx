@@ -10,9 +10,19 @@ export type BanglaFont =
   | 'tiro-bangla'
   | 'anek-bangla'
   | 'default';
+
+export type EnglishFont =
+  | 'plus-jakarta-sans'
+  | 'inter'
+  | 'outfit'
+  | 'roboto'
+  | 'poppins'
+  | 'lora'
+  | 'default';
+
 export type FontSize = 'small' | 'medium' | 'large' | 'xlarge';
 
-const FONT_FAMILY_MAP: Record<BanglaFont, string> = {
+export const FONT_FAMILY_MAP: Record<BanglaFont, string> = {
   'hind-siliguri': "'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif",
   'noto-sans-bengali': "'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif",
   'solaiman-lipi': "'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali', sans-serif",
@@ -20,6 +30,16 @@ const FONT_FAMILY_MAP: Record<BanglaFont, string> = {
   'tiro-bangla': "'Tiro Bangla', 'Noto Serif Bengali', 'Plus Jakarta Sans', serif",
   'anek-bangla': "'Anek Bangla', 'Plus Jakarta Sans', system-ui, sans-serif",
   default: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+};
+
+export const ENGLISH_FONT_FAMILY_MAP: Record<EnglishFont, string> = {
+  'plus-jakarta-sans': "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
+  inter: "'Inter', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
+  outfit: "'Outfit', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
+  roboto: "'Roboto', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
+  poppins: "'Poppins', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
+  lora: "'Lora', Georgia, 'Tiro Bangla', serif",
+  default: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
 };
 
 const FONT_SIZE_MAP: Record<FontSize, string> = {
@@ -36,6 +56,8 @@ interface PreferencesContextValue {
   setLanguage: (language: Language) => void;
   banglaFont: BanglaFont;
   setBanglaFont: (font: BanglaFont) => void;
+  englishFont: EnglishFont;
+  setEnglishFont: (font: EnglishFont) => void;
   fontSize: FontSize;
   setFontSize: (size: FontSize) => void;
   t: (english: string) => string;
@@ -65,6 +87,16 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
     return 'hind-siliguri';
   });
+  const [englishFont, setEnglishFont] = useState<EnglishFont>(() => {
+    const saved = localStorage.getItem('englishFont') as EnglishFont | null;
+    if (
+      saved &&
+      ['plus-jakarta-sans', 'inter', 'outfit', 'roboto', 'poppins', 'lora', 'default'].includes(saved)
+    ) {
+      return saved;
+    }
+    return 'plus-jakarta-sans';
+  });
   const [fontSize, setFontSize] = useState<FontSize>(() => {
     const saved = localStorage.getItem('fontSize') as FontSize | null;
     if (saved && ['small', 'medium', 'large', 'xlarge'].includes(saved)) {
@@ -83,14 +115,23 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
     localStorage.setItem('language', language);
   }, [language]);
 
-  // Dynamically apply selected font to root and body
+  // Dynamically apply selected font to root and body based on current language
   useEffect(() => {
+    document.documentElement.setAttribute('data-language', language);
     document.documentElement.setAttribute('data-bangla-font', banglaFont);
-    const chosenFont = FONT_FAMILY_MAP[banglaFont] || FONT_FAMILY_MAP['hind-siliguri'];
-    document.documentElement.style.setProperty('--font-sans', chosenFont);
-    document.body.style.setProperty('font-family', chosenFont, 'important');
+    document.documentElement.setAttribute('data-english-font', englishFont);
+
+    const activeFont =
+      language === 'bn'
+        ? (FONT_FAMILY_MAP[banglaFont] || FONT_FAMILY_MAP['hind-siliguri'])
+        : (ENGLISH_FONT_FAMILY_MAP[englishFont] || ENGLISH_FONT_FAMILY_MAP['plus-jakarta-sans']);
+
+    document.documentElement.style.setProperty('--font-sans', activeFont);
+    document.body.style.setProperty('font-family', activeFont, 'important');
+
     localStorage.setItem('banglaFont', banglaFont);
-  }, [banglaFont]);
+    localStorage.setItem('englishFont', englishFont);
+  }, [language, banglaFont, englishFont]);
 
   // Dynamically apply selected font size to root html
   useEffect(() => {
@@ -112,6 +153,8 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
       setLanguage,
       banglaFont,
       setBanglaFont,
+      englishFont,
+      setEnglishFont,
       fontSize,
       setFontSize,
       t: (english: string) => translateText(english, language),
@@ -134,7 +177,7 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
           ...options,
         }).format(new Date(date)),
     }),
-    [theme, language, banglaFont, fontSize, locale, numericLocale]
+    [theme, language, banglaFont, englishFont, fontSize, locale, numericLocale]
   );
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
 };
@@ -144,4 +187,5 @@ export const usePreferences = () => {
   if (!context) throw new Error('usePreferences must be used within PreferencesProvider.');
   return context;
 };
+
 
