@@ -6,9 +6,12 @@ import { Payment } from '../models/Payment.js';
 import { Member } from '../models/Member.js';
 import { CustodyMovement } from '../models/CustodyMovement.js';
 import { InvestmentProject } from '../models/InvestmentProject.js';
+import { InvestmentReturn } from '../models/InvestmentReturn.js';
+import { ShareHistory } from '../models/ShareHistory.js';
+import { MemberYearAccount } from '../models/MemberYearAccount.js';
 import { CustodyService } from './custody.service.js';
 import { InvestmentService } from './investment.service.js';
-import { IUser, UserRole, AccountantType, PaymentStatus } from '../types/models.js';
+import { IUser, UserRole, AccountantType, PaymentStatus, CustodyChannel } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 
 export type ReportType = 'collection' | 'custody' | 'investments' | 'expenses' | 'dues';
@@ -126,6 +129,7 @@ export class ReportingService {
     ];
     const overdueMemberIds = new Set<string>();
     const dueBreakdown = { principal: 0, penalty: 0 };
+    const memberDueMap = new Map<string, { principal: number; penalty: number; months: Set<string> }>();
     for (const ledger of dueLedgers) {
       const principalOutstanding = Math.max(0, Number(ledger.principalDue || 0) - Number(ledger.principalPaid || 0));
       const penaltyOutstanding = Math.max(0, Number(ledger.penaltyDue || 0) - Number(ledger.penaltyPaid || 0) - Number(ledger.penaltyWaived || 0));
@@ -138,11 +142,38 @@ export class ReportingService {
       const bucket = dueAging.find((item) => ageDays >= item.min && ageDays <= item.max);
       if (bucket) { bucket.total += outstanding; bucket.count += 1; }
       if (ageDays > 30) overdueMemberIds.add(String(ledger.memberId));
+
+      const mId = String(ledger.memberId);
+      const mDue = memberDueMap.get(mId) || { principal: 0, penalty: 0, months: new Set<string>() };
+      mDue.principal += principalOutstanding;
+      mDue.penalty += penaltyOutstanding;
+      mDue.months.add(ledger.month);
+      memberDueMap.set(mId, mDue);
     }
-    const cashoutDue = query.startDate || query.endDate ? [] : await Member.aggregate([
-      { $match: { cashoutDue: { $gt: 0 } } },
-      { $group: { _id: null, total: { $sum: '$cashoutDue' }, count: { $sum: 1 } } },
+
+    const dueMemberIds = Array.from(memberDueMap.keys());
+    const [cashoutDue, dueMembersData, activeShareRecords, allActiveMembers, allMyas, projectsList] = await Promise.all([
+      query.startDate || query.endDate ? Promise.resolve([]) : Member.aggregate([
+        { $match: { cashoutDue: { $gt: 0 } } },
+        { $group: { _id: null, total: { $sum: '$cashoutDue' }, count: { $sum: 1 } } },
+      ]),
+      dueMemberIds.length > 0
+        ? Member.find({ _id: { $in: dueMemberIds } }).select('memberId name phone cashoutDue').lean()
+        : Promise.resolve([]),
+      ShareHistory.aggregate([
+        { $sort: { effectiveMonth: -1, createdAt: -1 } },
+        { $group: { _id: '$memberId', latestShares: { $first: '$shareCount' } } },
+      ]),
+      Member.find({ status: 'ACTIVE' }).select('_id').lean(),
+      MemberYearAccount.find().select('excessAdvance').lean(),
+      canAccessInvestments(user)
+        ? InvestmentProject.find({ status: 'ACTIVE' })
+            .select('projectId name category externalEntity targetPrincipal totalFunded startDate maturityDate expectedAnnualRoiPercent')
+            .sort({ startDate: -1 })
+            .lean()
+        : Promise.resolve([]),
     ]);
+
     const cashout = Number(cashoutDue[0]?.total || 0);
     const dues = {
       principal: dueBreakdown.principal,
@@ -152,13 +183,133 @@ export class ReportingService {
       count: dueAging.reduce((sum, item) => sum + item.count, 0),
       cashoutMemberCount: Number(cashoutDue[0]?.count || 0),
     };
+
+    const topDueMembers = dueMembersData.map((m: any) => {
+      const due = memberDueMap.get(String(m._id)) || { principal: 0, penalty: 0, months: new Set() };
+      const memberCashout = Number(m.cashoutDue || 0);
+      return {
+        id: String(m._id),
+        memberId: m.memberId,
+        name: m.name,
+        phone: m.phone || '',
+        principalDue: due.principal,
+        penaltyDue: due.penalty,
+        cashoutDue: memberCashout,
+        totalDue: due.principal + due.penalty + memberCashout,
+        overdueMonthsCount: due.months.size,
+      };
+    }).sort((a: any, b: any) => b.totalDue - a.totalDue).slice(0, 10);
+
+    // Active Projects with return progress
+    const pIds = projectsList.map((p: any) => p._id);
+    const returnsAgg = pIds.length > 0
+      ? await InvestmentReturn.aggregate([
+          { $match: { projectId: { $in: pIds } } },
+          { $group: { _id: '$projectId', totalReturned: { $sum: '$totalReturn' }, profit: { $sum: '$actualProfit' }, principalReturned: { $sum: '$principalReturned' } } }
+        ])
+      : [];
+    const returnsMap = new Map(returnsAgg.map((r: any) => [String(r._id), r]));
+
+    const activeProjectsDetailed = projectsList.map((p: any) => {
+      const ret = returnsMap.get(String(p._id)) || { totalReturned: 0, profit: 0, principalReturned: 0 };
+      const start = p.startDate ? new Date(p.startDate).getTime() : Date.now();
+      const end = p.maturityDate ? new Date(p.maturityDate).getTime() : (start + 365 * 24 * 60 * 60 * 1000);
+      const now = Date.now();
+      const elapsed = Math.max(0, now - start);
+      const totalDuration = Math.max(1, end - start);
+      const timeProgressPercent = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
+      const daysRemaining = p.maturityDate ? Math.ceil((end - now) / (24 * 60 * 60 * 1000)) : null;
+
+      return {
+        id: String(p._id),
+        projectId: p.projectId,
+        name: p.name,
+        category: p.category || 'General',
+        partner: p.externalEntity || 'Direct Project',
+        targetPrincipal: Number(p.targetPrincipal || 0),
+        totalFunded: Number(p.totalFunded || 0),
+        principalReturned: Number(ret.principalReturned || 0),
+        profitEarned: Number(ret.profit || 0),
+        netOutstanding: Math.max(0, Number(p.totalFunded || 0) - Number(ret.principalReturned || 0)),
+        timeProgressPercent,
+        daysRemaining,
+        maturityDate: p.maturityDate ? new Date(p.maturityDate).toISOString().slice(0, 10) : null,
+        startDate: p.startDate ? new Date(p.startDate).toISOString().slice(0, 10) : null,
+        expectedAnnualRoiPercent: Number(p.expectedAnnualRoiPercent || 0),
+      };
+    });
+
+    // Custody Breakdown by Channel
+    const custodyByChannel = {
+      cashInHand: visibleAccounts
+        .filter((a: any) => a.channel === CustodyChannel.CASH || /cash|নগদ/i.test(a.name))
+        .reduce((sum: number, a: any) => sum + Math.max(0, a.derivedBalance), 0),
+      bankBalance: visibleAccounts
+        .filter((a: any) => a.channel === CustodyChannel.BANK || /bank|ব্যাংক/i.test(a.name))
+        .reduce((sum: number, a: any) => sum + Math.max(0, a.derivedBalance), 0),
+      mfsBalance: visibleAccounts
+        .filter((a: any) => [CustodyChannel.BKASH, CustodyChannel.NAGAD, CustodyChannel.OTHER].includes(a.channel) || /bkash|nagad|বিকাশ|নগদ/i.test(a.name))
+        .reduce((sum: number, a: any) => sum + Math.max(0, a.derivedBalance), 0),
+      walletBalance: visibleAccounts
+        .filter((a: any) => a.channel === CustodyChannel.WALLET || a.accountType === 'EXTERNAL_WALLET')
+        .reduce((sum: number, a: any) => sum + Math.max(0, a.derivedBalance), 0),
+      totalLiquid: currentCustody,
+    };
+
+    // Share & Capital Structure
+    const activeMemberIdSet = new Set(allActiveMembers.map((m: any) => String(m._id)));
+    let totalActiveShares = 0;
+    for (const rec of activeShareRecords) {
+      if (activeMemberIdSet.has(String(rec._id))) {
+        totalActiveShares += Number(rec.latestShares || 1);
+      }
+    }
+    if (totalActiveShares === 0) totalActiveShares = members;
+    const monthlyShareTarget = totalActiveShares * 500;
+    const totalExcessAdvances = allMyas.reduce((sum: number, m: any) => sum + Number(m.excessAdvance || 0), 0);
+
+    // Total Combined Net Worth (The 4 Pillars)
+    const totalCapitalInvested = Number(investment?.totalCapitalInvested || 0);
+    const netRealizedProfit = Number(investment?.netRealizedProfit || 0);
+    const totalNetWorth = currentCustody + totalCapitalInvested + netRealizedProfit + dues.principal + dues.penalty - totalExcessAdvances;
+    const bookValuePerShare = totalActiveShares > 0 ? totalNetWorth / totalActiveShares : 0;
+
+    const shareMetrics = {
+      totalActiveMembers: members,
+      totalActiveShares,
+      monthlyShareTarget,
+      advanceLiability: totalExcessAdvances,
+      bookValuePerShare,
+    };
+
+    // Monthly Pulse
+    const currentMonthCollected = Number(currentTrend.collections || 0);
+    const recoveryRate = monthlyShareTarget > 0 ? Math.min(100, Math.round((currentMonthCollected / monthlyShareTarget) * 100)) : 100;
+    const monthlyPulse = {
+      currentMonth: currentTrend.month,
+      currentCollections: currentMonthCollected,
+      previousMonth: trend[trend.length - 2]?.month || null,
+      previousCollections: Number(previousTrend.collections || 0),
+      targetCollections: monthlyShareTarget,
+      recoveryRate,
+      growthPercent: percentageChange(currentTrend.collections, previousTrend.collections),
+    };
+
     const lowBalanceThreshold = 1000;
     const lowCustodyAccounts = visibleAccounts.filter((account: any) => account.derivedBalance <= lowBalanceThreshold).slice(0, 4).map((account: any) => ({ name: account.name, balance: account.derivedBalance }));
+
     return {
       roleScope: isAdmin(user) ? 'ORGANIZATION' : 'ACCOUNTANT',
       period: { startDate: query.startDate || null, endDate: query.endDate || null },
       metrics: { collection: payment[0] || { total: 0, count: 0, principal: 0, penalty: 0 }, expenses: expense[0] || { total: 0, count: 0 }, dues, custody: currentCustody, activeMembers: members, investments: investment },
       custodyByAccount: visibleAccounts.map((account: any) => ({ name: account.name, channel: account.channel, balance: account.derivedBalance })),
+      custodyByChannel,
+      shareMetrics,
+      totalNetWorth,
+      bookValuePerShare,
+      monthlyPulse,
+      topDueMembers,
+      activeProjectsDetailed,
       trend,
       comparisons: {
         period: { current: currentTrend.month, previous: trend[trend.length - 2]?.month || null },

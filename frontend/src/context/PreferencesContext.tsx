@@ -1,10 +1,43 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Language, translateText } from '../i18n/translations';
 
-type Theme = 'dark' | 'light';
+export type Theme = 'dark' | 'light';
+export type BanglaFont =
+  | 'hind-siliguri'
+  | 'noto-sans-bengali'
+  | 'solaiman-lipi'
+  | 'kalpurush'
+  | 'tiro-bangla'
+  | 'anek-bangla'
+  | 'default';
+export type FontSize = 'small' | 'medium' | 'large' | 'xlarge';
+
+const FONT_FAMILY_MAP: Record<BanglaFont, string> = {
+  'hind-siliguri': "'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif",
+  'noto-sans-bengali': "'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif",
+  'solaiman-lipi': "'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali', sans-serif",
+  'kalpurush': "'Kalpurush', 'SolaimanLipi', 'Noto Sans Bengali', sans-serif",
+  'tiro-bangla': "'Tiro Bangla', 'Noto Serif Bengali', 'Plus Jakarta Sans', serif",
+  'anek-bangla': "'Anek Bangla', 'Plus Jakarta Sans', system-ui, sans-serif",
+  default: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+};
+
+const FONT_SIZE_MAP: Record<FontSize, string> = {
+  small: '14px',
+  medium: '16px',
+  large: '18px',
+  xlarge: '20px',
+};
 
 interface PreferencesContextValue {
-  theme: Theme; setTheme: (theme: Theme) => void; language: Language; setLanguage: (language: Language) => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  language: Language;
+  setLanguage: (language: Language) => void;
+  banglaFont: BanglaFont;
+  setBanglaFont: (font: BanglaFont) => void;
+  fontSize: FontSize;
+  setFontSize: (size: FontSize) => void;
   t: (english: string) => string;
   formatAmount: (value: number, options?: Intl.NumberFormatOptions) => string;
   formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string;
@@ -20,19 +53,89 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (saved === 'en' || saved === 'bn') return saved;
     return 'bn';
   });
-  useEffect(() => { document.documentElement.classList.toggle('dark', theme === 'dark'); document.documentElement.lang = language === 'bn' ? 'bn' : 'en'; localStorage.setItem('theme', theme); }, [theme, language]);
-  useEffect(() => { localStorage.setItem('language', language); }, [language]);
+  const [banglaFont, setBanglaFont] = useState<BanglaFont>(() => {
+    const saved = localStorage.getItem('banglaFont') as BanglaFont | null;
+    if (
+      saved &&
+      ['hind-siliguri', 'noto-sans-bengali', 'solaiman-lipi', 'kalpurush', 'tiro-bangla', 'anek-bangla', 'default'].includes(
+        saved
+      )
+    ) {
+      return saved;
+    }
+    return 'hind-siliguri';
+  });
+  const [fontSize, setFontSize] = useState<FontSize>(() => {
+    const saved = localStorage.getItem('fontSize') as FontSize | null;
+    if (saved && ['small', 'medium', 'large', 'xlarge'].includes(saved)) {
+      return saved;
+    }
+    return 'medium';
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.documentElement.lang = language === 'bn' ? 'bn' : 'en';
+    localStorage.setItem('theme', theme);
+  }, [theme, language]);
+
+  useEffect(() => {
+    localStorage.setItem('language', language);
+  }, [language]);
+
+  // Dynamically apply selected font to root and body
+  useEffect(() => {
+    document.documentElement.setAttribute('data-bangla-font', banglaFont);
+    const chosenFont = FONT_FAMILY_MAP[banglaFont] || FONT_FAMILY_MAP['hind-siliguri'];
+    document.documentElement.style.setProperty('--font-sans', chosenFont);
+    document.body.style.setProperty('font-family', chosenFont, 'important');
+    localStorage.setItem('banglaFont', banglaFont);
+  }, [banglaFont]);
+
+  // Dynamically apply selected font size to root html
+  useEffect(() => {
+    document.documentElement.setAttribute('data-font-size', fontSize);
+    const chosenSize = FONT_SIZE_MAP[fontSize] || '16px';
+    document.documentElement.style.setProperty('font-size', chosenSize, 'important');
+    localStorage.setItem('fontSize', fontSize);
+  }, [fontSize]);
+
   const locale = language === 'bn' ? 'bn-BD' : 'en-BD';
   // Financial and reference numbers remain in Latin digits in every language
   // so member IDs, totals, and statements are unambiguous.
   const numericLocale = 'en-BD';
-  const value = useMemo(() => ({
-    theme, setTheme, language, setLanguage,
-    t: (english: string) => translateText(english, language),
-    formatAmount: (amount: number, options: Intl.NumberFormatOptions = {}) => new Intl.NumberFormat(numericLocale, { minimumFractionDigits: 0, maximumFractionDigits: 2, ...options }).format(Number(amount || 0)),
-    formatNumber: (number: number, options: Intl.NumberFormatOptions = {}) => new Intl.NumberFormat(numericLocale, options).format(Number(number || 0)),
-    formatDate: (date: string | number | Date, options: Intl.DateTimeFormatOptions = {}) => new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'short', day: 'numeric', ...options }).format(new Date(date)),
-  }), [theme, language, locale, numericLocale]);
+  const value = useMemo(
+    () => ({
+      theme,
+      setTheme,
+      language,
+      setLanguage,
+      banglaFont,
+      setBanglaFont,
+      fontSize,
+      setFontSize,
+      t: (english: string) => translateText(english, language),
+      formatAmount: (amount: number, options: Intl.NumberFormatOptions = {}) =>
+        new Intl.NumberFormat(numericLocale, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2,
+          ...options,
+        }).format(Number(amount || 0)),
+      formatNumber: (number: number, options: Intl.NumberFormatOptions = {}) =>
+        new Intl.NumberFormat(numericLocale, options).format(Number(number || 0)),
+      formatDate: (
+        date: string | number | Date,
+        options: Intl.DateTimeFormatOptions = {}
+      ) =>
+        new Intl.DateTimeFormat(locale, {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          ...options,
+        }).format(new Date(date)),
+    }),
+    [theme, language, banglaFont, fontSize, locale, numericLocale]
+  );
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
 };
 
@@ -41,3 +144,4 @@ export const usePreferences = () => {
   if (!context) throw new Error('usePreferences must be used within PreferencesProvider.');
   return context;
 };
+

@@ -101,4 +101,33 @@ export class DistributionController {
       next(error);
     }
   }
+
+  static async seedDummy(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const batches = await DistributionService.seedDummyBatches(req.user);
+      res.status(201).json({
+        success: true,
+        message: 'Successfully seeded 3 realistic demo distribution batches with full settlement records.',
+        data: batches,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteBatch(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const result = await DistributionService.deleteBatch(req.params.id, req.user);
+      res.json({
+        success: true,
+        message: `Batch ${result.batchNumber} and its settlement allocations deleted successfully.`,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
+

@@ -7,7 +7,34 @@
     <title>NS Foundation Cooperative Society</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@300;400;500;600;700;800&family=Hind+Siliguri:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Bengali:wght@300;400;500;600;700;800&family=Noto+Serif+Bengali:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Tiro+Bangla:ital@0;1&display=swap" rel="stylesheet">
+    <link href="https://fonts.maateen.me/solaiman-lipi/font.css" rel="stylesheet">
+    <link href="https://fonts.maateen.me/kalpurush/font.css" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var font = localStorage.getItem('banglaFont') || 'hind-siliguri';
+          var size = localStorage.getItem('fontSize') || 'medium';
+          var theme = localStorage.getItem('theme') || 'dark';
+          var fontMap = {
+            'hind-siliguri': "'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif",
+            'noto-sans-bengali': "'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif",
+            'solaiman-lipi': "'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali', sans-serif",
+            'kalpurush': "'Kalpurush', 'SolaimanLipi', 'Noto Sans Bengali', sans-serif",
+            'tiro-bangla': "'Tiro Bangla', 'Noto Serif Bengali', 'Plus Jakarta Sans', serif",
+            'anek-bangla': "'Anek Bangla', 'Plus Jakarta Sans', system-ui, sans-serif",
+            'default': "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif"
+          };
+          var sizeMap = { small: '14px', medium: '16px', large: '18px', xlarge: '20px' };
+          var doc = document.documentElement;
+          doc.setAttribute('data-bangla-font', font);
+          doc.setAttribute('data-font-size', size);
+          if (theme === 'dark') { doc.classList.add('dark'); } else { doc.classList.remove('dark'); }
+          if (fontMap[font]) { doc.style.setProperty('--font-sans', fontMap[font]); }
+          if (sizeMap[size]) { doc.style.setProperty('font-size', sizeMap[size], 'important'); }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

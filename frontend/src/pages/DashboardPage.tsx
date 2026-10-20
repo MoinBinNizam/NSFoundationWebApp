@@ -26,9 +26,70 @@ import {
   Wallet,
   WalletCards,
   X,
+  CreditCard,
+  Building2,
+  PieChart,
+  ArrowUpRight,
+  AlertTriangle,
 } from 'lucide-react';
 
 type ReportType = 'collection' | 'custody' | 'investments' | 'expenses' | 'dues';
+
+export interface TopDueMember {
+  id: string;
+  memberId: string;
+  name: string;
+  phone: string;
+  principalDue: number;
+  penaltyDue: number;
+  cashoutDue: number;
+  totalDue: number;
+  overdueMonthsCount: number;
+}
+
+export interface ActiveProjectItem {
+  id: string;
+  projectId: string;
+  name: string;
+  category: string;
+  partner: string;
+  targetPrincipal: number;
+  totalFunded: number;
+  principalReturned: number;
+  profitEarned: number;
+  netOutstanding: number;
+  timeProgressPercent: number;
+  daysRemaining: number | null;
+  maturityDate: string | null;
+  startDate: string | null;
+  expectedAnnualRoiPercent: number;
+}
+
+export interface CustodyChannelSummary {
+  cashInHand: number;
+  bankBalance: number;
+  mfsBalance: number;
+  walletBalance: number;
+  totalLiquid: number;
+}
+
+export interface ShareMetrics {
+  totalActiveMembers: number;
+  totalActiveShares: number;
+  monthlyShareTarget: number;
+  advanceLiability: number;
+  bookValuePerShare: number;
+}
+
+export interface MonthlyPulse {
+  currentMonth: string;
+  currentCollections: number;
+  previousMonth: string | null;
+  previousCollections: number;
+  targetCollections: number;
+  recoveryRate: number;
+  growthPercent: number | null;
+}
 
 interface Dashboard {
   roleScope: 'ORGANIZATION' | 'ACCOUNTANT';
@@ -45,6 +106,14 @@ interface Dashboard {
       netRealizedProfit: number;
     } | null;
   };
+  custodyByAccount: Array<{ name: string; channel: string; balance: number }>;
+  custodyByChannel?: CustodyChannelSummary;
+  shareMetrics?: ShareMetrics;
+  totalNetWorth?: number;
+  bookValuePerShare?: number;
+  monthlyPulse?: MonthlyPulse;
+  topDueMembers?: TopDueMember[];
+  activeProjectsDetailed?: ActiveProjectItem[];
   trend: Array<{ month: string; collections: number; expenses: number; dues: number }>;
   comparisons: {
     period: { current: string; previous: string | null };
@@ -62,7 +131,6 @@ interface Dashboard {
   };
   activityTotal: number;
   activityPagination: { page: number; limit: number; totalPages: number };
-  custodyByAccount: Array<{ name: string; channel: string; balance: number }>;
   recentActivity: Array<{
     id: string;
     action: string;
@@ -372,7 +440,204 @@ export const DashboardPage: React.FC = () => {
         loading ? (
           <Loading />
         ) : (
-          <div className="flex flex-col gap-8 sm:gap-10">
+          <div className="flex flex-col gap-6 sm:gap-8">
+            {/* EXECUTIVE SECTION A: The 4 Pillars of Society Net Worth */}
+            <div className="glass-card p-5 sm:p-6 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-blue-950/40 border border-blue-500/20 shadow-xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                    <Building2 size={17} />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-extrabold text-white tracking-wider uppercase flex items-center gap-2">
+                      <span>{t('NS Foundation Executive Command Center')}</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                        {t('System Operational')}
+                      </span>
+                    </h2>
+                    <p className="text-xs text-gray-400">
+                      {t('Combined valuation of liquid funds, active investments, and net receivables.')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <span className="text-[11px] font-bold text-gray-300 bg-white/5 border border-white/10 px-3 py-1 rounded-lg">
+                    {t('Accounting Year')}: <b className="text-blue-400">{reportingYear === 'ALL' ? '2024–2025' : reportingYear}</b>
+                  </span>
+                </div>
+              </div>
+
+              {/* 4 Pillars Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-1">
+                {/* Pillar 1: Total Society Net Worth */}
+                <div className="p-4 rounded-xl bg-gradient-to-br from-indigo-950/40 to-slate-900/80 border border-indigo-500/30 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between text-indigo-300 text-xs font-bold uppercase tracking-wider">
+                      <span>{t('Total Society Net Worth')}</span>
+                      <PieChart size={16} className="text-indigo-400" />
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-black text-white mt-2 tracking-tight">
+                      {money(dashboard?.totalNetWorth ?? ((dashboard?.metrics.custody || 0) + (dashboard?.metrics.investments?.totalCapitalInvested || 0) + (dashboard?.metrics.investments?.netRealizedProfit || 0) + (dashboard?.metrics.dues.total || 0)))}
+                    </p>
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between">
+                    <span>{t('Share Book Value')}:</span>
+                    <b className="text-indigo-300 font-bold">{money(dashboard?.shareMetrics?.bookValuePerShare || dashboard?.bookValuePerShare || 0)}</b>
+                  </div>
+                </div>
+
+                {/* Pillar 2: Total Liquid Custody */}
+                <div className="p-4 rounded-xl bg-gradient-to-br from-blue-950/40 to-slate-900/80 border border-blue-500/30 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between text-blue-300 text-xs font-bold uppercase tracking-wider">
+                      <span>{t('Total Liquid Custody')}</span>
+                      <Landmark size={16} className="text-blue-400" />
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-black text-blue-300 mt-2 tracking-tight">
+                      {money(dashboard?.custodyByChannel?.totalLiquid ?? dashboard?.metrics.custody)}
+                    </p>
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between">
+                    <span>{dashboard?.custodyByAccount.length || 0} {t('active accounts')}</span>
+                    <span className="text-blue-400 font-semibold">{t('Verified balance')}</span>
+                  </div>
+                </div>
+
+                {/* Pillar 3: Total Investments & Returns */}
+                <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-950/40 to-slate-900/80 border border-emerald-500/30 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between text-emerald-300 text-xs font-bold uppercase tracking-wider">
+                      <span>{t('Total Investments & Returns')}</span>
+                      <TrendingUp size={16} className="text-emerald-400" />
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-black text-emerald-300 mt-2 tracking-tight">
+                      {money(((dashboard?.metrics.investments?.totalCapitalInvested || 0) + (dashboard?.metrics.investments?.netRealizedProfit || 0)))}
+                    </p>
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between">
+                    <span>{t('Net Realized Profit')}:</span>
+                    <b className="text-emerald-400 font-bold">{money(dashboard?.metrics.investments?.netRealizedProfit || 0)}</b>
+                  </div>
+                </div>
+
+                {/* Pillar 4: Total Outstanding Dues */}
+                <div className="p-4 rounded-xl bg-gradient-to-br from-amber-950/40 to-slate-900/80 border border-amber-500/30 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between text-amber-300 text-xs font-bold uppercase tracking-wider">
+                      <span>{t('Total Outstanding Dues')}</span>
+                      <DollarSign size={16} className="text-amber-400" />
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-black text-amber-300 mt-2 tracking-tight">
+                      {money(dashboard?.metrics.dues.total)}
+                    </p>
+                  </div>
+                  <div className="text-[11px] text-gray-400 mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between">
+                    <span>{t('Overdue Members')}:</span>
+                    <b className="text-amber-400 font-bold">{dashboard?.alerts.overdueMembers || 0} {t('members')}</b>
+                  </div>
+                </div>
+              </div>
+
+              {/* EXECUTIVE SECTION B: Liquid Cash by Channel Breakdown (হাতে নগদ, ব্যাংক ও বিকাশ) */}
+              <div className="pt-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                      <Wallet size={17} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block truncate">
+                        {t('Cash in Hand')}
+                      </span>
+                      <p className="text-sm sm:text-base font-extrabold text-white truncate">
+                        {money(dashboard?.custodyByChannel?.cashInHand || 0)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                      <Landmark size={17} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block truncate">
+                        {t('Bank Balance')}
+                      </span>
+                      <p className="text-sm sm:text-base font-extrabold text-white truncate">
+                        {money(dashboard?.custodyByChannel?.bankBalance || 0)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400 shrink-0">
+                      <CreditCard size={17} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block truncate">
+                        {t('Mobile Banking (MFS)')}
+                      </span>
+                      <p className="text-sm sm:text-base font-extrabold text-white truncate">
+                        {money(dashboard?.custodyByChannel?.mfsBalance || 0)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/60 border border-white/5 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 shrink-0">
+                      <Layers size={17} />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block truncate">
+                        {t('Project Wallets')}
+                      </span>
+                      <p className="text-sm sm:text-base font-extrabold text-white truncate">
+                        {money(dashboard?.custodyByChannel?.walletBalance || 0)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* EXECUTIVE SECTION C: Shares & Capital Structure Pulse */}
+              <div className="p-3.5 rounded-xl bg-slate-950/40 border border-white/5 flex flex-wrap items-center justify-between gap-4 text-xs">
+                <div className="flex items-center gap-6 flex-wrap">
+                  <div>
+                    <span className="text-gray-400 text-[11px] block">{t('Total Active Shares')}:</span>
+                    <b className="text-white font-extrabold text-sm">{dashboard?.shareMetrics?.totalActiveShares || 39} {t('Shares')}</b>
+                  </div>
+                  <div className="h-6 w-px bg-white/10 hidden sm:block" />
+                  <div>
+                    <span className="text-gray-400 text-[11px] block">{t('Expected Monthly Capital')}:</span>
+                    <b className="text-blue-300 font-extrabold text-sm">{money(dashboard?.shareMetrics?.monthlyShareTarget || 19500)}</b>
+                  </div>
+                  <div className="h-6 w-px bg-white/10 hidden sm:block" />
+                  <div>
+                    <span className="text-gray-400 text-[11px] block">{t('Advance Liability')}:</span>
+                    <b className="text-purple-300 font-extrabold text-sm">{money(dashboard?.shareMetrics?.advanceLiability || 0)}</b>
+                  </div>
+                </div>
+
+                {dashboard?.monthlyPulse && (
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <div className="flex items-center justify-between text-[11px] gap-2">
+                        <span className="text-gray-400">{t('Collection Recovery Rate')}:</span>
+                        <b className="text-emerald-400 font-bold">{dashboard.monthlyPulse.recoveryRate}%</b>
+                      </div>
+                      <div className="w-36 bg-slate-800 rounded-full h-1.5 overflow-hidden mt-1 border border-white/5">
+                        <div
+                          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-400 transition-all duration-500"
+                          style={{ width: `${Math.min(100, Math.max(dashboard.monthlyPulse.recoveryRate, 4))}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* 1. Primary Metric KPI Cards (Contributions & Payments Cards Design) */}
             <div className="order-1 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-3">
               {/* Card 1: Total Collections */}
@@ -512,6 +777,198 @@ export const DashboardPage: React.FC = () => {
             <FinancialTrendChart trend={dashboard?.trend || []} onOpenReport={openReport} />
 
             <DashboardAlerts alerts={dashboard?.alerts} onOpenReport={openReport} showInvestments={isPrimary} />
+
+            {/* 3. Operational Focus: Top Overdue Members & Active Investment Projects */}
+            <div className="order-3 grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+              {/* Left Widget: Top Overdue Members List (শীর্ষ বকেয়া সদস্য তালিকা) */}
+              <div className="glass-card p-5 sm:p-6 space-y-4 flex flex-col justify-between border-l-4 border-l-amber-500/80">
+                <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
+                        <AlertTriangle size={16} />
+                      </div>
+                      <div>
+                        <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                          <span>{t('Top Overdue Members')}</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                            {dashboard?.alerts.overdueMembers || 0} {t('members')}
+                          </span>
+                        </h2>
+                        <p className="text-xs text-gray-400">
+                          {t('Member-specific outstanding obligations requiring follow-up.')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => navigate('/dues')}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-amber-400 hover:text-amber-300 transition-colors self-start sm:self-auto"
+                    >
+                      <span>{t('View All Dues')}</span>
+                      <ArrowUpRight size={14} />
+                    </button>
+                  </div>
+
+                  <div className="mt-4 space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
+                    {dashboard?.topDueMembers && dashboard.topDueMembers.length > 0 ? (
+                      dashboard.topDueMembers.map((member, idx) => (
+                        <div
+                          key={member.id}
+                          className="p-3 rounded-xl bg-slate-900/60 border border-white/5 hover:border-amber-500/30 transition-all flex items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="inline-flex items-center justify-center font-mono text-[11px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-2 py-1 min-w-[36px] shrink-0">
+                              #{idx + 1}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-xs sm:text-sm text-white truncate">{member.name}</span>
+                                <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-white/5 text-gray-300 border border-white/10">
+                                  {member.memberId}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-[11px] text-gray-400 mt-0.5">
+                                <span className="text-amber-400/90 font-semibold">{member.overdueMonthsCount} {t('Months Overdue')}</span>
+                                {member.phone && <span>· {member.phone}</span>}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <p className="text-xs sm:text-sm font-black text-rose-400">
+                              {money(member.totalDue)}
+                            </p>
+                            <span className="text-[10px] text-gray-400 block">
+                              {t('Principal')}: {money(member.principalDue)}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-8 text-center text-xs text-gray-400 flex flex-col items-center justify-center gap-2">
+                        <ShieldCheck size={24} className="text-emerald-400" />
+                        <span className="font-bold text-emerald-400">{t('All Members Up to Date')}</span>
+                        <span className="text-gray-500">{t('No active overdue members recorded.')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-gray-400">
+                  <span>{t('Total Dues')}: <b className="text-white">{money(dashboard?.metrics.dues.total)}</b></span>
+                  <span className="text-amber-400 font-semibold">{dashboard?.metrics.dues.count || 0} {t('outstanding ledger months')}</span>
+                </div>
+              </div>
+
+              {/* Right Widget: Active Investment Projects Tracker (চলমান বিনিয়োগ প্রকল্প ও প্রগ্রেস) */}
+              <div className="glass-card p-5 sm:p-6 space-y-4 flex flex-col justify-between border-l-4 border-l-indigo-500/80">
+                <div>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-4">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 shrink-0">
+                        <TrendingUp size={16} />
+                      </div>
+                      <div>
+                        <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                          <span>{t('Active Investment Projects Tracker')}</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+                            {dashboard?.activeProjectsDetailed?.length || dashboard?.metrics.investments?.activeProjectsCount || 0} {t('Projects')}
+                          </span>
+                        </h2>
+                        <p className="text-xs text-gray-400">
+                          {t('Live projects progress, capital deployed, and returned profit.')}
+                        </p>
+                      </div>
+                    </div>
+
+                    {isPrimary && (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/investments')}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors self-start sm:self-auto"
+                      >
+                        <span>{t('Portfolio')}</span>
+                        <ArrowUpRight size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="mt-4 space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                    {dashboard?.activeProjectsDetailed && dashboard.activeProjectsDetailed.length > 0 ? (
+                      dashboard.activeProjectsDetailed.map((project) => (
+                        <div
+                          key={project.id}
+                          className="p-3.5 rounded-xl bg-slate-900/60 border border-white/5 hover:border-indigo-500/30 transition-all space-y-2.5"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-xs sm:text-sm text-white truncate">{project.name}</span>
+                                <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                                  {project.projectId}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                                {t('Partner Entity')}: <span className="text-gray-300 font-medium">{project.partner}</span> · {project.category}
+                              </p>
+                            </div>
+
+                            <div className="text-right shrink-0">
+                              <p className="text-xs sm:text-sm font-black text-emerald-400">
+                                +{money(project.profitEarned)}
+                              </p>
+                              <span className="text-[10px] text-gray-400 block">
+                                {t('Profit Earned')}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Progress Bar & Timeline */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between text-[11px]">
+                              <span className="text-gray-400">
+                                {t('Time Progress')}: <b className="text-white">{project.timeProgressPercent}%</b>
+                              </span>
+                              <span className="text-indigo-300 font-semibold">
+                                {project.daysRemaining !== null
+                                  ? project.daysRemaining > 0
+                                    ? `${project.daysRemaining} ${t('Days Remaining')}`
+                                    : t('Matured')
+                                  : t('Active')}
+                              </span>
+                            </div>
+                            <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-white/5">
+                              <div
+                                className="h-full rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 transition-all duration-500"
+                                style={{ width: `${Math.min(100, Math.max(project.timeProgressPercent, 5))}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] pt-1 border-t border-white/5 text-gray-400">
+                            <span>{t('Funded')}: <b className="text-white">{money(project.totalFunded)}</b></span>
+                            <span>{t('Expected ROI')}: <b className="text-cyan-400">{project.expectedAnnualRoiPercent}%</b></span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-8 text-center text-xs text-gray-400 flex flex-col items-center justify-center gap-2">
+                        <TrendingUp size={24} className="text-indigo-400" />
+                        <span className="font-bold text-indigo-300">{t('No Active Projects')}</span>
+                        <span className="text-gray-500">{t('All investment projects are currently matured or closed.')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-white/5 flex items-center justify-between text-[11px] text-gray-400">
+                  <span>{t('Total Capital Invested')}: <b className="text-white">{money(dashboard?.metrics.investments?.totalCapitalInvested || 0)}</b></span>
+                  <span className="text-emerald-400 font-semibold">{t('Net Profit')}: {money(dashboard?.metrics.investments?.netRealizedProfit || 0)}</span>
+                </div>
+              </div>
+            </div>
 
             {/* 4. Middle Section: Recent System Activity & Custody Distribution */}
             <div className="order-4 grid grid-cols-1 lg:grid-cols-5 gap-6 sm:gap-8">

@@ -20,6 +20,7 @@ import {
   RefreshCw,
   X,
   Eye,
+  Trash2,
 } from 'lucide-react';
 
 interface CustodyAccountItem {
@@ -147,6 +148,9 @@ export const DistributionPage: React.FC = () => {
   const groupedCustody = useMemo(() => groupCustodyAccounts(custodyAccounts), [custodyAccounts]);
   const [selectedCustodyId, setSelectedCustodyId] = useState('');
   const [processingPayout, setProcessingPayout] = useState(false);
+  const [seedingDummy, setSeedingDummy] = useState(false);
+  const [batchToDelete, setBatchToDelete] = useState<DistributionBatchItem | null>(null);
+  const [deletingBatch, setDeletingBatch] = useState(false);
 
   // Search & Pagination in Allocation Tables
   const [searchTerm, setSearchTerm] = useState('');
@@ -357,6 +361,54 @@ export const DistributionPage: React.FC = () => {
       .catch(() => {
         setAlertMsg({ type: 'error', text: 'Could not download CSV export.' });
       });
+  };
+
+  // Seed Realistic Demo Batches
+  const handleSeedDummyBatches = async () => {
+    try {
+      setSeedingDummy(true);
+      await apiRequest('/distributions/batches/seed-dummy', {
+        method: 'POST',
+      });
+      setAlertMsg({
+        type: 'success',
+        text: 'Successfully seeded 3 realistic demo distribution batches with full settlement allocations!',
+      });
+      loadBatches();
+    } catch (err: any) {
+      setAlertMsg({
+        type: 'error',
+        text: err?.message || 'Failed to seed dummy distribution batches.',
+      });
+    } finally {
+      setSeedingDummy(false);
+    }
+  };
+
+  // Delete Batch & Allocations
+  const handleDeleteBatch = async (batchId: string) => {
+    try {
+      setDeletingBatch(true);
+      await apiRequest(`/distributions/batches/${batchId}`, {
+        method: 'DELETE',
+      });
+      setAlertMsg({
+        type: 'success',
+        text: 'Distribution batch and associated settlement records deleted successfully.',
+      });
+      setBatchToDelete(null);
+      if (batchDetails?.batch._id === batchId) {
+        setBatchDetails(null);
+      }
+      loadBatches();
+    } catch (err: any) {
+      setAlertMsg({
+        type: 'error',
+        text: err?.message || 'Failed to delete distribution batch.',
+      });
+    } finally {
+      setDeletingBatch(false);
+    }
   };
 
   // Allocation Filtering & Sorting
@@ -907,6 +959,16 @@ export const DistributionPage: React.FC = () => {
                       <span>Disburse Payouts</span>
                     </button>
                   )}
+
+                  {(isSuperAdmin || user?.role === 'ADMIN') && (
+                    <button
+                      onClick={() => setBatchToDelete(batchDetails.batch)}
+                      className="btn btn-secondary btn-sm text-xs font-bold uppercase tracking-wider text-rose-400 hover:text-rose-300 border-rose-500/30 hover:border-rose-500/50 flex items-center gap-1.5 ml-auto"
+                    >
+                      <Trash2 size={14} />
+                      <span>{t('Delete Batch')}</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -980,12 +1042,27 @@ export const DistributionPage: React.FC = () => {
           ) : (
             /* Batches List */
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
                 <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
                   <Layers size={16} className="text-blue-400" />
                   <span>{t('Historical Settlement Batches')}</span>
                 </h2>
-                <span className="text-xs text-gray-400">{t(`${batches.length} batches recorded`)}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-400 hidden sm:inline">
+                    {t(`${batches.length} batches recorded`)}
+                  </span>
+                  {isAuthorizedStaff && (
+                    <button
+                      onClick={handleSeedDummyBatches}
+                      disabled={seedingDummy}
+                      className="btn btn-secondary btn-sm text-xs font-semibold flex items-center gap-1.5 border-cyan-500/30 hover:border-cyan-400 text-cyan-300 bg-cyan-950/20"
+                      title="Seed realistic demo batches to test settlement workflows"
+                    >
+                      <Sparkles size={14} className={seedingDummy ? 'animate-spin text-cyan-400' : 'text-cyan-400'} />
+                      <span>{seedingDummy ? t('Seeding...') : t('Seed Demo Batches')}</span>
+                    </button>
+                  )}
+                </div>
               </div>
 
               {loadingBatches ? (
@@ -994,11 +1071,23 @@ export const DistributionPage: React.FC = () => {
                   <span>Loading distribution batches…</span>
                 </div>
               ) : batches.length === 0 ? (
-                <div className="glass-card p-12 text-center text-sm text-gray-400 space-y-2">
+                <div className="glass-card p-12 text-center text-sm text-gray-400 space-y-3">
                   <p className="font-semibold text-white">{t('No Distribution Batches Yet')}</p>
-                  <p className="text-xs text-gray-500">
-                    {t('Switch to the workspace tab to calculate and generate a new year-end distribution batch.')}
+                  <p className="text-xs text-gray-500 max-w-md mx-auto">
+                    {t(
+                      'Switch to the workspace tab to calculate and generate a new year-end distribution batch, or seed realistic demo batches to explore.'
+                    )}
                   </p>
+                  {isAuthorizedStaff && (
+                    <button
+                      onClick={handleSeedDummyBatches}
+                      disabled={seedingDummy}
+                      className="btn btn-primary btn-sm mx-auto text-xs font-semibold flex items-center gap-1.5 mt-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500"
+                    >
+                      <Sparkles size={14} className={seedingDummy ? 'animate-spin' : ''} />
+                      <span>{seedingDummy ? t('Seeding Demo Batches...') : t('Seed Demo Batches')}</span>
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4">
@@ -1104,6 +1193,16 @@ export const DistributionPage: React.FC = () => {
                           >
                             <Download size={14} />
                           </button>
+
+                          {(isSuperAdmin || user?.role === 'ADMIN') && (
+                            <button
+                              onClick={() => setBatchToDelete(batch)}
+                              className="p-2 rounded-lg border border-white/10 hover:border-rose-500/30 hover:bg-rose-500/10 text-gray-400 hover:text-rose-400 transition-colors"
+                              title={t('Delete Batch')}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1272,6 +1371,53 @@ export const DistributionPage: React.FC = () => {
               >
                 {processingPayout ? <RefreshCw size={14} className="animate-spin" /> : null}
                 <span>Disburse Now</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Batch Confirmation Modal */}
+      {batchToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="glass-card max-w-md w-full p-6 space-y-4 border-rose-500/30 shadow-2xl shadow-rose-950/50">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
+                <AlertTriangle size={22} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">{t('Confirm Batch Deletion')}</h3>
+                <p className="text-xs text-gray-400 font-mono mt-0.5">{batchToDelete.batchNumber}</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-gray-300 leading-relaxed">
+              {t('Are you sure you want to delete distribution batch')}{' '}
+              <strong className="text-white font-mono">{batchToDelete.batchNumber}</strong>{' '}
+              ({batchToDelete.title})?
+            </p>
+
+            <div className="text-xs text-rose-300/90 bg-rose-500/10 p-3 rounded-xl border border-rose-500/20 leading-relaxed">
+              {t('This will permanently remove this batch and all')}{' '}
+              <strong className="text-white font-bold">{batchToDelete.memberCount}</strong>{' '}
+              {t('associated member settlement line items and custody records.')}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setBatchToDelete(null)}
+                disabled={deletingBatch}
+                className="btn btn-secondary btn-sm text-xs font-semibold"
+              >
+                {t('Cancel')}
+              </button>
+              <button
+                onClick={() => handleDeleteBatch(batchToDelete._id)}
+                disabled={deletingBatch}
+                className="btn btn-primary btn-sm text-xs font-semibold bg-rose-600 hover:bg-rose-500 flex items-center gap-1.5 shadow-lg shadow-rose-600/30"
+              >
+                {deletingBatch ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                <span>{deletingBatch ? t('Deleting...') : t('Yes, Delete Batch')}</span>
               </button>
             </div>
           </div>

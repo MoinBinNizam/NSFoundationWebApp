@@ -29,11 +29,25 @@ router.post(
   DistributionController.createBatch
 );
 
+// 3a. Seed Realistic Dummy Batches & Settlement Records (Admin & Accountant)
+router.post(
+  '/batches/seed-dummy',
+  requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ACCOUNTANT),
+  DistributionController.seedDummy
+);
+
 // 4. Batch Detail (Admin & Accountant)
 router.get(
   '/batches/:id',
   requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ACCOUNTANT),
   DistributionController.getBatch
+);
+
+// 4a. Delete Batch & Associated Settlement Allocations (Admin & Super Admin)
+router.delete(
+  '/batches/:id',
+  requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  DistributionController.deleteBatch
 );
 
 // 5. Export Batch Allocations CSV (Admin & Accountant)

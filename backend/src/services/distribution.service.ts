@@ -522,4 +522,243 @@ export class DistributionService {
 
     return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
   }
+
+  /**
+   * Seeds realistic demo distribution batches and member allocations.
+   */
+  static async seedDummyBatches(user: IUser) {
+    let members = await Member.find({ status: 'ACTIVE' }).limit(30).lean();
+    if (members.length === 0) {
+      members = await Member.find().limit(30).lean();
+    }
+    if (members.length === 0) {
+      throw createError('No members found in system to generate distribution dummy data.', 400);
+    }
+
+    const memberShares = await Promise.all(
+      members.map(async (m) => {
+        const sh = await ShareHistory.findOne({ memberId: m._id })
+          .sort({ effectiveMonth: -1, createdAt: -1 })
+          .lean();
+        return {
+          memberId: m._id,
+          memberCode: m.memberId,
+          memberName: m.name,
+          memberStatus: m.status,
+          shares: Math.max(1, sh?.shareCount || 1),
+        };
+      })
+    );
+
+    const totalShares = memberShares.reduce((s, m) => s + m.shares, 0);
+    const custodyAcc = await CustodyAccount.findOne({ isActive: true }).lean();
+    const adminId = (user as any)._id;
+
+    // 1. Batch 1: FY 2028 Final Settlement (APPROVED)
+    const batchNumber1 = 'FD-2028-DEMO1';
+    const existing1 = await DistributionBatch.findOne({ batchNumber: batchNumber1 });
+    if (existing1) {
+      await MemberDistribution.deleteMany({ batchId: existing1._id });
+      await DistributionBatch.findByIdAndDelete(existing1._id);
+    }
+
+    const distributable1 = totalShares * 15000;
+    const batch1 = new DistributionBatch({
+      batchNumber: batchNumber1,
+      year: 2028,
+      title: 'FY 2028 Final Capital & Profit Settlement (Demo)',
+      status: DistributionBatchStatus.APPROVED,
+      basis: DistributionBasis.FINALIZED_SHARES,
+      totalPool: distributable1 + 25000,
+      totalPrincipalReturned: Math.round(distributable1 * 0.7),
+      netRealizedProfit: Math.round(distributable1 * 0.3 + 25000),
+      totalExpenses: 25000,
+      retainedAmount: 0,
+      distributableAmount: distributable1,
+      totalShares,
+      amountPerShare: 15000,
+      memberCount: memberShares.length,
+      custodyAccountId: custodyAcc?._id,
+      preparedBy: adminId,
+      approvedBy: adminId,
+      approvedAt: new Date(),
+      notes: 'Realistic demo batch ready for Super Admin to test Disburse Payouts execution.',
+    });
+    await batch1.save();
+
+    const allocations1 = memberShares.map((m) => {
+      const shareRatio = m.shares / totalShares;
+      const net = Math.round(distributable1 * shareRatio * 100) / 100;
+      return {
+        batchId: batch1._id,
+        memberId: m.memberId,
+        memberCode: m.memberCode,
+        memberName: m.memberName,
+        year: 2028,
+        finalShares: m.shares,
+        shareRatio: Math.round(shareRatio * 10000) / 10000,
+        grossEntitlement: net,
+        shortfallDeduction: 0,
+        advanceCredit: 0,
+        penaltyAdjustment: 0,
+        netDistributionAmount: net,
+        status: 'PENDING' as const,
+      };
+    });
+    await MemberDistribution.insertMany(allocations1);
+
+    // 2. Batch 2: FY 2028 Terminal Reserve Distribution (PAID)
+    const batchNumber2 = 'FD-2028-DEMO2';
+    const existing2 = await DistributionBatch.findOne({ batchNumber: batchNumber2 });
+    if (existing2) {
+      await MemberDistribution.deleteMany({ batchId: existing2._id });
+      await DistributionBatch.findByIdAndDelete(existing2._id);
+    }
+
+    const distributable2 = totalShares * 3000;
+    const batch2 = new DistributionBatch({
+      batchNumber: batchNumber2,
+      year: 2028,
+      title: 'FY 2028 Terminal Reserve Distribution (Demo - Paid)',
+      status: DistributionBatchStatus.PAID,
+      basis: DistributionBasis.FINALIZED_SHARES,
+      totalPool: distributable2 + 5000,
+      totalPrincipalReturned: 0,
+      netRealizedProfit: distributable2 + 5000,
+      totalExpenses: 5000,
+      retainedAmount: 0,
+      distributableAmount: distributable2,
+      totalShares,
+      amountPerShare: 3000,
+      memberCount: memberShares.length,
+      custodyAccountId: custodyAcc?._id,
+      preparedBy: adminId,
+      approvedBy: adminId,
+      approvedAt: new Date(Date.now() - 86400000 * 2),
+      paidBy: adminId,
+      paidAt: new Date(Date.now() - 86400000),
+      notes: 'Historical demo batch demonstrating a fully disbursed and settled payout.',
+    });
+    await batch2.save();
+
+    const allocations2 = memberShares.map((m) => {
+      const shareRatio = m.shares / totalShares;
+      const net = Math.round(distributable2 * shareRatio * 100) / 100;
+      return {
+        batchId: batch2._id,
+        memberId: m.memberId,
+        memberCode: m.memberCode,
+        memberName: m.memberName,
+        year: 2028,
+        finalShares: m.shares,
+        shareRatio: Math.round(shareRatio * 10000) / 10000,
+        grossEntitlement: net,
+        shortfallDeduction: 0,
+        advanceCredit: 0,
+        penaltyAdjustment: 0,
+        netDistributionAmount: net,
+        status: 'PAID' as const,
+        paidAt: new Date(Date.now() - 86400000),
+        paymentReference: `DEMO-PAY-2028-${m.memberCode}`,
+      };
+    });
+    await MemberDistribution.insertMany(allocations2);
+
+    // 3. Batch 3: FY 2029 Preliminary Annual Distribution (DRAFT)
+    const batchNumber3 = 'FD-2029-DEMO1';
+    const existing3 = await DistributionBatch.findOne({ batchNumber: batchNumber3 });
+    if (existing3) {
+      await MemberDistribution.deleteMany({ batchId: existing3._id });
+      await DistributionBatch.findByIdAndDelete(existing3._id);
+    }
+
+    const distributable3 = totalShares * 8000;
+    const batch3 = new DistributionBatch({
+      batchNumber: batchNumber3,
+      year: 2029,
+      title: 'FY 2029 Preliminary Annual Distribution (Demo - Draft)',
+      status: DistributionBatchStatus.DRAFT,
+      basis: DistributionBasis.FINALIZED_SHARES,
+      totalPool: distributable3 + 12000,
+      totalPrincipalReturned: Math.round(distributable3 * 0.8),
+      netRealizedProfit: Math.round(distributable3 * 0.2 + 12000),
+      totalExpenses: 12000,
+      retainedAmount: 0,
+      distributableAmount: distributable3,
+      totalShares,
+      amountPerShare: 8000,
+      memberCount: memberShares.length,
+      preparedBy: adminId,
+      notes: 'Draft demo batch ready to test Submit For Sign-Off workflow.',
+    });
+    await batch3.save();
+
+    const allocations3 = memberShares.map((m) => {
+      const shareRatio = m.shares / totalShares;
+      const net = Math.round(distributable3 * shareRatio * 100) / 100;
+      return {
+        batchId: batch3._id,
+        memberId: m.memberId,
+        memberCode: m.memberCode,
+        memberName: m.memberName,
+        year: 2029,
+        finalShares: m.shares,
+        shareRatio: Math.round(shareRatio * 10000) / 10000,
+        grossEntitlement: net,
+        shortfallDeduction: 0,
+        advanceCredit: 0,
+        penaltyAdjustment: 0,
+        netDistributionAmount: net,
+        status: 'PENDING' as const,
+      };
+    });
+    await MemberDistribution.insertMany(allocations3);
+
+    await AuditLog.create({
+      action: 'DISTRIBUTION_BATCH_CREATED',
+      entityName: 'DistributionBatch',
+      entityId: batch1._id,
+      performedBy: adminId,
+      reason: 'Seeded realistic demo final distribution batches (FD-2028-DEMO1, FD-2028-DEMO2, FD-2029-DEMO1).',
+    });
+
+    return [batch1, batch2, batch3];
+  }
+
+  /**
+   * Deletes a distribution batch and all its member settlement records.
+   */
+  static async deleteBatch(batchId: string, user: IUser) {
+    const batch = await DistributionBatch.findById(batchId);
+    if (!batch) {
+      throw createError('Distribution batch not found.', 404);
+    }
+
+    // Clean up any linked outgoing custody movement
+    await CustodyMovement.deleteMany({
+      sourceRefId: batch._id,
+      sourceType: MovementSourceType.FINAL_DISTRIBUTION,
+    });
+
+    // Delete all member distributions
+    const deletedAllocations = await MemberDistribution.deleteMany({ batchId: batch._id });
+
+    // Delete the batch
+    await DistributionBatch.findByIdAndDelete(batch._id);
+
+    // Audit Log
+    await AuditLog.create({
+      action: 'DISTRIBUTION_BATCH_DELETED',
+      entityName: 'DistributionBatch',
+      entityId: batch._id,
+      performedBy: (user as any)._id,
+      reason: `Deleted distribution batch ${batch.batchNumber} (${batch.title}) and ${deletedAllocations.deletedCount} member settlement records.`,
+    });
+
+    return {
+      success: true,
+      batchNumber: batch.batchNumber,
+      deletedCount: deletedAllocations.deletedCount,
+    };
+  }
 }

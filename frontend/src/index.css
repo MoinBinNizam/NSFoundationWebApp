@@ -1,5 +1,7 @@
-/* Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Google Fonts & Bengali Web Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@300;400;500;600;700;800&family=Hind+Siliguri:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Bengali:wght@300;400;500;600;700;800&family=Noto+Serif+Bengali:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Tiro+Bangla:ital@0;1&display=swap');
+@import url('https://fonts.maateen.me/solaiman-lipi/font.css');
+@import url('https://fonts.maateen.me/kalpurush/font.css');
 
 @tailwind base;
 @tailwind components;
@@ -39,8 +41,78 @@
   --shadow-lg: 0 10px 30px -4px rgba(0, 0, 0, 0.5);
   --shadow-glow: 0 0 25px rgba(59, 130, 246, 0.15);
 
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-hind-siliguri: 'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-noto-sans-bengali: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-solaiman-lipi: 'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali', sans-serif;
+  --font-kalpurush: 'Kalpurush', 'SolaimanLipi', 'Noto Sans Bengali', sans-serif;
+  --font-tiro-bangla: 'Tiro Bangla', 'Noto Serif Bengali', 'Plus Jakarta Sans', serif;
+  --font-anek-bangla: 'Anek Bangla', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-default: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: 'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* Dynamic Bangla Font Overrides */
+html[data-bangla-font="hind-siliguri"],
+html[data-bangla-font="hind-siliguri"] body {
+  --font-sans: 'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+html[data-bangla-font="noto-sans-bengali"],
+html[data-bangla-font="noto-sans-bengali"] body {
+  --font-sans: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+html[data-bangla-font="solaiman-lipi"],
+html[data-bangla-font="solaiman-lipi"] body {
+  --font-sans: 'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali', sans-serif;
+}
+html[data-bangla-font="kalpurush"],
+html[data-bangla-font="kalpurush"] body {
+  --font-sans: 'Kalpurush', 'SolaimanLipi', 'Noto Sans Bengali', sans-serif;
+}
+html[data-bangla-font="tiro-bangla"],
+html[data-bangla-font="tiro-bangla"] body {
+  --font-sans: 'Tiro Bangla', 'Noto Serif Bengali', 'Plus Jakarta Sans', serif;
+}
+html[data-bangla-font="anek-bangla"],
+html[data-bangla-font="anek-bangla"] body {
+  --font-sans: 'Anek Bangla', 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+html[data-bangla-font="default"],
+html[data-bangla-font="default"] body {
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Dynamic Font Size Control */
+html[data-font-size="small"] {
+  font-size: 14px !important;
+}
+html[data-font-size="medium"] {
+  font-size: 16px !important;
+}
+html[data-font-size="large"] {
+  font-size: 18px !important;
+}
+html[data-font-size="xlarge"] {
+  font-size: 20px !important;
+}
+
+/* Universal Font Enforcement */
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-sans) !important;
+}
+
+code,
+pre,
+kbd,
+samp,
+.font-mono {
+  font-family: var(--font-mono) !important;
 }
 
 /* The dark class is the default application theme. Light mode deliberately
@@ -411,7 +483,7 @@ textarea:focus-visible {
 }
 
 html[lang='bn'] body {
-  font-family: "Noto Sans Bengali", "Hind Siliguri", system-ui, sans-serif;
+  font-family: var(--font-sans) !important;
 }
 
 /* The member registry intentionally keeps every financial column in one
