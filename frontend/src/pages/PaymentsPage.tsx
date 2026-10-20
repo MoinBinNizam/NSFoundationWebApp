@@ -32,10 +32,13 @@ import {
   Users,
   FileSignature,
   Loader2,
+  Send,
+  Share2,
 } from 'lucide-react';
 import { downloadMemberReportImage } from '../utils/report-image';
 import { ReceiptOcrManager } from '../components/ReceiptOcrManager';
 import { SourceReceiptModal } from '../components/SourceReceiptModal';
+import { ShareReceiptModal, SharePaymentData, ShareAllocationItem } from '../components/ShareReceiptModal';
 
 interface CustodyAccountItem {
   _id: string;
@@ -373,6 +376,13 @@ export const PaymentsPage: React.FC = () => {
   const [showAddWaiverModal, setShowAddWaiverModal] = useState<boolean>(false);
   const [sourceReceiptModalId, setSourceReceiptModalId] = useState<string | null>(null);
   const [sourceReceiptModalMeta, setSourceReceiptModalMeta] = useState<{ receiptNumber?: string; memberName?: string }>({});
+  const [shareModalPayment, setShareModalPayment] = useState<SharePaymentData | null>(null);
+  const [shareModalAllocations, setShareModalAllocations] = useState<ShareAllocationItem[]>([]);
+
+  const handleOpenShareReceipt = (payment: any, allocations?: any[]) => {
+    setShareModalPayment(payment);
+    setShareModalAllocations(allocations || []);
+  };
 
   // Collect Payment Form State
   const [formData, setFormData] = useState({
@@ -2325,6 +2335,14 @@ export const PaymentsPage: React.FC = () => {
                           >
                             <Eye size={14} />
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenShareReceipt(p)}
+                            className="btn btn-secondary btn-sm p-1.5 text-emerald-400 hover:text-emerald-200 hover:bg-emerald-500/20 border-emerald-500/30"
+                            title={t('Share Receipt')}
+                          >
+                            <Send size={14} />
+                          </button>
                           {p.receiptId && (
                             <button
                               type="button"
@@ -2511,10 +2529,12 @@ export const PaymentsPage: React.FC = () => {
         <ReceiptOcrManager
           membersList={membersList}
           custodyAccounts={custodyAccounts}
+          onShareReceipt={(payment) => handleOpenShareReceipt(payment)}
           onPaymentPosted={(payment) => {
             void refreshAnalyticsAfterPayment(payment);
             if (payment?._id) {
               void handleViewReceipt(payment._id);
+              handleOpenShareReceipt(payment);
             }
           }}
         />
@@ -3172,6 +3192,14 @@ export const PaymentsPage: React.FC = () => {
               )}
               <button
                 type="button"
+                onClick={() => handleOpenShareReceipt(selectedReceipt.payment, selectedReceipt.allocations)}
+                className="btn btn-secondary text-xs text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/20 flex items-center gap-1.5"
+              >
+                <Share2 size={15} />
+                <span>{t('Share Confirmation Receipt')}</span>
+              </button>
+              <button
+                type="button"
                 onClick={downloadReceipt}
                 className="btn btn-secondary text-xs"
               >
@@ -3592,6 +3620,15 @@ export const PaymentsPage: React.FC = () => {
           receiptNumber={sourceReceiptModalMeta.receiptNumber}
           memberName={sourceReceiptModalMeta.memberName}
           onClose={() => setSourceReceiptModalId(null)}
+        />
+      )}
+
+      {/* MODAL: 1-CLICK PAYMENT RECEIPT SHARE (WHATSAPP, MESSENGER, IMAGE) */}
+      {shareModalPayment && (
+        <ShareReceiptModal
+          payment={shareModalPayment}
+          allocations={shareModalAllocations}
+          onClose={() => setShareModalPayment(null)}
         />
       )}
     </div>

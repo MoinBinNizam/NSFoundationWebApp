@@ -18,6 +18,8 @@ import {
   Phone,
   Plus,
   Loader2,
+  Send,
+  Share2,
 } from 'lucide-react';
 
 export interface MemberOption {
@@ -100,6 +102,7 @@ interface ReceiptOcrManagerProps {
   membersList: MemberOption[];
   custodyAccounts: CustodyOption[];
   onPaymentPosted?: (payment: any) => void;
+  onShareReceipt?: (payment: any) => void;
   onClose?: () => void;
   isModalView?: boolean;
 }
@@ -108,6 +111,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
   membersList,
   custodyAccounts,
   onPaymentPosted,
+  onShareReceipt,
   onClose,
   isModalView = false,
 }) => {
@@ -826,6 +830,32 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
                   </div>
                   <div className="shrink-0 ml-auto flex items-center gap-1.5">
                     {getStatusBadge(rcpt.status)}
+                    {rcpt.status === 'POSTED' && onShareReceipt && rcpt.paymentId && (
+                      <button
+                        type="button"
+                        title={t('Share Confirmation Receipt')}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onShareReceipt({
+                            _id: rcpt.paymentId,
+                            receiptNumber: rcpt.reviewedData?.transactionReference || rcpt.receiptId,
+                            memberId: {
+                              name: matchedMember?.name,
+                              memberId: matchedMember?.memberId,
+                              phone: matchedMember?.phone,
+                            },
+                            paymentDate: rcpt.reviewedData?.paymentDate || rcpt.extractedData?.date || rcpt.uploadedAt,
+                            totalAmount: rcpt.reviewedData?.amount || rcpt.extractedData?.amount || 0,
+                            paymentMethod: rcpt.reviewedData?.paymentMethod || rcpt.gateway,
+                            transactionReference: rcpt.reviewedData?.transactionReference,
+                            status: 'POSTED',
+                          });
+                        }}
+                        className="p-1.5 rounded-lg text-emerald-400 hover:text-emerald-200 hover:bg-emerald-500/15 transition-colors"
+                      >
+                        <Send size={15} />
+                      </button>
+                    )}
                     {rcpt.status !== 'POSTED' && (
                       <button
                         type="button"
@@ -1429,6 +1459,32 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
                     >
                       {t('Cancel')}
                     </button>
+
+                    {selectedReceipt.status === 'POSTED' && onShareReceipt && selectedReceipt.paymentId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onShareReceipt({
+                            _id: selectedReceipt.paymentId,
+                            receiptNumber: selectedReceipt.reviewedData?.transactionReference || selectedReceipt.receiptId,
+                            memberId: {
+                              name: membersList.find((m) => m._id === reviewMemberId)?.name,
+                              memberId: membersList.find((m) => m._id === reviewMemberId)?.memberId,
+                              phone: membersList.find((m) => m._id === reviewMemberId)?.phone,
+                            },
+                            paymentDate: reviewDate,
+                            totalAmount: Number(reviewAmount || 0),
+                            paymentMethod: reviewPaymentMethod,
+                            transactionReference: reviewTrxId,
+                            status: 'POSTED',
+                          });
+                        }}
+                        className="px-4 py-2.5 rounded-xl text-xs font-bold bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/50 transition-all flex items-center gap-1.5"
+                      >
+                        <Share2 size={14} />
+                        <span>{t('Share Confirmation Receipt')}</span>
+                      </button>
+                    )}
 
                     {selectedReceipt.status !== 'POSTED' && (
                       <>
