@@ -3,6 +3,8 @@ import { Types } from 'mongoose';
 import { PaymentReceipt, PaymentReceiptDocument } from '../../models/PaymentReceipt.js';
 import { AuditLog } from '../../models/AuditLog.js';
 import { CustodyAccount } from '../../models/CustodyAccount.js';
+import { Member } from '../../models/Member.js';
+import { MonthlyLedger } from '../../models/MonthlyLedger.js';
 import {
   ReceiptGateway,
   ReceiptStatus,
@@ -16,6 +18,14 @@ import { PaymentService } from '../payment.service.js';
 import { createError } from '../../middlewares/error.js';
 import { logger } from '../../utils/logger.js';
 
+function toYearMonth(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (!d || isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
 export class ReceiptService {
   /**
    * Uploads receipt file, saves to private storage, extracts OCR data,
@@ -26,7 +36,8 @@ export class ReceiptService {
     originalFilename: string,
     mimeType: string,
     uploadedBy: Types.ObjectId,
-    batchId?: string
+    batchId?: string,
+    targetMemberId?: string | Types.ObjectId
   ): Promise<PaymentReceiptDocument> {
     const receiptId = `rcpt_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
 
@@ -51,15 +62,35 @@ export class ReceiptService {
     }
 
     // 3. Match Member and Custody Account
-    const memberMatch = await ReceiptMatchingService.matchMember(extracted);
+    let memberMatch = await ReceiptMatchingService.matchMember(extracted);
+    if (targetMemberId) {
+      const manualMember = await Member.findById(targetMemberId).select('_id memberId name phone').lean();
+      if (manualMember) {
+        memberMatch = {
+          selectedMemberId: manualMember._id as any,
+          confidence: 100,
+          strategy: 'MANUAL_PREASSIGN',
+          candidates: [
+            {
+              memberId: manualMember._id as any,
+              name: manualMember.name,
+              phone: manualMember.phone || '',
+              score: 100,
+            },
+          ],
+        };
+      }
+    }
     const custodyMatch = await ReceiptMatchingService.matchCustodyAccount(extracted, gateway);
 
-    // 4. Duplicate Check
+    // 4. Duplicate Check (SHA, TrxID, Composite & Target Month)
     const duplicateCheck = await ReceiptMatchingService.detectDuplicates(
       receiptId,
       storageResult.sha256,
       extracted,
-      gateway
+      gateway,
+      memberMatch.selectedMemberId,
+      extracted.date ? new Date(extracted.date) : new Date()
     );
 
     // 5. Determine Initial Review Status
@@ -152,14 +183,22 @@ export class ReceiptService {
   static async listReceipts(filter: {
     status?: ReceiptStatus;
     gateway?: ReceiptGateway;
+    memberId?: string;
     limit?: number;
     skip?: number;
   } = {}): Promise<{ receipts: PaymentReceiptDocument[]; total: number }> {
     const query: Record<string, any> = {};
     if (filter.status) query.status = filter.status;
     if (filter.gateway) query.gateway = filter.gateway;
+    if (filter.memberId) {
+      const mId = new Types.ObjectId(filter.memberId);
+      query.$or = [
+        { 'reviewedData.memberId': mId },
+        { 'memberMatch.selectedMemberId': mId },
+      ];
+    }
 
-    const limit = Math.min(filter.limit ?? 20, 100);
+    const limit = Math.min(filter.limit ?? 50, 100);
     const skip = filter.skip ?? 0;
 
     const [receipts, total] = await Promise.all([
@@ -228,6 +267,32 @@ export class ReceiptService {
     receipt.reviewedAt = new Date();
     receipt.corrections.push(...corrections);
 
+    // Re-check duplicates with updated memberId and paymentDate
+    if (receipt.reviewedData.memberId) {
+      const recheck = await ReceiptMatchingService.detectDuplicates(
+        receipt.receiptId,
+        receipt.sha256,
+        receipt.extractedData,
+        receipt.gateway,
+        receipt.reviewedData.memberId,
+        receipt.reviewedData.paymentDate || new Date()
+      );
+
+      if (recheck.isDuplicate) {
+        receipt.duplicateCheck = {
+          ...recheck,
+          overrideReason: receipt.duplicateCheck?.overrideReason || null,
+          overriddenBy: receipt.duplicateCheck?.overriddenBy || null,
+          overriddenAt: receipt.duplicateCheck?.overriddenAt || null,
+        };
+      } else if (receipt.duplicateCheck?.duplicateType === 'MONTH_ALREADY_PAID') {
+        receipt.duplicateCheck = {
+          isDuplicate: false,
+          duplicateType: 'NONE',
+        };
+      }
+    }
+
     // If duplicate was overridden or fields are now complete, update status
     if (receipt.duplicateCheck.isDuplicate && !receipt.duplicateCheck.overrideReason) {
       receipt.status = ReceiptStatus.DUPLICATE_SUSPECTED;
@@ -252,7 +317,8 @@ export class ReceiptService {
   }
 
   /**
-   * Generates a preview of how the reviewed receipt amount will be allocated.
+   * Generates a preview of how the reviewed receipt amount will be allocated,
+   * along with member's paid months and duplicate status.
    */
   static async calculateReceiptAllocationPreview(receiptId: string) {
     const receipt = await PaymentReceipt.findOne({ receiptId });
@@ -269,7 +335,7 @@ export class ReceiptService {
       throw createError('Valid payment amount is required for allocation preview.', 400);
     }
 
-    return PaymentService.calculatePaymentPreview({
+    const preview = await PaymentService.calculatePaymentPreview({
       memberId: String(memberId),
       paymentDate: paymentDate || new Date(),
       totalAmount: amount,
@@ -277,6 +343,31 @@ export class ReceiptService {
       custodyAccountId: custodyAccountId ? String(custodyAccountId) : undefined,
       cashoutChargePaid: cashoutChargePaid || 0,
     });
+
+    const targetMonth = toYearMonth(paymentDate || new Date());
+    const memberObjId = new Types.ObjectId(String(memberId));
+
+    // Fetch month status and recent ledgers
+    const [recentLedgers, monthDuplicate] = await Promise.all([
+      MonthlyLedger.find({ memberId: memberObjId })
+        .sort({ month: -1 })
+        .limit(12)
+        .select('month principalDue principalPaid penaltyDue penaltyPaid status')
+        .lean(),
+      ReceiptMatchingService.checkMonthDuplicate(
+        receiptId,
+        memberObjId,
+        paymentDate || new Date()
+      ),
+    ]);
+
+    return {
+      ...preview,
+      targetMonth,
+      monthDuplicate,
+      recentLedgers,
+      duplicateCheck: receipt.duplicateCheck,
+    };
   }
 
   /**
@@ -324,6 +415,7 @@ export class ReceiptService {
 
   /**
    * Posts payment to the financial ledger using PaymentService.recordPayment.
+   * Strictly enforces monthly duplicate checks to prevent double billing.
    */
   static async postPaymentFromReceipt(
     receiptId: string,
@@ -338,8 +430,11 @@ export class ReceiptService {
       throw createError('This receipt has already been posted to the financial ledger.', 409);
     }
 
-    if (receipt.duplicateCheck.isDuplicate && !receipt.duplicateCheck.overrideReason) {
-      throw createError('Cannot post a suspected duplicate without an authorized override reason.', 400);
+    if (receipt.duplicateCheck?.isDuplicate && !receipt.duplicateCheck?.overrideReason) {
+      throw createError(
+        receipt.duplicateCheck.details || 'Cannot post a suspected duplicate without an authorized override reason.',
+        400
+      );
     }
 
     const {
@@ -359,6 +454,27 @@ export class ReceiptService {
 
     const custodyAccount = await CustodyAccount.findById(custodyAccountId);
     if (!custodyAccount) throw createError('Custody account not found', 404);
+
+    // Final live duplicate check before posting
+    const liveDuplicate = await ReceiptMatchingService.checkMonthDuplicate(
+      receiptId,
+      memberId,
+      paymentDate || new Date()
+    );
+
+    if (liveDuplicate && liveDuplicate.isDuplicate && !receipt.duplicateCheck?.overrideReason) {
+      receipt.duplicateCheck = {
+        ...liveDuplicate,
+        overrideReason: null,
+      };
+      receipt.status = ReceiptStatus.DUPLICATE_SUSPECTED;
+      await receipt.save();
+
+      throw createError(
+        liveDuplicate.details || 'Month already paid for this member. Duplicate payment prevented.',
+        400
+      );
+    }
 
     // Call authoritative PaymentService.recordPayment
     const paymentResult = await PaymentService.recordPayment(

@@ -27,6 +27,7 @@ export class ReceiptController {
 
       const uploadedBy = (req.user as any)._id;
       const batchId = req.body?.batchId || (uploadList.length > 1 ? `batch_${Date.now()}` : undefined);
+      const targetMemberId = req.body?.memberId || undefined;
 
       const results = [];
       for (const file of uploadList) {
@@ -35,7 +36,8 @@ export class ReceiptController {
           file.originalname,
           file.mimetype,
           uploadedBy,
-          batchId
+          batchId,
+          targetMemberId
         );
         results.push(receipt);
       }
@@ -55,10 +57,11 @@ export class ReceiptController {
    */
   static async list(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
     try {
-      const { status, gateway, limit, skip } = req.query;
+      const { status, gateway, memberId, limit, skip } = req.query;
       const result = await ReceiptService.listReceipts({
         status: status as ReceiptStatus,
         gateway: gateway as ReceiptGateway,
+        memberId: memberId ? String(memberId) : undefined,
         limit: limit ? parseInt(String(limit), 10) : undefined,
         skip: skip ? parseInt(String(skip), 10) : undefined,
       });

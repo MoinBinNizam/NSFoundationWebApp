@@ -56,7 +56,7 @@ export interface MemberMatchCandidate {
 export interface MemberMatchResult {
   selectedMemberId: Types.ObjectId | null;
   confidence: number;
-  strategy: 'EXACT_ID' | 'EXACT_PHONE' | 'EXACT_NAME' | 'TOKEN_NAME' | 'NONE';
+  strategy: 'EXACT_ID' | 'EXACT_PHONE' | 'EXACT_NAME' | 'TOKEN_NAME' | 'MANUAL_PREASSIGN' | 'NONE';
   candidates: MemberMatchCandidate[];
 }
 
@@ -77,9 +77,11 @@ export interface CustodyMatchResult {
 
 export interface DuplicateCheckResult {
   isDuplicate: boolean;
-  duplicateType: 'SHA256_EXACT' | 'TRANSACTION_ID' | 'COMPOSITE_SUSPECT' | 'NONE';
+  duplicateType: 'SHA256_EXACT' | 'TRANSACTION_ID' | 'COMPOSITE_SUSPECT' | 'MONTH_ALREADY_PAID' | 'NONE';
   matchedReceiptId?: string | null;
   matchedPaymentId?: Types.ObjectId | null;
+  matchedTargetMonth?: string | null;
+  details?: string | null;
   overrideReason?: string | null;
   overriddenBy?: Types.ObjectId | null;
   overriddenAt?: Date | null;

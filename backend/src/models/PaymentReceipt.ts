@@ -55,7 +55,7 @@ const MemberMatchSchema = new Schema(
     confidence: { type: Number, default: 0 },
     strategy: {
       type: String,
-      enum: ['EXACT_ID', 'EXACT_PHONE', 'EXACT_NAME', 'TOKEN_NAME', 'NONE'],
+      enum: ['EXACT_ID', 'EXACT_PHONE', 'EXACT_NAME', 'TOKEN_NAME', 'MANUAL_PREASSIGN', 'NONE'],
       default: 'NONE',
     },
     candidates: [MemberMatchCandidateSchema],
@@ -93,11 +93,13 @@ const DuplicateCheckSchema = new Schema(
     isDuplicate: { type: Boolean, default: false },
     duplicateType: {
       type: String,
-      enum: ['SHA256_EXACT', 'TRANSACTION_ID', 'COMPOSITE_SUSPECT', 'NONE'],
+      enum: ['SHA256_EXACT', 'TRANSACTION_ID', 'COMPOSITE_SUSPECT', 'MONTH_ALREADY_PAID', 'NONE'],
       default: 'NONE',
     },
     matchedReceiptId: { type: String, default: null },
     matchedPaymentId: { type: Schema.Types.ObjectId, ref: 'Payment', default: null },
+    matchedTargetMonth: { type: String, default: null },
+    details: { type: String, default: null },
     overrideReason: { type: String, default: null },
     overriddenBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     overriddenAt: { type: Date, default: null },

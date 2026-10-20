@@ -3,6 +3,8 @@ import { Member } from '../../models/Member.js';
 import { CustodyAccount } from '../../models/CustodyAccount.js';
 import { Payment } from '../../models/Payment.js';
 import { PaymentReceipt } from '../../models/PaymentReceipt.js';
+import { MonthlyLedger } from '../../models/MonthlyLedger.js';
+import { PaymentAllocation } from '../../models/PaymentAllocation.js';
 import {
   ExtractedReceiptData,
   MemberMatchResult,
@@ -11,6 +13,14 @@ import {
   ReceiptGateway,
 } from '../../types/receipt.js';
 import { CustodyChannel } from '../../types/models.js';
+
+function toYearMonth(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  if (!d || isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
 
 export class ReceiptMatchingService {
   /**
@@ -141,13 +151,108 @@ export class ReceiptMatchingService {
   }
 
   /**
-   * Detects duplicate receipts or payments using SHA-256, Transaction ID, and composite factors.
+   * Checks if a member already has settled payment for the target month,
+   * or if another unposted/posted receipt in the queue targets the exact same month.
+   */
+  static async checkMonthDuplicate(
+    receiptId: string,
+    memberId: Types.ObjectId | string,
+    paymentDate: Date | string
+  ): Promise<DuplicateCheckResult | null> {
+    const targetMonth = toYearMonth(paymentDate);
+    if (!targetMonth || !memberId) return null;
+
+    const memberObjId = typeof memberId === 'string' ? new Types.ObjectId(memberId) : memberId;
+
+    // 1. Check MonthlyLedger if this month's principal obligation is already paid
+    const ledger = await MonthlyLedger.findOne({
+      memberId: memberObjId,
+      month: targetMonth,
+    }).lean();
+
+    if (ledger && ledger.principalDue > 0 && ledger.principalPaid >= ledger.principalDue) {
+      const allocation = await PaymentAllocation.findOne({
+        memberId: memberObjId,
+        targetMonth,
+        allocationType: { $in: ['PRINCIPAL', 'PREVIOUS_DUE', 'ADVANCE'] },
+      }).select('paymentId amount').lean();
+
+      return {
+        isDuplicate: true,
+        duplicateType: 'MONTH_ALREADY_PAID',
+        matchedTargetMonth: targetMonth,
+        matchedPaymentId: (allocation?.paymentId as any) || null,
+        details: `সদস্যের ${targetMonth} মাসের কিস্তি (৳${ledger.principalDue}) ইতিমধ্যেই সম্পূর্ণ পরিশোধিত (পরিশোধিত: ৳${ledger.principalPaid})। (Month ${targetMonth} is already fully settled).`,
+      };
+    }
+
+    // 2. Check PaymentAllocation for an existing principal allocation for this month
+    const existingAlloc = await PaymentAllocation.findOne({
+      memberId: memberObjId,
+      targetMonth,
+      allocationType: 'PRINCIPAL',
+    }).select('paymentId amount').lean();
+
+    if (existingAlloc) {
+      return {
+        isDuplicate: true,
+        duplicateType: 'MONTH_ALREADY_PAID',
+        matchedTargetMonth: targetMonth,
+        matchedPaymentId: (existingAlloc.paymentId as any) || null,
+        details: `${targetMonth} মাসের জন্য পূর্বেই ৳${existingAlloc.amount} মূল কিস্তি জমা হয়েছে। (Principal payment already recorded for ${targetMonth}).`,
+      };
+    }
+
+    // 3. Check another receipt in queue for the same member & target month
+    const [year, month] = targetMonth.split('-').map(Number);
+    const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0, 0));
+    const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+
+    const conflictingReceipt = await PaymentReceipt.findOne({
+      receiptId: { $ne: receiptId },
+      status: { $in: ['POSTED', 'READY_TO_POST', 'NEEDS_REVIEW', 'DUPLICATE_SUSPECTED'] },
+      $or: [
+        { 'reviewedData.memberId': memberObjId },
+        { 'memberMatch.selectedMemberId': memberObjId },
+      ],
+      $and: [
+        {
+          $or: [
+            { 'reviewedData.paymentDate': { $gte: startOfMonth, $lte: endOfMonth } },
+            { 'extractedData.date': { $regex: new RegExp(`^${targetMonth}`) } },
+          ],
+        },
+      ],
+    }).select('receiptId paymentId status reviewedData extractedData').lean();
+
+    if (conflictingReceipt) {
+      const isPosted = conflictingReceipt.status === 'POSTED';
+      return {
+        isDuplicate: true,
+        duplicateType: 'MONTH_ALREADY_PAID',
+        matchedReceiptId: conflictingReceipt.receiptId,
+        matchedPaymentId: conflictingReceipt.paymentId || null,
+        matchedTargetMonth: targetMonth,
+        details: isPosted
+          ? `এই সদস্যের ${targetMonth} মাসের পেমেন্ট ইতিমধ্যে লেজারে রেকর্ড করা হয়েছে (রিসিট: ${conflictingReceipt.receiptId})।`
+          : `কিউতে এই সদস্যের ${targetMonth} মাসের আরেকটি রিসিট (${conflictingReceipt.receiptId}) অপেক্ষারত রয়েছে।`,
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Detects duplicate receipts or payments using SHA-256, Transaction ID, composite factors,
+   * and duplicate monthly payment prevention.
    */
   static async detectDuplicates(
     receiptId: string,
     sha256: string,
     extracted: ExtractedReceiptData,
-    _gateway: ReceiptGateway
+    _gateway: ReceiptGateway,
+    memberId?: Types.ObjectId | string | null,
+    paymentDate?: Date | string | null
   ): Promise<DuplicateCheckResult> {
     // 1. Exact file duplicate (SHA-256)
     const exactShaMatch = await PaymentReceipt.findOne({
@@ -161,6 +266,7 @@ export class ReceiptMatchingService {
         duplicateType: 'SHA256_EXACT',
         matchedReceiptId: exactShaMatch.receiptId,
         matchedPaymentId: exactShaMatch.paymentId || null,
+        details: 'একই রিসিট ফাইল ইতিপূর্বে আপলোড করা হয়েছে (Exact SHA-256 Match).',
       };
     }
 
@@ -178,6 +284,7 @@ export class ReceiptMatchingService {
           duplicateType: 'TRANSACTION_ID',
           matchedReceiptId: existingReceipt.receiptId,
           matchedPaymentId: existingReceipt.paymentId || null,
+          details: `একই ট্রানজেকশন আইডি (${extracted.transactionId}) ইতিমধ্যে ব্যবহৃত হয়েছে।`,
         };
       }
 
@@ -192,6 +299,7 @@ export class ReceiptMatchingService {
           duplicateType: 'TRANSACTION_ID',
           matchedReceiptId: null,
           matchedPaymentId: existingPayment._id as any,
+          details: `ট্রানজেকশন আইডি (${extracted.transactionId}) ইতিমধ্যে পেমেন্ট লেজারে সংরক্ষিত আছে।`,
         };
       }
     }
@@ -211,7 +319,22 @@ export class ReceiptMatchingService {
           isDuplicate: true,
           duplicateType: 'COMPOSITE_SUSPECT',
           matchedPaymentId: suspectPayment._id as any,
+          details: 'একই তারিখ ও পরিমাণের একটি পেমেন্ট ইতিমধ্যে বিদ্যমান।',
         };
+      }
+    }
+
+    // 4. Monthly payment duplication check
+    const effectiveMemberId = memberId || null;
+    const effectiveDate = paymentDate || extracted.date;
+    if (effectiveMemberId && effectiveDate) {
+      const monthCheck = await this.checkMonthDuplicate(
+        receiptId,
+        effectiveMemberId,
+        effectiveDate
+      );
+      if (monthCheck && monthCheck.isDuplicate) {
+        return monthCheck;
       }
     }
 

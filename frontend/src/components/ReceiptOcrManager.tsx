@@ -10,9 +10,11 @@ import {
   Sparkles,
   RefreshCw,
   X,
+  ChevronLeft,
   ChevronRight,
   ShieldAlert,
   Trash2,
+  Users,
 } from 'lucide-react';
 
 export interface MemberOption {
@@ -82,6 +84,8 @@ export interface ReceiptItem {
     duplicateType: string;
     matchedReceiptId?: string | null;
     matchedPaymentId?: string | null;
+    matchedTargetMonth?: string | null;
+    details?: string | null;
     overrideReason?: string | null;
   };
   paymentId?: string | null;
@@ -109,6 +113,8 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [memberFilter, setMemberFilter] = useState<string>('ALL');
+  const [uploadMemberId, setUploadMemberId] = useState<string>('');
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptItem | null>(null);
   const [fileBlobUrl, setFileBlobUrl] = useState<string | null>(null);
   const [loadingFile, setLoadingFile] = useState(false);
@@ -122,6 +128,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
   const [reviewTrxId, setReviewTrxId] = useState<string>('');
   const [reviewNotes, setReviewNotes] = useState<string>('');
   const [overrideReason, setOverrideReason] = useState<string>('');
+  const [confirmDuplicateOverride, setConfirmDuplicateOverride] = useState<boolean>(false);
   const [allocationPreview, setAllocationPreview] = useState<any>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -129,11 +136,15 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch receipts list
+  // Fetch receipts list with status and member filtering
   const fetchReceipts = useCallback(async () => {
     setLoading(true);
     try {
-      const query = statusFilter !== 'ALL' ? `?status=${statusFilter}` : '';
+      const params = new URLSearchParams();
+      if (statusFilter !== 'ALL') params.append('status', statusFilter);
+      if (memberFilter !== 'ALL') params.append('memberId', memberFilter);
+      const query = params.toString() ? `?${params.toString()}` : '';
+
       const res = await apiRequest<any>(`/payments/receipts${query}`);
       const list = Array.isArray(res.data)
         ? res.data
@@ -144,13 +155,13 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, memberFilter]);
 
   useEffect(() => {
     fetchReceipts();
   }, [fetchReceipts]);
 
-  // Handle file upload
+  // Handle file upload (supports targetMemberId for pre-assignment)
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setUploading(true);
@@ -161,6 +172,9 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
     for (let i = 0; i < files.length; i++) {
       formData.append('receipts', files[i]);
     }
+    if (uploadMemberId) {
+      formData.append('memberId', uploadMemberId);
+    }
 
     try {
       const res = await apiRequest<any>('/payments/receipts', {
@@ -169,7 +183,11 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
       });
 
       setUploadProgress(null);
-      await fetchReceipts();
+      if (uploadMemberId && memberFilter !== uploadMemberId) {
+        setMemberFilter(uploadMemberId);
+      } else {
+        await fetchReceipts();
+      }
 
       // If single file uploaded, automatically open review
       const uploadedData = res.data;
@@ -177,6 +195,9 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
         openReview(uploadedData[0]);
       } else if (uploadedData && !Array.isArray(uploadedData) && uploadedData.receiptId) {
         openReview(uploadedData);
+      } else if (Array.isArray(uploadedData) && uploadedData.length > 1) {
+        // Open the first uploaded receipt in stepper mode
+        openReview(uploadedData[0]);
       }
     } catch (err: any) {
       setActionError(err.message || 'Failed to upload and extract receipt.');
@@ -192,6 +213,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
     setSelectedReceipt(receipt);
     setActionError(null);
     setAllocationPreview(null);
+    setConfirmDuplicateOverride(false);
 
     // Initial form values from review or extracted data
     const memberId =
@@ -250,21 +272,34 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
     // Automatically trigger allocation preview if member & amount present
     if (memberId && amount && Number(amount) > 0) {
       try {
-        const prevRes = await apiRequest<any>('/payments/preview', {
+        const prevRes = await apiRequest<any>(`/payments/receipts/${receipt.receiptId}/preview`, {
           method: 'POST',
-          body: JSON.stringify({
-            memberId,
-            custodyAccountId: custodyId,
-            paymentDate: date,
-            totalAmount: Number(amount),
-            paymentMethod: method,
-          }),
         });
         if (prevRes.data) {
           setAllocationPreview(prevRes.data);
+          if (prevRes.data.duplicateCheck) {
+            setSelectedReceipt((prev) => (prev ? { ...prev, duplicateCheck: prevRes.data.duplicateCheck } : null));
+          }
         }
       } catch (err) {
-        console.warn('Could not auto-generate preview:', err);
+        // Fallback to /payments/preview
+        try {
+          const fallbackRes = await apiRequest<any>('/payments/preview', {
+            method: 'POST',
+            body: JSON.stringify({
+              memberId,
+              custodyAccountId: custodyId,
+              paymentDate: date,
+              totalAmount: Number(amount),
+              paymentMethod: method,
+            }),
+          });
+          if (fallbackRes.data) {
+            setAllocationPreview(fallbackRes.data);
+          }
+        } catch (fbErr) {
+          console.warn('Could not auto-generate preview:', fbErr);
+        }
       }
     }
   };
@@ -274,6 +309,18 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
     if (fileBlobUrl) {
       URL.revokeObjectURL(fileBlobUrl);
       setFileBlobUrl(null);
+    }
+  };
+
+  // Stepper navigation between receipts in current view
+  const handleNavigateReceipt = (direction: 'prev' | 'next') => {
+    if (!selectedReceipt || receipts.length === 0) return;
+    const currentIndex = receipts.findIndex((r) => r.receiptId === selectedReceipt.receiptId);
+    if (currentIndex < 0) return;
+
+    const targetIndex = direction === 'prev' ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex >= 0 && targetIndex < receipts.length) {
+      openReview(receipts[targetIndex]);
     }
   };
 
@@ -305,18 +352,44 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
   const handleRecalculatePreview = async () => {
     if (!reviewMemberId || !reviewAmount || Number(reviewAmount) <= 0) return;
     try {
-      const prevRes = await apiRequest<any>('/payments/preview', {
-        method: 'POST',
-        body: JSON.stringify({
-          memberId: reviewMemberId,
-          custodyAccountId: reviewCustodyId,
-          paymentDate: reviewDate,
-          totalAmount: Number(reviewAmount),
-          paymentMethod: reviewPaymentMethod,
-        }),
-      });
-      if (prevRes.data) {
-        setAllocationPreview(prevRes.data);
+      if (selectedReceipt) {
+        // First update receipt verification draft on server so preview checks the real member and date
+        await apiRequest(`/payments/receipts/${selectedReceipt.receiptId}/review`, {
+          method: 'PATCH',
+          body: JSON.stringify({
+            memberId: reviewMemberId,
+            custodyAccountId: reviewCustodyId,
+            paymentMethod: reviewPaymentMethod,
+            amount: Number(reviewAmount),
+            paymentDate: reviewDate ? new Date(reviewDate) : undefined,
+            transactionReference: reviewTrxId,
+            notes: reviewNotes,
+          }),
+        });
+
+        const prevRes = await apiRequest<any>(`/payments/receipts/${selectedReceipt.receiptId}/preview`, {
+          method: 'POST',
+        });
+        if (prevRes.data) {
+          setAllocationPreview(prevRes.data);
+          if (prevRes.data.duplicateCheck) {
+            setSelectedReceipt((prev) => (prev ? { ...prev, duplicateCheck: prevRes.data.duplicateCheck } : null));
+          }
+        }
+      } else {
+        const prevRes = await apiRequest<any>('/payments/preview', {
+          method: 'POST',
+          body: JSON.stringify({
+            memberId: reviewMemberId,
+            custodyAccountId: reviewCustodyId,
+            paymentDate: reviewDate,
+            totalAmount: Number(reviewAmount),
+            paymentMethod: reviewPaymentMethod,
+          }),
+        });
+        if (prevRes.data) {
+          setAllocationPreview(prevRes.data);
+        }
       }
     } catch (err: any) {
       console.warn('Preview calculation error:', err);
@@ -355,25 +428,74 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
     }
   };
 
-  // Post payment to authoritative ledger
-  const handleConfirmAndPost = async () => {
+  // Save review and seamlessly move to next receipt in queue
+  const handleSaveAndNext = async () => {
     if (!selectedReceipt) return;
     setSubmitting(true);
     setActionError(null);
 
-    // If duplicate suspected, ensure override reason
-    if (selectedReceipt.duplicateCheck?.isDuplicate && !overrideReason.trim()) {
-      setActionError('Duplicate Suspected: You must provide an authorized override reason before posting.');
+    try {
+      await apiRequest<{ receipt: ReceiptItem }>(
+        `/payments/receipts/${selectedReceipt.receiptId}/review`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({
+            memberId: reviewMemberId || null,
+            custodyAccountId: reviewCustodyId || null,
+            paymentMethod: reviewPaymentMethod,
+            amount: Number(reviewAmount) || null,
+            paymentDate: reviewDate ? new Date(reviewDate) : undefined,
+            transactionReference: reviewTrxId,
+            notes: reviewNotes,
+          }),
+        }
+      );
+
+      // Fetch fresh queue
+      const params = new URLSearchParams();
+      if (statusFilter !== 'ALL') params.append('status', statusFilter);
+      if (memberFilter !== 'ALL') params.append('memberId', memberFilter);
+      const query = params.toString() ? `?${params.toString()}` : '';
+      const listRes = await apiRequest<any>(`/payments/receipts${query}`);
+      const updatedList: ReceiptItem[] = Array.isArray(listRes.data)
+        ? listRes.data
+        : listRes.data?.receipts || [];
+      setReceipts(updatedList);
+
+      const currentIndex = updatedList.findIndex((r) => r.receiptId === selectedReceipt.receiptId);
+      if (currentIndex >= 0 && currentIndex < updatedList.length - 1) {
+        openReview(updatedList[currentIndex + 1]);
+      }
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to save review details.');
+    } finally {
       setSubmitting(false);
-      return;
+    }
+  };
+
+  // Post payment to authoritative ledger with duplicate prevention and auto-advancing stepper
+  const handleConfirmAndPost = async (autoAdvance = true) => {
+    if (!selectedReceipt) return;
+    setSubmitting(true);
+    setActionError(null);
+
+    // Duplicate check enforcement
+    if (selectedReceipt.duplicateCheck?.isDuplicate) {
+      if (!confirmDuplicateOverride || !overrideReason.trim() || overrideReason.trim().length < 5) {
+        setActionError(
+          t('ডুপ্লিকেট সতর্কতা: ডুপ্লিকেট অনুমোদন চেকবক্স চিহ্নিত করুন এবং কমপক্ষে ৫ অক্ষরের কারণ লিখুন।')
+        );
+        setSubmitting(false);
+        return;
+      }
     }
 
     try {
-      // If override reason needed, save override first
+      // If duplicate suspected, save override authorization first
       if (selectedReceipt.duplicateCheck?.isDuplicate && overrideReason.trim()) {
-        await apiRequest(`/payments/receipts/${selectedReceipt.receiptId}/override`, {
+        await apiRequest(`/payments/receipts/${selectedReceipt.receiptId}/duplicate-override`, {
           method: 'POST',
-          body: JSON.stringify({ overrideReason }),
+          body: JSON.stringify({ reason: overrideReason.trim() }),
         });
       }
 
@@ -397,11 +519,33 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
         { method: 'POST' }
       );
 
-      await fetchReceipts();
-      closeReview();
-
       if (onPaymentPosted && postRes.data?.payment) {
         onPaymentPosted(postRes.data.payment);
+      }
+
+      // Re-fetch queue to see updated statuses
+      const params = new URLSearchParams();
+      if (statusFilter !== 'ALL') params.append('status', statusFilter);
+      if (memberFilter !== 'ALL') params.append('memberId', memberFilter);
+      const query = params.toString() ? `?${params.toString()}` : '';
+      const listRes = await apiRequest<any>(`/payments/receipts${query}`);
+      const updatedList: ReceiptItem[] = Array.isArray(listRes.data)
+        ? listRes.data
+        : listRes.data?.receipts || [];
+      setReceipts(updatedList);
+
+      if (autoAdvance) {
+        // Find next unposted receipt in queue
+        const remainingUnposted = updatedList.filter(
+          (r) => r.receiptId !== selectedReceipt.receiptId && r.status !== 'POSTED'
+        );
+        if (remainingUnposted.length > 0) {
+          openReview(remainingUnposted[0]);
+        } else {
+          closeReview();
+        }
+      } else {
+        closeReview();
       }
     } catch (err: any) {
       setActionError(err.message || 'Failed to post payment to ledger.');
@@ -486,8 +630,26 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
             </p>
           </div>
 
-          {/* Upload Button & Dropzone trigger */}
-          <div className="flex flex-col sm:flex-row items-center gap-3">
+          {/* Target Member Selection & Upload Button */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            <div className="w-full sm:w-64">
+              <label className="text-[11px] font-bold text-gray-300 uppercase tracking-wider block mb-1">
+                {t('Target Member (Optional)')}
+              </label>
+              <select
+                value={uploadMemberId}
+                onChange={(e) => setUploadMemberId(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-white/10 text-white text-xs font-medium focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">{t('-- Auto-match from Receipt --')}</option>
+                {membersList.map((m) => (
+                  <option key={m._id} value={m._id}>
+                    {m.memberId} - {m.name} ({m.phone})
+                  </option>
+                ))}
+              </select>
+            </div>
+
             <input
               type="file"
               ref={fileInputRef}
@@ -496,24 +658,26 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
               className="hidden"
               onChange={(e) => handleFileUpload(e.target.files)}
             />
-            <button
-              type="button"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:from-blue-500 hover:to-indigo-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-              {uploading ? (
-                <>
-                  <RefreshCw size={18} className="animate-spin" />
-                  <span>{t('Processing OCR...')}</span>
-                </>
-              ) : (
-                <>
-                  <Upload size={18} />
-                  <span>{t('Upload Receipt(s)')}</span>
-                </>
-              )}
-            </button>
+            <div className="self-end sm:self-auto pt-0 sm:pt-4">
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full sm:w-auto px-6 py-2.5 sm:py-3 rounded-xl font-bold text-sm bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:from-blue-500 hover:to-indigo-500 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {uploading ? (
+                  <>
+                    <RefreshCw size={18} className="animate-spin" />
+                    <span>{t('Processing OCR...')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload size={18} />
+                    <span>{t('Upload Receipt(s)')}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -532,34 +696,52 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
         )}
       </div>
 
-      {/* Filter Tabs & Refresh */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
-        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 max-w-full no-scrollbar">
-          {[
-            { key: 'ALL', label: 'All' },
-            { key: 'NEEDS_REVIEW', label: 'Needs Review' },
-            { key: 'READY_TO_POST', label: 'Ready to Post' },
-            { key: 'DUPLICATE_SUSPECTED', label: 'Duplicate' },
-            { key: 'POSTED', label: 'Posted' },
-          ].map((st) => (
-            <button
-              key={st.key}
-              onClick={() => setStatusFilter(st.key)}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
-                statusFilter === st.key
-                  ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
-                  : 'bg-slate-900/60 text-gray-400 hover:text-white hover:bg-slate-800'
-              }`}
+      {/* Filter Tabs & Member Filter & Refresh */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/10 pb-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 sm:pb-0 max-w-full no-scrollbar">
+            {[
+              { key: 'ALL', label: 'All' },
+              { key: 'NEEDS_REVIEW', label: 'Needs Review' },
+              { key: 'READY_TO_POST', label: 'Ready to Post' },
+              { key: 'DUPLICATE_SUSPECTED', label: 'Duplicate' },
+              { key: 'POSTED', label: 'Posted' },
+            ].map((st) => (
+              <button
+                key={st.key}
+                onClick={() => setStatusFilter(st.key)}
+                className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
+                  statusFilter === st.key
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'bg-slate-900/60 text-gray-400 hover:text-white hover:bg-slate-800'
+                }`}
+              >
+                <span>{t(st.label)}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-1.5 ml-0 sm:ml-2">
+            <span className="text-xs text-gray-400 font-medium hidden sm:inline">{t('Filter by Member')}:</span>
+            <select
+              value={memberFilter}
+              onChange={(e) => setMemberFilter(e.target.value)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-900/80 border border-white/10 text-gray-200 text-xs font-medium focus:ring-1 focus:ring-blue-500 max-w-[200px] truncate"
             >
-              <span>{t(st.label)}</span>
-            </button>
-          ))}
+              <option value="ALL">{t('All Members')}</option>
+              {membersList.map((m) => (
+                <option key={m._id} value={m._id}>
+                  {m.memberId} - {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <button
           onClick={fetchReceipts}
           disabled={loading}
-          className="self-end sm:self-auto px-3 py-1.5 rounded-lg bg-slate-900/60 text-gray-400 hover:text-white transition-all flex items-center gap-1.5 text-xs shrink-0"
+          className="self-end md:self-auto px-3 py-1.5 rounded-lg bg-slate-900/60 text-gray-400 hover:text-white transition-all flex items-center gap-1.5 text-xs shrink-0"
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           <span>{t('Refresh')}</span>
@@ -686,348 +868,530 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
       )}
 
       {/* REVIEW & POST MODAL */}
-      {selectedReceipt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
-          <div className="glass-card w-full max-w-5xl max-h-[92vh] flex flex-col rounded-3xl border border-white/15 shadow-2xl overflow-hidden bg-slate-900">
-            {/* Modal Header */}
-            <div className="px-4 sm:px-6 py-4 border-b border-white/10 flex items-start sm:items-center justify-between gap-3 bg-slate-900/90">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 shrink-0">
-                  <Sparkles size={20} />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-sm sm:text-base md:text-lg font-bold text-white flex flex-wrap items-center gap-1.5">
-                    <span>Review Payment Receipt</span>
-                    <span className="text-xs font-mono text-gray-400 font-normal truncate max-w-[180px] sm:max-w-none">
-                      ({selectedReceipt.receiptId.length > 20 ? `...${selectedReceipt.receiptId.slice(-10)}` : selectedReceipt.receiptId})
-                    </span>
-                  </h3>
-                  <p className="text-xs text-gray-400 truncate sm:whitespace-normal">
-                    Verify extracted metadata against the original receipt before posting.
-                  </p>
-                </div>
-              </div>
+      {selectedReceipt && (() => {
+        const currentQueueIndex = receipts.findIndex((r) => r.receiptId === selectedReceipt.receiptId);
+        const hasPrev = currentQueueIndex > 0;
+        const hasNext = currentQueueIndex >= 0 && currentQueueIndex < receipts.length - 1;
+        const isDuplicateSuspect = !!selectedReceipt.duplicateCheck?.isDuplicate;
+        const isMonthAlreadyPaid = selectedReceipt.duplicateCheck?.duplicateType === 'MONTH_ALREADY_PAID';
 
-              <button
-                onClick={closeReview}
-                className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all shrink-0"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Modal Body: Split View (File vs Form) */}
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-y-auto divide-y lg:divide-y-0 lg:divide-x divide-white/10">
-              {/* Left Column: Receipt Document Stream View (5 Cols) */}
-              <div className="lg:col-span-5 p-5 bg-slate-950/60 flex flex-col space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <FileText size={14} /> Original Receipt
-                  </span>
-                  <span className="text-[11px] text-gray-400">
-                    {(selectedReceipt.byteSize / 1024).toFixed(1)} KB · {selectedReceipt.mimeType}
-                  </span>
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-slate-950/85 backdrop-blur-md overflow-y-auto">
+            <div className="glass-card w-full max-w-5xl max-h-[94vh] flex flex-col rounded-3xl border border-white/15 shadow-2xl overflow-hidden bg-slate-900">
+              {/* Modal Header with Stepper Controls */}
+              <div className="px-4 sm:px-6 py-3.5 border-b border-white/10 flex items-center justify-between gap-3 bg-slate-900/95">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 shrink-0">
+                    <Sparkles size={20} />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base md:text-lg font-bold text-white flex flex-wrap items-center gap-2">
+                      <span>{t('Review Payment Receipt')}</span>
+                      <span className="text-xs font-mono text-gray-400 font-normal truncate max-w-[160px] sm:max-w-none">
+                        ({selectedReceipt.receiptId.length > 20 ? `...${selectedReceipt.receiptId.slice(-10)}` : selectedReceipt.receiptId})
+                      </span>
+                    </h3>
+                    <p className="text-xs text-gray-400 truncate sm:whitespace-normal">
+                      {t('Verify extracted metadata against the original receipt before posting.')}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="flex-1 min-h-[300px] max-h-[480px] rounded-2xl border border-white/10 bg-slate-900/80 overflow-hidden flex items-center justify-center relative">
-                  {loadingFile ? (
-                    <div className="text-center text-gray-400 text-xs">
-                      <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-blue-400" />
-                      Loading protected file...
-                    </div>
-                  ) : fileBlobUrl ? (
-                    selectedReceipt.mimeType === 'application/pdf' ? (
-                      <iframe src={fileBlobUrl} title="Receipt PDF" className="w-full h-full min-h-[400px]" />
-                    ) : (
-                      <img
-                        src={fileBlobUrl}
-                        alt="Receipt preview"
-                        className="w-full h-full object-contain max-h-[460px] p-2"
-                      />
-                    )
-                  ) : (
-                    <div className="text-center text-gray-500 text-xs p-4">
-                      File stream preview unavailable.
+                {/* Queue Stepper Controls & Close */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {receipts.length > 1 && (
+                    <div className="flex items-center gap-1.5 mr-1">
+                      <span className="px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold font-mono">
+                        {currentQueueIndex >= 0 ? `${currentQueueIndex + 1} / ${receipts.length}` : ''}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={!hasPrev || submitting}
+                        onClick={() => handleNavigateReceipt('prev')}
+                        className="p-1.5 rounded-lg bg-slate-800 text-gray-300 hover:text-white hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1 text-xs"
+                        title={t('Previous Receipt')}
+                      >
+                        <ChevronLeft size={16} />
+                        <span className="hidden md:inline">{t('Previous Receipt')}</span>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!hasNext || submitting}
+                        onClick={() => handleNavigateReceipt('next')}
+                        className="p-1.5 rounded-lg bg-slate-800 text-gray-300 hover:text-white hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none transition-all flex items-center gap-1 text-xs"
+                        title={t('Next Receipt')}
+                      >
+                        <span className="hidden md:inline">{t('Next Receipt')}</span>
+                        <ChevronRight size={16} />
+                      </button>
                     </div>
                   )}
-                </div>
 
-                {/* Raw Extracted Text Accordion/Snippet */}
-                {selectedReceipt.extractedData?.rawText && (
-                  <details className="text-xs bg-slate-900/60 p-3 rounded-xl border border-white/5">
-                    <summary className="cursor-pointer font-bold text-gray-300 hover:text-white">
-                      Raw OCR Text Snippet
-                    </summary>
-                    <pre className="mt-2 text-[11px] text-gray-400 whitespace-pre-wrap font-mono max-h-32 overflow-y-auto">
-                      {selectedReceipt.extractedData.rawText}
-                    </pre>
-                  </details>
-                )}
+                  <button
+                    onClick={closeReview}
+                    className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition-all shrink-0"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
               </div>
 
-              {/* Right Column: Interactive Review & Posting Form (7 Cols) */}
-              <div className="lg:col-span-7 p-6 space-y-5 overflow-y-auto">
-                {/* Duplicate Alert Banner */}
-                {selectedReceipt.duplicateCheck?.isDuplicate && (
-                  <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-2">
-                    <div className="flex items-center gap-2 text-rose-400 font-bold text-xs uppercase tracking-wider">
-                      <ShieldAlert size={16} /> Suspected Duplicate Detected
-                    </div>
-                    <p className="text-xs text-rose-300/90 leading-relaxed">
-                      This receipt matches an existing transaction or file in the system (Type:{' '}
-                      <strong className="underline">{selectedReceipt.duplicateCheck.duplicateType}</strong>).
-                    </p>
-                    {selectedReceipt.status !== 'POSTED' && (
-                      <div>
-                        <label className="text-[11px] font-bold text-rose-300 uppercase tracking-wider block mb-1">
-                          Accountant Override Reason (Required)
-                        </label>
-                        <textarea
-                          rows={2}
-                          value={overrideReason}
-                          onChange={(e) => setOverrideReason(e.target.value)}
-                          placeholder="State why this receipt is legitimate (e.g. Member re-sent payment confirmation)..."
-                          className="w-full px-3 py-2 rounded-xl bg-slate-950/80 border border-rose-500/30 text-white text-xs focus:ring-1 focus:ring-rose-500"
+              {/* Horizontal Mini-Queue Strip */}
+              {receipts.length > 1 && (
+                <div className="px-4 py-2 bg-slate-950/80 border-b border-white/5 flex items-center gap-2 overflow-x-auto no-scrollbar text-xs">
+                  <span className="text-[11px] font-bold text-gray-400 shrink-0 uppercase tracking-wider flex items-center gap-1">
+                    <Users size={12} />
+                    {t('Receipt Queue')}:
+                  </span>
+                  {receipts.map((rcpt, idx) => {
+                    const isSelected = rcpt.receiptId === selectedReceipt.receiptId;
+                    const isDup = !!rcpt.duplicateCheck?.isDuplicate;
+                    const isPosted = rcpt.status === 'POSTED';
+                    return (
+                      <button
+                        key={rcpt.receiptId}
+                        type="button"
+                        onClick={() => openReview(rcpt)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all shrink-0 flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-blue-600 text-white font-bold ring-2 ring-blue-400'
+                            : isPosted
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
+                            : isDup
+                            ? 'bg-rose-500/15 text-rose-300 border border-rose-500/30 hover:bg-rose-500/25'
+                            : 'bg-slate-900 text-gray-300 hover:bg-slate-800 border border-white/5'
+                        }`}
+                      >
+                        <span>#{idx + 1}</span>
+                        <span className="truncate max-w-[90px]">{rcpt.originalFilename}</span>
+                        {isPosted && <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />}
+                        {!isPosted && isDup && <AlertTriangle size={12} className="text-rose-400 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Modal Body: Split View (File vs Form) */}
+              <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-y-auto divide-y lg:divide-y-0 lg:divide-x divide-white/10">
+                {/* Left Column: Receipt Document Stream View (5 Cols) */}
+                <div className="lg:col-span-5 p-5 bg-slate-950/60 flex flex-col space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <FileText size={14} /> {t('Original Receipt')}
+                    </span>
+                    <span className="text-[11px] text-gray-400">
+                      {(selectedReceipt.byteSize / 1024).toFixed(1)} KB · {selectedReceipt.mimeType}
+                    </span>
+                  </div>
+
+                  <div className="flex-1 min-h-[300px] max-h-[480px] rounded-2xl border border-white/10 bg-slate-900/80 overflow-hidden flex items-center justify-center relative">
+                    {loadingFile ? (
+                      <div className="text-center text-gray-400 text-xs">
+                        <RefreshCw size={20} className="animate-spin mx-auto mb-2 text-blue-400" />
+                        Loading protected file...
+                      </div>
+                    ) : fileBlobUrl ? (
+                      selectedReceipt.mimeType === 'application/pdf' ? (
+                        <iframe src={fileBlobUrl} title="Receipt PDF" className="w-full h-full min-h-[400px]" />
+                      ) : (
+                        <img
+                          src={fileBlobUrl}
+                          alt="Receipt preview"
+                          className="w-full h-full object-contain max-h-[460px] p-2"
                         />
+                      )
+                    ) : (
+                      <div className="text-center text-gray-500 text-xs p-4">
+                        File stream preview unavailable.
                       </div>
                     )}
                   </div>
-                )}
 
-                {/* Review Form Fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Member Selection */}
-                  <div className="sm:col-span-2 space-y-1">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center justify-between">
-                      <span>Target Member</span>
-                      {selectedReceipt.memberMatch?.confidence ? (
-                        <span className="text-[11px] text-emerald-400 font-semibold lowercase">
-                          {selectedReceipt.memberMatch.confidence}% match ({selectedReceipt.memberMatch.strategy})
-                        </span>
-                      ) : null}
-                    </label>
-                    <select
-                      value={reviewMemberId}
-                      onChange={(e) => {
-                        setReviewMemberId(e.target.value);
-                      }}
-                      onBlur={handleRecalculatePreview}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-medium focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">-- Select Member --</option>
-                      {membersList.map((m) => (
-                        <option key={m._id} value={m._id}>
-                          {m.memberId} - {m.name} ({m.phone})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Custody Account Selection */}
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
-                      Deposit Custody Account
-                    </label>
-                    <select
-                      value={reviewCustodyId}
-                      onChange={(e) => {
-                        setReviewCustodyId(e.target.value);
-                      }}
-                      onBlur={handleRecalculatePreview}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-medium focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">-- Select Custody --</option>
-                      {custodyAccounts.map((c) => (
-                        <option key={c._id} value={c._id}>
-                          {c.name} ({c.channel} - ৳{c.cachedBalance.toLocaleString()})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Payment Method */}
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
-                      Payment Method
-                    </label>
-                    <select
-                      value={reviewPaymentMethod}
-                      onChange={(e) => setReviewPaymentMethod(e.target.value)}
-                      onBlur={handleRecalculatePreview}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-medium focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="BKASH">bKash</option>
-                      <option value="NAGAD">Nagad</option>
-                      <option value="BANK_TRANSFER">Bank Deposit / Transfer</option>
-                      <option value="CASH">Cash</option>
-                    </select>
-                  </div>
-
-                  {/* Total Amount */}
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
-                      Total Amount (৳)
-                    </label>
-                    <input
-                      type="number"
-                      value={reviewAmount}
-                      onChange={(e) => setReviewAmount(e.target.value)}
-                      onBlur={handleRecalculatePreview}
-                      placeholder="e.g. 2000"
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-bold focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* Payment Date */}
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
-                      Payment Date
-                    </label>
-                    <input
-                      type="date"
-                      value={reviewDate}
-                      onChange={(e) => setReviewDate(e.target.value)}
-                      onBlur={handleRecalculatePreview}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-medium focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* Transaction Reference / TrxID */}
-                  <div className="sm:col-span-2 space-y-1">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
-                      Transaction Reference / TrxID
-                    </label>
-                    <input
-                      type="text"
-                      value={reviewTrxId}
-                      onChange={(e) => setReviewTrxId(e.target.value)}
-                      placeholder="e.g. 9K72JLA89X"
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-mono font-bold focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {/* Notes */}
-                  <div className="sm:col-span-2 space-y-1">
-                    <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
-                      Accountant Notes
-                    </label>
-                    <input
-                      type="text"
-                      value={reviewNotes}
-                      onChange={(e) => setReviewNotes(e.target.value)}
-                      placeholder="Optional notes regarding this deposit..."
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                  {/* Raw Extracted Text Accordion/Snippet */}
+                  {selectedReceipt.extractedData?.rawText && (
+                    <details className="text-xs bg-slate-900/60 p-3 rounded-xl border border-white/5">
+                      <summary className="cursor-pointer font-bold text-gray-300 hover:text-white">
+                        {t('Raw OCR Text Snippet')}
+                      </summary>
+                      <pre className="mt-2 text-[11px] text-gray-400 whitespace-pre-wrap font-mono max-h-32 overflow-y-auto">
+                        {selectedReceipt.extractedData.rawText}
+                      </pre>
+                    </details>
+                  )}
                 </div>
 
-                {/* Allocation Preview Card */}
-                {allocationPreview && (
-                  <div className="bg-slate-950/70 p-4 rounded-2xl border border-blue-500/20 space-y-3">
-                    <div className="flex items-center justify-between text-xs font-bold text-blue-400">
-                      <span>Authoritative Allocation Breakdown</span>
-                      <span>Total: ৳{Number(reviewAmount || 0).toLocaleString()}</span>
+                {/* Right Column: Interactive Review & Posting Form (7 Cols) */}
+                <div className="lg:col-span-7 p-6 space-y-5 overflow-y-auto">
+                  {/* Duplicate Alert Banner */}
+                  {isDuplicateSuspect && (
+                    <div className="p-4 rounded-2xl bg-rose-500/10 border-2 border-rose-500/40 space-y-3">
+                      <div className="flex items-center gap-2 text-rose-400 font-bold text-xs uppercase tracking-wider">
+                        <ShieldAlert size={18} className="shrink-0" />
+                        <span>
+                          {isMonthAlreadyPaid
+                            ? t('Duplicate Installment Payment Detected')
+                            : t('Suspected Duplicate Detected')}
+                        </span>
+                      </div>
+                      <div className="text-xs text-rose-200/90 leading-relaxed space-y-1">
+                        <p className="font-semibold">
+                          {selectedReceipt.duplicateCheck?.details ||
+                            (isMonthAlreadyPaid
+                              ? t('সদস্যের এই মাসের কিস্তি ইতিমধ্যেই সম্পূর্ণরূপে পরিশোধিত। এই রিসিটটি ডুপ্লিকেট হতে পারে।')
+                              : `This receipt matches an existing transaction (Type: ${selectedReceipt.duplicateCheck?.duplicateType}).`)}
+                        </p>
+                        {selectedReceipt.duplicateCheck?.matchedTargetMonth && (
+                          <div className="text-[11px] text-rose-300 font-mono">
+                            {t('Target Month')}: <strong>{selectedReceipt.duplicateCheck.matchedTargetMonth}</strong>
+                          </div>
+                        )}
+                        {selectedReceipt.duplicateCheck?.matchedReceiptId && (
+                          <div className="text-[11px] text-rose-300 font-mono">
+                            কনফ্লিক্টিং রিসিট আইডি: {selectedReceipt.duplicateCheck.matchedReceiptId}
+                          </div>
+                        )}
+                      </div>
+
+                      {selectedReceipt.status !== 'POSTED' && (
+                        <div className="pt-2 border-t border-rose-500/20 space-y-2">
+                          <label className="flex items-start gap-2 cursor-pointer text-xs text-rose-200">
+                            <input
+                              type="checkbox"
+                              checked={confirmDuplicateOverride}
+                              onChange={(e) => setConfirmDuplicateOverride(e.target.checked)}
+                              className="mt-0.5 rounded border-rose-500/40 text-rose-600 focus:ring-rose-500"
+                            />
+                            <span className="font-medium">
+                              {t('Authorize Duplicate Override')}
+                            </span>
+                          </label>
+
+                          {confirmDuplicateOverride && (
+                            <div>
+                              <label className="text-[11px] font-bold text-rose-300 uppercase tracking-wider block mb-1">
+                                {t('Accountant Override Reason (Required)')}
+                              </label>
+                              <textarea
+                                rows={2}
+                                value={overrideReason}
+                                onChange={(e) => setOverrideReason(e.target.value)}
+                                placeholder="লিখুন কেন এই রিসিটটি বৈধ (যেমন: অগ্রিম চাঁদা / বিশেষ সমন্বয়)..."
+                                className="w-full px-3 py-2 rounded-xl bg-slate-950/80 border border-rose-500/30 text-white text-xs focus:ring-1 focus:ring-rose-500"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Review Form Fields */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Member Selection */}
+                    <div className="sm:col-span-2 space-y-1">
+                      <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center justify-between">
+                        <span>{t('Target Member')}</span>
+                        {selectedReceipt.memberMatch?.confidence ? (
+                          <span className="text-[11px] text-emerald-400 font-semibold lowercase">
+                            {selectedReceipt.memberMatch.confidence}% match ({selectedReceipt.memberMatch.strategy})
+                          </span>
+                        ) : null}
+                      </label>
+                      <select
+                        value={reviewMemberId}
+                        onChange={(e) => {
+                          setReviewMemberId(e.target.value);
+                        }}
+                        onBlur={handleRecalculatePreview}
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">-- Select Member --</option>
+                        {membersList.map((m) => (
+                          <option key={m._id} value={m._id}>
+                            {m.memberId} - {m.name} ({m.phone})
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-                      <div className="p-2 rounded-xl bg-slate-900 border border-white/5">
-                        <span className="text-[10px] text-gray-400 block uppercase">Principal</span>
-                        <strong className="text-emerald-400 text-sm">
-                          ৳{allocationPreview.breakdown?.principalAmount || 0}
-                        </strong>
-                      </div>
-                      <div className="p-2 rounded-xl bg-slate-900 border border-white/5">
-                        <span className="text-[10px] text-gray-400 block uppercase">Advance</span>
-                        <strong className="text-cyan-400 text-sm">
-                          ৳{allocationPreview.breakdown?.advanceAmount || 0}
-                        </strong>
-                      </div>
-                      <div className="p-2 rounded-xl bg-slate-900 border border-white/5">
-                        <span className="text-[10px] text-gray-400 block uppercase">Penalty</span>
-                        <strong className="text-amber-400 text-sm">
-                          ৳{allocationPreview.breakdown?.penaltyAmount || 0}
-                        </strong>
-                      </div>
-                      <div className="p-2 rounded-xl bg-slate-900 border border-white/5">
-                        <span className="text-[10px] text-gray-400 block uppercase">Fee Paid</span>
-                        <strong className="text-purple-400 text-sm">
-                          ৳{allocationPreview.breakdown?.cashoutChargePaid || 0}
-                        </strong>
-                      </div>
+                    {/* Custody Account Selection */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
+                        {t('Deposit Custody Account')}
+                      </label>
+                      <select
+                        value={reviewCustodyId}
+                        onChange={(e) => {
+                          setReviewCustodyId(e.target.value);
+                        }}
+                        onBlur={handleRecalculatePreview}
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">-- Select Custody --</option>
+                        {custodyAccounts.map((c) => (
+                          <option key={c._id} value={c._id}>
+                            {c.name} ({c.channel} - ৳{c.cachedBalance.toLocaleString()})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Payment Method */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
+                        {t('Payment Method')}
+                      </label>
+                      <select
+                        value={reviewPaymentMethod}
+                        onChange={(e) => setReviewPaymentMethod(e.target.value)}
+                        onBlur={handleRecalculatePreview}
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="BKASH">bKash</option>
+                        <option value="NAGAD">Nagad</option>
+                        <option value="BANK_TRANSFER">Bank Deposit / Transfer</option>
+                        <option value="CASH">Cash</option>
+                      </select>
+                    </div>
+
+                    {/* Total Amount */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
+                        {t('Total Amount (৳)')}
+                      </label>
+                      <input
+                        type="number"
+                        value={reviewAmount}
+                        onChange={(e) => setReviewAmount(e.target.value)}
+                        onBlur={handleRecalculatePreview}
+                        placeholder="e.g. 2000"
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-bold focus:ring-2 focus:ring-blue-500"
+                      >
+                      </input>
+                    </div>
+
+                    {/* Payment Date */}
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
+                        {t('Payment Date')}
+                      </label>
+                      <input
+                        type="date"
+                        value={reviewDate}
+                        onChange={(e) => setReviewDate(e.target.value)}
+                        onBlur={handleRecalculatePreview}
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Transaction Reference / TrxID */}
+                    <div className="sm:col-span-2 space-y-1">
+                      <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
+                        {t('Transaction Reference / TrxID')}
+                      </label>
+                      <input
+                        type="text"
+                        value={reviewTrxId}
+                        onChange={(e) => setReviewTrxId(e.target.value)}
+                        placeholder="e.g. 9K72JLA89X"
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs font-mono font-bold focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Notes */}
+                    <div className="sm:col-span-2 space-y-1">
+                      <label className="text-xs font-bold text-gray-300 uppercase tracking-wider block">
+                        {t('Accountant Notes')}
+                      </label>
+                      <input
+                        type="text"
+                        value={reviewNotes}
+                        onChange={(e) => setReviewNotes(e.target.value)}
+                        placeholder="Optional notes regarding this deposit..."
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-white text-xs focus:ring-2 focus:ring-blue-500"
+                      />
                     </div>
                   </div>
-                )}
 
-                {/* Error Banner */}
-                {actionError && (
-                  <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
-                    <AlertTriangle size={16} />
-                    <span>{actionError}</span>
-                  </div>
-                )}
+                  {/* Allocation Preview & Target Month Status Card */}
+                  {allocationPreview && (
+                    <div className="bg-slate-950/70 p-4 rounded-2xl border border-blue-500/20 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold text-blue-400">
+                        <span className="flex items-center gap-1.5">
+                          <Sparkles size={14} />
+                          {t('Authoritative Allocation Breakdown')}
+                        </span>
+                        <span>Total: ৳{Number(reviewAmount || 0).toLocaleString()}</span>
+                      </div>
 
-                {/* Actions Footer */}
-                <div className="flex flex-wrap items-center justify-end gap-3 pt-3 border-t border-white/10">
-                  {selectedReceipt.status !== 'POSTED' && (
+                      {/* Target Month & Allocation Status Banner */}
+                      {allocationPreview.allocations && allocationPreview.allocations.length > 0 && (
+                        <div className="p-2.5 rounded-xl bg-slate-900/90 border border-white/10 space-y-1.5 text-xs">
+                          <div className="text-[11px] font-bold text-gray-300 uppercase tracking-wider flex items-center justify-between">
+                            <span>{t('Monthly Obligation & Due Status')}</span>
+                            {allocationPreview.coverage && (
+                              <span className="text-cyan-400 font-mono text-[11px]">
+                                {allocationPreview.coverage.coversFrom === allocationPreview.coverage.coversTo
+                                  ? allocationPreview.coverage.coversFrom
+                                  : `${allocationPreview.coverage.coversFrom} → ${allocationPreview.coverage.coversTo}`}
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-1">
+                            {allocationPreview.allocations.map((alloc: any, i: number) => {
+                              const isPrincipal = alloc.allocationType === 'PRINCIPAL';
+                              const isAdvance = alloc.allocationType === 'ADVANCE';
+                              const isPenalty = alloc.allocationType === 'PENALTY';
+                              return (
+                                <div
+                                  key={i}
+                                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-950/60 border border-white/5 text-[11px]"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                                        isPrincipal
+                                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                          : isAdvance
+                                          ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                                          : isPenalty
+                                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                          : 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                      }`}
+                                    >
+                                      {alloc.targetMonth} · {t(isPrincipal ? 'Monthly Due' : isAdvance ? 'Advance Credit' : isPenalty ? 'Penalty' : alloc.allocationType)}
+                                    </span>
+                                    <span className="text-gray-300 truncate max-w-[200px] sm:max-w-xs">{alloc.description}</span>
+                                  </div>
+                                  <span className="font-mono font-bold text-white shrink-0">৳{Number(alloc.amount).toLocaleString()}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+                        <div className="p-2 rounded-xl bg-slate-900 border border-white/5">
+                          <span className="text-[10px] text-gray-400 block uppercase">{t('Principal')}</span>
+                          <strong className="text-emerald-400 text-sm">
+                            ৳{Number(allocationPreview.breakdown?.principalAmount || 0).toLocaleString()}
+                          </strong>
+                        </div>
+                        <div className="p-2 rounded-xl bg-slate-900 border border-white/5">
+                          <span className="text-[10px] text-gray-400 block uppercase">{t('Advance')}</span>
+                          <strong className="text-cyan-400 text-sm">
+                            ৳{Number(allocationPreview.breakdown?.advanceAmount || 0).toLocaleString()}
+                          </strong>
+                        </div>
+                        <div className="p-2 rounded-xl bg-slate-900 border border-white/5">
+                          <span className="text-[10px] text-gray-400 block uppercase">{t('Penalty')}</span>
+                          <strong className="text-amber-400 text-sm">
+                            ৳{Number(allocationPreview.breakdown?.penaltyAmount || 0).toLocaleString()}
+                          </strong>
+                        </div>
+                        <div className="p-2 rounded-xl bg-slate-900 border border-white/5">
+                          <span className="text-[10px] text-gray-400 block uppercase">{t('Fee Paid')}</span>
+                          <strong className="text-purple-400 text-sm">
+                            ৳{Number(allocationPreview.breakdown?.cashoutChargePaid || 0).toLocaleString()}
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Error Banner */}
+                  {actionError && (
+                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2">
+                      <AlertTriangle size={16} />
+                      <span>{actionError}</span>
+                    </div>
+                  )}
+
+                  {/* Actions Footer */}
+                  <div className="flex flex-wrap items-center justify-end gap-2.5 pt-3 border-t border-white/10">
+                    {selectedReceipt.status !== 'POSTED' && (
+                      <button
+                        type="button"
+                        disabled={removingReceiptId === selectedReceipt.receiptId || submitting}
+                        onClick={() => void handleRemoveReceipt(selectedReceipt)}
+                        className="px-3.5 py-2.5 rounded-xl text-xs font-bold text-rose-300 hover:text-rose-100 hover:bg-rose-500/10 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        {removingReceiptId === selectedReceipt.receiptId ? (
+                          <RefreshCw size={14} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={14} />
+                        )}
+                        <span>{t('Remove Image')}</span>
+                      </button>
+                    )}
                     <button
                       type="button"
-                      disabled={removingReceiptId === selectedReceipt.receiptId || submitting}
-                      onClick={() => void handleRemoveReceipt(selectedReceipt)}
-                      className="px-4 py-2.5 rounded-xl text-xs font-bold text-rose-300 hover:text-rose-100 hover:bg-rose-500/10 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                      onClick={closeReview}
+                      className="px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all"
                     >
-                      {removingReceiptId === selectedReceipt.receiptId ? (
-                        <RefreshCw size={14} className="animate-spin" />
-                      ) : (
-                        <Trash2 size={14} />
-                      )}
-                      <span>Remove Image</span>
+                      {t('Cancel')}
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={closeReview}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all"
-                  >
-                    Cancel
-                  </button>
 
-                  {selectedReceipt.status !== 'POSTED' && (
-                    <>
-                      <button
-                        type="button"
-                        disabled={submitting}
-                        onClick={handleSaveReview}
-                        className="px-5 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-gray-200 hover:bg-slate-700 transition-all disabled:opacity-50"
-                      >
-                        Save Verification
-                      </button>
+                    {selectedReceipt.status !== 'POSTED' && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={submitting}
+                          onClick={handleSaveReview}
+                          className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-800 text-gray-200 hover:bg-slate-700 transition-all disabled:opacity-50"
+                        >
+                          {t('Save Verification')}
+                        </button>
 
-                      <button
-                        type="button"
-                        disabled={submitting || !reviewMemberId || !reviewAmount || Number(reviewAmount) <= 0}
-                        onClick={handleConfirmAndPost}
-                        className="px-6 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 disabled:opacity-50"
-                      >
-                        {submitting ? (
-                          <>
-                            <RefreshCw size={14} className="animate-spin" />
-                            <span>Posting to Ledger...</span>
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 size={16} />
-                            <span>Confirm &amp; Post Payment</span>
-                          </>
+                        {hasNext && (
+                          <button
+                            type="button"
+                            disabled={submitting}
+                            onClick={handleSaveAndNext}
+                            className="px-4 py-2.5 rounded-xl text-xs font-bold bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-600/40 transition-all flex items-center gap-1.5 disabled:opacity-50"
+                          >
+                            <span>{t('Save & Next')}</span>
+                            <ChevronRight size={14} />
+                          </button>
                         )}
-                      </button>
-                    </>
-                  )}
+
+                        <button
+                          type="button"
+                          disabled={
+                            submitting ||
+                            !reviewMemberId ||
+                            !reviewAmount ||
+                            Number(reviewAmount) <= 0 ||
+                            (isDuplicateSuspect &&
+                              (!confirmDuplicateOverride || !overrideReason.trim() || overrideReason.trim().length < 5))
+                          }
+                          onClick={() => void handleConfirmAndPost(true)}
+                          className="px-5 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          {submitting ? (
+                            <>
+                              <RefreshCw size={14} className="animate-spin" />
+                              <span>Posting to Ledger...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 size={16} />
+                              <span>{t('Confirm & Post Payment')}</span>
+                              {hasNext && <ChevronRight size={14} />}
+                            </>
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

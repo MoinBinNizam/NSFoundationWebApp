@@ -237,6 +237,52 @@ describe('Payment Receipt OCR & Auto-Extraction Test Suite', () => {
 
       await PaymentReceipt.findByIdAndDelete(doc._id);
     });
+
+    it('detects MONTH_ALREADY_PAID when member already settled the target month obligation', async () => {
+      const { MonthlyLedger } = await import('../models/MonthlyLedger.js');
+      await MonthlyLedger.create({
+        memberId: testMemberId,
+        month: '2024-03',
+        shareCount: 2,
+        principalDue: 1000,
+        principalPaid: 1000,
+        penaltyDue: 0,
+        penaltyPaid: 0,
+        status: 'PAID',
+      });
+
+      const monthDup = await ReceiptMatchingService.checkMonthDuplicate(
+        'rcpt_test_month_dup',
+        testMemberId,
+        new Date('2024-03-15')
+      );
+
+      expect(monthDup).not.toBeNull();
+      expect(monthDup?.isDuplicate).toBe(true);
+      expect(monthDup?.duplicateType).toBe('MONTH_ALREADY_PAID');
+      expect(monthDup?.matchedTargetMonth).toBe('2024-03');
+
+      // Cleanup
+      await MonthlyLedger.deleteMany({ memberId: testMemberId, month: '2024-03' });
+    });
+
+    it('pre-assigns target member with 100% confidence when targetMemberId is provided at upload', async () => {
+      const receipt = await ReceiptService.uploadReceipt(
+        Buffer.from('bKash test text without member details', 'utf-8'),
+        'preassigned-slip.png',
+        'image/png',
+        testUserId,
+        undefined,
+        testMemberId
+      );
+
+      expect(receipt.memberMatch.selectedMemberId?.toString()).toBe(testMemberId);
+      expect(receipt.memberMatch.strategy).toBe('MANUAL_PREASSIGN');
+      expect(receipt.memberMatch.confidence).toBe(100);
+      expect(receipt.reviewedData.memberId?.toString()).toBe(testMemberId);
+
+      await ReceiptService.removeReceipt(receipt.receiptId, { _id: testUserId } as any);
+    });
   });
 
   describe('4. End-to-End Receipt Service Lifecycle & Payment Posting', () => {

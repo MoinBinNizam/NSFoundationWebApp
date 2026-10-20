@@ -12,8 +12,8 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10 MB per file limit
-    files: 10,
+    fileSize: 15 * 1024 * 1024, // 15 MB per file limit
+    files: 50,
   },
   fileFilter: (_req, file, cb) => {
     const allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
@@ -29,11 +29,11 @@ const upload = multer({
 router.use(authenticate);
 router.use(requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.ACCOUNTANT));
 
-// Upload endpoint (accepts single 'file' or multiple 'receipts')
+// Upload endpoint (accepts single 'file' or multiple 'receipts' up to 50)
 router.post(
   '/',
   upload.fields([
-    { name: 'receipts', maxCount: 10 },
+    { name: 'receipts', maxCount: 50 },
     { name: 'file', maxCount: 1 },
   ]),
   (req, _res, next) => {
