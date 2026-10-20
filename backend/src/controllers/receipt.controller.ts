@@ -212,4 +212,23 @@ export class ReceiptController {
       next(error);
     }
   }
+
+  /**
+   * POST /api/payments/receipts/:id/link-sender-phone
+   */
+  static async linkSenderPhone(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { memberId, phone } = req.body;
+      const result = await ReceiptService.linkSenderPhoneToMember(id, memberId, phone, req.user as any);
+
+      res.status(200).json({
+        success: true,
+        message: 'Phone number linked to member profile successfully',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

@@ -11,6 +11,7 @@ import { PenaltyWaiver } from '../models/PenaltyWaiver.js';
 import { MemberYearAccount } from '../models/MemberYearAccount.js';
 import { MemberExitSettlement } from '../models/MemberExitSettlement.js';
 import { AuditLog } from '../models/AuditLog.js';
+import { PaymentReceipt } from '../models/PaymentReceipt.js';
 import {
   AllocationType,
   MonthlyLedgerStatus,
@@ -534,6 +535,8 @@ export class PaymentService {
       cashoutWaiverAmount?: number;
       waiverReason?: string;
       transactionReference?: string;
+      receiptId?: string;
+      paymentReceiptId?: string | Types.ObjectId;
       notes?: string;
     },
     actingUser: IUser
@@ -622,6 +625,8 @@ export class PaymentService {
       advanceAmount: preview.breakdown.advanceAmount,
       paymentMethod,
       transactionReference: input.transactionReference || '',
+      receiptId: input.receiptId || null,
+      paymentReceiptId: input.paymentReceiptId || null,
       status: PaymentStatus.COLLECTED,
       notes: input.notes || '',
     });
@@ -1094,14 +1099,32 @@ export class PaymentService {
 
     const [payments, total] = await Promise.all([
       Payment.find(filter)
-        .populate('memberId', 'name memberId phone')
+        .populate('memberId', 'name memberId phone linkedPhones')
         .populate('receiverId', 'name email accountantType')
         .populate('custodyAccountId', 'name channel accountNumber')
+        .populate('paymentReceiptId', 'receiptId originalFilename mimeType byteSize status')
         .sort({ paymentDate: -1, createdAt: -1 })
         .skip(skip)
         .limit(limit),
       Payment.countDocuments(filter),
     ]);
+
+    // Backfill receiptId for older records if posted via OCR
+    const paymentsWithoutReceipt = payments.filter((p) => !p.receiptId && !(p as any).paymentReceiptId);
+    if (paymentsWithoutReceipt.length > 0) {
+      const ids = paymentsWithoutReceipt.map((p) => p._id);
+      const linked = await PaymentReceipt.find({ paymentId: { $in: ids } })
+        .select('receiptId paymentId')
+        .lean();
+      if (linked.length > 0) {
+        const map = new Map(linked.map((l) => [String(l.paymentId), l.receiptId]));
+        for (const p of payments) {
+          if (!p.receiptId && map.has(String(p._id))) {
+            (p as any).receiptId = map.get(String(p._id));
+          }
+        }
+      }
+    }
 
     return {
       payments,
@@ -1119,12 +1142,22 @@ export class PaymentService {
    */
   static async getPaymentDetails(paymentId: string) {
     const payment = await Payment.findById(paymentId)
-      .populate('memberId', 'name memberId phone address')
+      .populate('memberId', 'name memberId phone address linkedPhones')
       .populate('receiverId', 'name email accountantType phone')
-      .populate('custodyAccountId', 'name channel accountNumber');
+      .populate('custodyAccountId', 'name channel accountNumber')
+      .populate('paymentReceiptId', 'receiptId originalFilename mimeType byteSize status');
 
     if (!payment) {
       throw createError('Payment receipt not found', 404);
+    }
+
+    if (!payment.receiptId && !(payment as any).paymentReceiptId) {
+      const linked = await PaymentReceipt.findOne({ paymentId: payment._id })
+        .select('receiptId')
+        .lean();
+      if (linked) {
+        (payment as any).receiptId = linked.receiptId;
+      }
     }
 
     const allocations = await PaymentAllocation.find({ paymentId: payment._id }).sort({

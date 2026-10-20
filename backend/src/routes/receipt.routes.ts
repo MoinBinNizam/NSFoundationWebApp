@@ -59,6 +59,7 @@ router.delete('/:id', ReceiptController.remove);
 // Review & Allocation Preview
 router.patch('/:id/review', ReceiptController.review);
 router.post('/:id/preview', ReceiptController.previewAllocation);
+router.post('/:id/link-sender-phone', ReceiptController.linkSenderPhone);
 
 // Duplicate override & Final Posting
 router.post('/:id/duplicate-override', ReceiptController.overrideDuplicate);

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { Readable } from 'stream';
+import sharp from 'sharp';
 import { logger } from '../../../utils/logger.js';
 
 export interface StoragePutResult {
@@ -22,6 +23,7 @@ export class ReceiptStorageService {
 
   /**
    * Saves a buffer or stream to private local storage.
+   * Compresses image buffers (JPEG, PNG, WebP) to save storage and memory.
    * Generates a date-partitioned UUID key: receipts/YYYY/MM/<uuid>.<ext>
    */
   static async putBuffer(
@@ -32,8 +34,38 @@ export class ReceiptStorageService {
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
-    const ext = path.extname(originalFilename).toLowerCase() || '.png';
+    let ext = path.extname(originalFilename).toLowerCase() || '.png';
     const uuid = crypto.randomUUID();
+
+    // Compute SHA-256 on the original buffer for consistent duplicate detection
+    const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+
+    let finalBuffer = buffer;
+    let finalMime = mimeType;
+
+    // Compress image uploads to save memory and disk storage
+    if (mimeType.startsWith('image/') && !mimeType.includes('pdf')) {
+      try {
+        const optimized = await sharp(buffer)
+          .resize({ width: 1600, height: 1600, fit: 'inside', withoutEnlargement: true })
+          .webp({ quality: 80 })
+          .toBuffer();
+
+        if (optimized.length < buffer.length || buffer.length > 200 * 1024) {
+          logger.info(`Receipt image optimized: ${buffer.length} -> ${optimized.length} bytes (-${Math.round((1 - optimized.length / buffer.length) * 100)}%)`, {
+            component: 'ReceiptStorage',
+            originalSize: buffer.length,
+            optimizedSize: optimized.length,
+          });
+          finalBuffer = optimized;
+          finalMime = 'image/webp';
+          ext = '.webp';
+        }
+      } catch (optError) {
+        // Fallback gracefully for raw/dummy or non-standard image buffers
+        finalBuffer = buffer;
+      }
+    }
 
     const relativeKey = `receipts/${year}/${month}/${uuid}${ext}`;
     const targetDir = path.join(this.baseDir, String(year), month);
@@ -41,12 +73,9 @@ export class ReceiptStorageService {
 
     const fullPath = path.join(this.baseDir, String(year), month, `${uuid}${ext}`);
 
-    // Compute SHA-256
-    const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+    await fs.promises.writeFile(fullPath, finalBuffer);
 
-    await fs.promises.writeFile(fullPath, buffer);
-
-    logger.info(`Receipt file saved: ${relativeKey} (${buffer.length} bytes)`, {
+    logger.info(`Receipt file saved: ${relativeKey} (${finalBuffer.length} bytes)`, {
       component: 'ReceiptStorage',
       sha256: hash,
     });
@@ -54,8 +83,8 @@ export class ReceiptStorageService {
     return {
       storageKey: relativeKey,
       sha256: hash,
-      byteSize: buffer.length,
-      mimeType,
+      byteSize: finalBuffer.length,
+      mimeType: finalMime,
     };
   }
 

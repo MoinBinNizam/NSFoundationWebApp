@@ -15,6 +15,9 @@ import {
   ShieldAlert,
   Trash2,
   Users,
+  Phone,
+  Plus,
+  Loader2,
 } from 'lucide-react';
 
 export interface MemberOption {
@@ -22,6 +25,7 @@ export interface MemberOption {
   memberId: string;
   name: string;
   phone: string;
+  linkedPhones?: string[];
   status: string;
   cashoutDue?: number;
 }
@@ -133,6 +137,37 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
   const [actionError, setActionError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [removingReceiptId, setRemovingReceiptId] = useState<string | null>(null);
+  const [linkingPhone, setLinkingPhone] = useState(false);
+  const [phoneLinkSuccess, setPhoneLinkSuccess] = useState<string | null>(null);
+  const [localLinkedPhones, setLocalLinkedPhones] = useState<Record<string, string[]>>({});
+
+  const handleLinkPhoneToMember = async (memberId: string, phone: string) => {
+    if (!selectedReceipt || !memberId || !phone) return;
+    setLinkingPhone(true);
+    setActionError(null);
+    try {
+      await apiRequest<any>(`/payments/receipts/${selectedReceipt.receiptId}/link-sender-phone`, {
+        method: 'POST',
+        body: JSON.stringify({
+          memberId,
+          phone,
+        }),
+      });
+
+      const digits = phone.replace(/\D/g, '');
+      const normalized = digits.length > 11 ? digits.slice(-11) : digits;
+      setLocalLinkedPhones((prev) => ({
+        ...prev,
+        [memberId]: [...(prev[memberId] || []), normalized],
+      }));
+      setPhoneLinkSuccess(phone);
+      setTimeout(() => setPhoneLinkSuccess(null), 6000);
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to link phone number to member profile.');
+    } finally {
+      setLinkingPhone(false);
+    }
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -1113,6 +1148,67 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
                           </option>
                         ))}
                       </select>
+
+                      {/* 1-Click Link Sender Phone to Member */}
+                      {(() => {
+                        const senderPhone = selectedReceipt.extractedData?.senderPhone?.trim();
+                        if (!senderPhone || !reviewMemberId) return null;
+
+                        const selectedMemberObj = membersList.find((m) => m._id === reviewMemberId);
+                        const normalize = (val?: string | null) => {
+                          if (!val) return '';
+                          const digits = val.replace(/\D/g, '');
+                          return digits.length > 11 ? digits.slice(-11) : digits;
+                        };
+
+                        const normSender = normalize(senderPhone);
+                        if (!normSender || normSender.length < 10) return null;
+
+                        const isPrimary = normalize(selectedMemberObj?.phone) === normSender;
+                        const isLinked =
+                          selectedMemberObj?.linkedPhones?.some((p) => normalize(p) === normSender) ||
+                          localLinkedPhones[reviewMemberId]?.includes(normSender);
+
+                        if (isPrimary || isLinked) {
+                          return (
+                            <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-emerald-400 font-medium">
+                              <CheckCircle2 size={13} className="shrink-0" />
+                              <span>
+                                {t('Sender Phone')}: <strong className="font-mono text-emerald-300">{senderPhone}</strong>{' '}
+                                ({isPrimary ? t('Primary Phone') : t('Linked MFS Number')})
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="mt-2 p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <div className="text-xs">
+                              <div className="font-semibold text-blue-200 flex items-center gap-1.5">
+                                <Phone size={13} className="text-blue-400" />
+                                <span>{t('Sender Phone')}: <strong className="font-mono text-white">{senderPhone}</strong></span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">
+                                  {t('Not Linked')}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-gray-300 mt-0.5">
+                                {phoneLinkSuccess === senderPhone
+                                  ? t('Phone linked to member successfully!')
+                                  : t('This number is not in the member’s profile. Link it so future receipts are recognized instantly.')}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              disabled={linkingPhone}
+                              onClick={() => handleLinkPhoneToMember(reviewMemberId, senderPhone)}
+                              className="btn btn-secondary btn-sm bg-blue-600/25 hover:bg-blue-600/40 text-blue-200 border-blue-500/30 whitespace-nowrap text-xs flex items-center gap-1 self-start sm:self-center"
+                            >
+                              {linkingPhone ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                              <span>{linkingPhone ? t('Linking...') : t('Link Phone to Member')}</span>
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Custody Account Selection */}

@@ -11,6 +11,7 @@ import { normalizePhone } from '../middlewares/sanitize.js';
 export interface CreateMemberInput {
   name: string;
   phone: string;
+  linkedPhones?: string[];
   email?: string;
   memberId?: string;
   designation?: MemberDesignation;
@@ -23,6 +24,7 @@ export interface CreateMemberInput {
 export interface UpdateMemberInput {
   name?: string;
   phone?: string;
+  linkedPhones?: string[];
   email?: string;
   designation?: MemberDesignation;
   status?: MemberStatus;
@@ -151,6 +153,7 @@ export async function getMembers(options: MemberQueryOptions = {}) {
       { name: searchRegex },
       { memberId: searchRegex },
       { phone: searchRegex },
+      { linkedPhones: searchRegex },
       { email: searchRegex },
     ];
   }
@@ -251,6 +254,11 @@ export async function updateMember(
   if (input.status) member.status = input.status;
   if (input.joinDate) member.joinDate = new Date(input.joinDate);
   if (input.address !== undefined) member.address = input.address?.trim();
+  if (input.linkedPhones !== undefined) {
+    member.linkedPhones = Array.isArray(input.linkedPhones)
+      ? input.linkedPhones.map((p: string) => String(p).trim()).filter(Boolean)
+      : member.linkedPhones;
+  }
   await member.save();
 
   // Synchronize designation with linked User account if present

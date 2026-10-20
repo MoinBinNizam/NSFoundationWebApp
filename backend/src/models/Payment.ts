@@ -109,6 +109,17 @@ const paymentSchema = new Schema<IPayment>(
       default: PaymentStatus.COLLECTED,
       index: true,
     },
+    receiptId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    paymentReceiptId: {
+      type: Schema.Types.ObjectId,
+      ref: 'PaymentReceipt',
+      default: null,
+      index: true,
+    },
     notes: {
       type: String,
       trim: true,

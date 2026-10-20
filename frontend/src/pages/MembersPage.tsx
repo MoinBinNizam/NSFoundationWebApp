@@ -34,6 +34,7 @@ interface MemberData {
   memberId: string;
   name: string;
   phone: string;
+  linkedPhones?: string[];
   email?: string;
   designation?: string;
   status: 'ACTIVE' | 'INACTIVE' | 'DROPPED';
@@ -84,6 +85,7 @@ export const MembersPage: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
+    linkedPhones: '',
     email: '',
     designation: 'GENERAL_MEMBER',
     status: 'ACTIVE',
@@ -149,6 +151,7 @@ export const MembersPage: React.FC = () => {
     setFormData({
       name: '',
       phone: '',
+      linkedPhones: '',
       email: '',
       designation: 'GENERAL_MEMBER',
       status: 'ACTIVE',
@@ -173,6 +176,7 @@ export const MembersPage: React.FC = () => {
     setFormData({
       name: m.name,
       phone: m.phone,
+      linkedPhones: (m.linkedPhones || []).join(', '),
       email: m.email || '',
       designation: m.designation || 'GENERAL_MEMBER',
       status: m.status,
@@ -226,12 +230,20 @@ export const MembersPage: React.FC = () => {
     }
     setSubmitting(true);
 
+    const linkedPhonesList = formData.linkedPhones
+      ? formData.linkedPhones
+          .split(',')
+          .map((p) => p.trim())
+          .filter(Boolean)
+      : [];
+
     try {
       await apiRequest(`/members/${selectedMember._id}`, {
         method: 'PUT',
         body: JSON.stringify({
           name: formData.name,
           phone: formData.phone,
+          linkedPhones: linkedPhonesList,
           email: formData.email,
           designation: formData.designation,
           status: formData.status,
@@ -881,6 +893,20 @@ export const MembersPage: React.FC = () => {
                 />
               </div>
 
+              <div className="form-group mb-0">
+                <label className="form-label">{t('Linked Sender / MFS Numbers')}</label>
+                <input
+                  type="text"
+                  placeholder={t('Comma-separated, e.g. 01711223344, 01811223344')}
+                  className="form-input"
+                  value={formData.linkedPhones}
+                  onChange={(e) => setFormData({ ...formData, linkedPhones: e.target.value })}
+                />
+                <span className="text-[11px] text-gray-400 mt-1 block">
+                  {t('Secondary bKash/Nagad/Bank mobile numbers used by this member to pay.')}
+                </span>
+              </div>
+
               <div className="flex justify-end gap-2.5 pt-3">
                 <button
                   type="button"
@@ -943,6 +969,22 @@ export const MembersPage: React.FC = () => {
                 <span className="text-gray-400 font-medium">{t('Phone Number')}:</span>
                 <span className="text-white font-semibold">{selectedMember.phone}</span>
               </div>
+
+              {selectedMember.linkedPhones && selectedMember.linkedPhones.length > 0 && (
+                <div className="p-3.5 rounded-xl bg-slate-900/60 border border-white/5 space-y-1.5">
+                  <span className="text-gray-400 font-medium block">{t('Linked Sender / MFS Numbers')}:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedMember.linkedPhones.map((lp, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-blue-500/10 text-blue-300 border border-blue-500/25"
+                      >
+                        {lp}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {selectedMember.email && (
                 <div className="flex justify-between items-center p-3.5 rounded-xl bg-slate-900/60 border border-white/5">

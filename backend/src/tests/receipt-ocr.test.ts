@@ -369,6 +369,55 @@ describe('Payment Receipt OCR & Auto-Extraction Test Suite', () => {
       const postedPayment = await Payment.findById(result.receipt.paymentId);
       expect(postedPayment).not.toBeNull();
       expect(postedPayment?.memberId.toString()).toBe(testMemberId);
+      expect(postedPayment?.receiptId).toBe(createdReceiptId);
+      expect(postedPayment?.paymentReceiptId?.toString()).toBe(result.receipt._id.toString());
+    });
+
+    it('links a secondary sender phone to member and auto-matches on future receipt', async () => {
+      const secondaryPhone = '01899-776655';
+      const mockUser = {
+        _id: testUserId,
+        role: 'ADMIN',
+        name: 'Accountant Admin',
+        email: 'admin@nsfoundation.org',
+      } as any;
+
+      const receipt = await ReceiptService.uploadReceipt(
+        Buffer.from('Nagad payment from 01899-776655 Trx: NGD8833 Amount: 1000', 'utf-8'),
+        'nagad-slip.png',
+        'image/png',
+        testUserId
+      );
+
+      const linkResult = await ReceiptService.linkSenderPhoneToMember(
+        receipt.receiptId,
+        testMemberId,
+        secondaryPhone,
+        mockUser
+      );
+
+      expect(linkResult.member.linkedPhones).toContain(secondaryPhone);
+      expect(linkResult.receipt.memberMatch.selectedMemberId?.toString()).toBe(testMemberId);
+
+      const matchResult = await ReceiptMatchingService.matchMember({
+        memberIdentifier: null,
+        memberName: null,
+        senderPhone: '01899776655',
+        receiverAccount: null,
+        amount: 1000,
+        date: null,
+        transactionId: 'NGD9999',
+        reference: null,
+        fee: null,
+        rawText: 'Nagad money transfer from 01899-776655',
+        confidence: 85,
+        provider: 'HEURISTIC_PARSER',
+      });
+
+      expect(matchResult.selectedMemberId?.toString()).toBe(testMemberId);
+      expect(matchResult.confidence).toBe(95);
+
+      await ReceiptService.removeReceipt(receipt.receiptId, mockUser);
     });
   });
 

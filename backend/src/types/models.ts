@@ -202,6 +202,7 @@ export interface IMember {
   memberId: string; // e.g. "NSF001"
   name: string;
   phone: string;
+  linkedPhones?: string[]; // Additional phone/bKash/Nagad/Rocket numbers linked to this member
   email?: string;
   designation: MemberDesignation;
   status: MemberStatus;
@@ -332,6 +333,8 @@ export interface IPayment {
   paymentMethod: PaymentMethod;
   transactionReference?: string;
   status: PaymentStatus;
+  receiptId?: string; // OCR PaymentReceipt tracking ID
+  paymentReceiptId?: Types.ObjectId; // Link to source PaymentReceipt document
   notes?: string;
   createdAt: Date;
   updatedAt: Date;

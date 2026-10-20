@@ -28,7 +28,7 @@ export class ReceiptMatchingService {
    */
   static async matchMember(extracted: ExtractedReceiptData): Promise<MemberMatchResult> {
     const members = await Member.find({ status: 'ACTIVE' })
-      .select('_id memberId name phone')
+      .select('_id memberId name phone linkedPhones')
       .lean();
 
     const candidates: Array<{ memberId: Types.ObjectId; name: string; phone: string; score: number }> = [];
@@ -39,6 +39,9 @@ export class ReceiptMatchingService {
     for (const m of members) {
       let score = 0;
       const memberPhone = (m.phone || '').replace(/\D/g, '').slice(-11);
+      const linkedPhoneMatches = (m.linkedPhones || []).some(
+        (lp: string) => senderPhone && lp.replace(/\D/g, '').slice(-11) === senderPhone
+      );
 
       // Strategy 1: Exact Member ID in reference or text
       if (ref && m.memberId && ref.includes(m.memberId.toUpperCase())) {
@@ -47,8 +50,8 @@ export class ReceiptMatchingService {
         continue;
       }
 
-      // Strategy 2: Exact Phone Match
-      if (senderPhone && memberPhone && senderPhone === memberPhone) {
+      // Strategy 2: Exact Phone Match (Primary phone or linked bKash/Nagad number)
+      if (senderPhone && ((memberPhone && senderPhone === memberPhone) || linkedPhoneMatches)) {
         score = 95;
         candidates.push({ memberId: m._id as any, name: m.name, phone: m.phone, score });
         continue;

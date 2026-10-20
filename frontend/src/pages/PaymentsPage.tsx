@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { downloadMemberReportImage } from '../utils/report-image';
 import { ReceiptOcrManager } from '../components/ReceiptOcrManager';
+import { SourceReceiptModal } from '../components/SourceReceiptModal';
 
 interface CustodyAccountItem {
   _id: string;
@@ -158,11 +159,14 @@ function createReceiptDocument(payment: PaymentItem, allocations: AllocationItem
 interface PaymentItem {
   _id: string;
   receiptNumber: string;
+  receiptId?: string;
+  paymentReceiptId?: string | { _id: string; receiptId: string };
   memberId: {
     _id: string;
     name: string;
     memberId: string;
     phone: string;
+    linkedPhones?: string[];
     address?: string;
   };
   receiverId: {
@@ -367,6 +371,8 @@ export const PaymentsPage: React.FC = () => {
   } | null>(null);
   const [showAddRuleModal, setShowAddRuleModal] = useState<boolean>(false);
   const [showAddWaiverModal, setShowAddWaiverModal] = useState<boolean>(false);
+  const [sourceReceiptModalId, setSourceReceiptModalId] = useState<string | null>(null);
+  const [sourceReceiptModalMeta, setSourceReceiptModalMeta] = useState<{ receiptNumber?: string; memberName?: string }>({});
 
   // Collect Payment Form State
   const [formData, setFormData] = useState({
@@ -2319,6 +2325,22 @@ export const PaymentsPage: React.FC = () => {
                           >
                             <Eye size={14} />
                           </button>
+                          {p.receiptId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSourceReceiptModalId(p.receiptId!);
+                                setSourceReceiptModalMeta({
+                                  receiptNumber: p.receiptNumber,
+                                  memberName: p.memberId?.name,
+                                });
+                              }}
+                              className="btn btn-secondary btn-sm p-1.5 text-blue-300 hover:text-blue-100 hover:bg-blue-500/20 border-blue-500/30"
+                              title={t('View Original Uploaded Receipt')}
+                            >
+                              <ImageIcon size={14} />
+                            </button>
+                          )}
                           {canEdit && p.status !== 'CANCELLED' && (
                             <button onClick={() => handleEditPayment(p)} className="btn btn-secondary btn-sm p-1.5" title="Edit receipt">
                               <Pencil size={14} />
@@ -3131,7 +3153,23 @@ export const PaymentsPage: React.FC = () => {
             </div>
 
             {/* Receipt Modal Footer */}
-            <div className="p-4 border-t border-white/10 flex justify-end gap-3">
+            <div className="p-4 border-t border-white/10 flex justify-end gap-3 flex-wrap">
+              {selectedReceipt.payment.receiptId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSourceReceiptModalId(selectedReceipt.payment.receiptId!);
+                    setSourceReceiptModalMeta({
+                      receiptNumber: selectedReceipt.payment.receiptNumber,
+                      memberName: selectedReceipt.payment.memberId?.name,
+                    });
+                  }}
+                  className="btn btn-secondary text-xs text-blue-300 border-blue-500/30 hover:bg-blue-500/20"
+                >
+                  <ImageIcon size={15} />
+                  <span>{t('View Original Uploaded Receipt')}</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={downloadReceipt}
@@ -3545,6 +3583,16 @@ export const PaymentsPage: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* MODAL: SOURCE RECEIPT CROSS-CHECK (ORIGINAL UPLOADED FILE) */}
+      {sourceReceiptModalId && (
+        <SourceReceiptModal
+          receiptId={sourceReceiptModalId}
+          receiptNumber={sourceReceiptModalMeta.receiptNumber}
+          memberName={sourceReceiptModalMeta.memberName}
+          onClose={() => setSourceReceiptModalId(null)}
+        />
       )}
     </div>
   );

@@ -487,6 +487,8 @@ export class ReceiptService {
         paymentMethod: (paymentMethod as PaymentMethod) || PaymentMethod.CASH,
         cashoutChargePaid: cashoutChargePaid || 0,
         transactionReference: transactionReference || undefined,
+        receiptId: receipt.receiptId,
+        paymentReceiptId: receipt._id as any,
         notes: notes ? `${notes} (OCR Receipt: ${receipt.receiptId})` : `OCR Receipt: ${receipt.receiptId}`,
       },
       actor
@@ -512,10 +514,83 @@ export class ReceiptService {
   }
 
   /**
+   * Links an extracted phone number to a member profile.
+   * Enables automatic identification on subsequent receipt uploads from this number.
+   */
+  static async linkSenderPhoneToMember(
+    receiptId: string,
+    targetMemberId: string,
+    phoneToLink: string,
+    actor: IUser
+  ): Promise<{ member: any; receipt: PaymentReceiptDocument }> {
+    const receipt = await PaymentReceipt.findOne({ receiptId });
+    if (!receipt) {
+      throw createError(`Receipt not found: ${receiptId}`, 404);
+    }
+
+    const member = await Member.findById(targetMemberId);
+    if (!member) {
+      throw createError(`Member not found: ${targetMemberId}`, 404);
+    }
+
+    const cleanPhone = phoneToLink.trim();
+    if (!cleanPhone || cleanPhone.replace(/\D/g, '').length < 10) {
+      throw createError('Invalid phone number to link', 400);
+    }
+
+    const existingDigits = (member.phone || '').replace(/\D/g, '').slice(-11);
+    const newDigits = cleanPhone.replace(/\D/g, '').slice(-11);
+
+    if (!member.linkedPhones) {
+      member.linkedPhones = [];
+    }
+
+    const alreadyLinked =
+      existingDigits === newDigits ||
+      member.linkedPhones.some((lp) => lp.replace(/\D/g, '').slice(-11) === newDigits);
+
+    if (!alreadyLinked) {
+      member.linkedPhones.push(cleanPhone);
+      await member.save();
+
+      await AuditLog.create({
+        performedBy: (actor as any)._id,
+        action: 'MEMBER_LINKED_PHONE_ADDED',
+        entityName: 'Member',
+        entityId: member._id,
+        afterState: { memberId: member.memberId, linkedPhones: member.linkedPhones },
+        reason: `Linked additional MFS/sender phone ${cleanPhone} from receipt ${receiptId}`,
+      });
+    }
+
+    // Also update this receipt's reviewedData and memberMatch
+    receipt.reviewedData.memberId = member._id as any;
+    receipt.memberMatch = {
+      selectedMemberId: member._id as any,
+      confidence: 100,
+      strategy: 'EXACT_PHONE',
+      candidates: [
+        {
+          memberId: member._id as any,
+          name: member.name,
+          phone: cleanPhone,
+          score: 100,
+        },
+      ],
+    };
+    await receipt.save();
+
+    return { member, receipt };
+  }
+
+  /**
    * Protected stream retrieval for authorized staff.
    */
   static async getReceiptFileStream(receiptId: string) {
-    const receipt = await PaymentReceipt.findOne({ receiptId });
+    const isObjectId = Types.ObjectId.isValid(receiptId);
+    const receipt = await PaymentReceipt.findOne(
+      isObjectId ? { $or: [{ receiptId }, { _id: receiptId }] } : { receiptId }
+    );
     if (!receipt) {
       throw createError(`Receipt not found: ${receiptId}`, 404);
     }

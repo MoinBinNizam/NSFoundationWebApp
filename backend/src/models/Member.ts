@@ -30,6 +30,11 @@ const memberSchema = new Schema<IMember>(
       trim: true,
       index: true,
     },
+    linkedPhones: {
+      type: [String],
+      default: [],
+      index: true,
+    },
     email: {
       type: String,
       trim: true,
