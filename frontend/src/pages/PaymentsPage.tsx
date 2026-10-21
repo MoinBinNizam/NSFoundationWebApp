@@ -63,6 +63,7 @@ interface MemberOption {
   phone: string;
   status: string;
   cashoutDue?: number;
+  auditRemarks2024?: string;
   shareCount?: number;
   monthlyObligation?: number;
 }
@@ -351,7 +352,7 @@ export const PaymentsPage: React.FC = () => {
   const [ledgerTimeframe, setLedgerTimeframe] = useState<'all' | 'daily' | 'monthly' | 'yearly'>('all');
   const [ledgerMemberId, setLedgerMemberId] = useState<string>('');
   const [selectedMemberSummary, setSelectedMemberSummary] = useState<{
-    member: { _id?: string; memberId: string; name: string; phone: string; currentShares?: number; status?: string; cashoutDue?: number };
+    member: { _id?: string; memberId: string; name: string; phone: string; currentShares?: number; status?: string; cashoutDue?: number; auditRemarks2024?: string };
     summary: {
       totalPayments: number;
       totalPrincipalPaid?: number;
@@ -363,6 +364,7 @@ export const PaymentsPage: React.FC = () => {
       totalCashoutPaid?: number;
       totalCashoutChargePaid?: number;
       cashoutDue?: number;
+      auditRemarks2024?: string;
     };
     recentPayments?: any[];
   } | null>(null);
@@ -569,6 +571,32 @@ export const PaymentsPage: React.FC = () => {
     }
   }, [ledgerPage, ledgerSearch, accountantFilter, methodFilter, ledgerYear, ledgerMonth, ledgerDay, ledgerMemberId]);
 
+  // 1-Click Member Cycling Navigation (Previous / Next Member)
+  const currentMemberIndex = membersList.findIndex(
+    (m) =>
+      m._id === ledgerMemberId ||
+      m.memberId === ledgerMemberId ||
+      (selectedMemberSummary?.member &&
+        (m._id === selectedMemberSummary.member._id || m.memberId === selectedMemberSummary.member.memberId))
+  );
+
+  const handlePrevMember = () => {
+    if (!membersList.length) return;
+    const newIndex = currentMemberIndex <= 0 ? membersList.length - 1 : currentMemberIndex - 1;
+    setLedgerMemberId(membersList[newIndex]._id);
+    setLedgerPage(1);
+  };
+
+  const handleNextMember = () => {
+    if (!membersList.length) return;
+    const newIndex =
+      currentMemberIndex === -1 || currentMemberIndex >= membersList.length - 1
+        ? 0
+        : currentMemberIndex + 1;
+    setLedgerMemberId(membersList[newIndex]._id);
+    setLedgerPage(1);
+  };
+
   // Load official accountant signature
   useEffect(() => {
     apiRequest<{ signature?: string; signatureImage?: string }>('/settings/accountant-signature')
@@ -702,7 +730,7 @@ export const PaymentsPage: React.FC = () => {
 
     const queryStr = params.toString() ? `?${params.toString()}` : '';
     apiRequest<{
-      member: { _id?: string; memberId: string; name: string; phone: string; currentShares?: number; status?: string; cashoutDue?: number };
+      member: { _id?: string; memberId: string; name: string; phone: string; currentShares?: number; status?: string; cashoutDue?: number; auditRemarks2024?: string };
       summary: {
         totalPayments: number;
         totalPrincipalPaid?: number;
@@ -714,6 +742,7 @@ export const PaymentsPage: React.FC = () => {
         totalCashoutPaid?: number;
         totalCashoutChargePaid?: number;
         cashoutDue?: number;
+        auditRemarks2024?: string;
       };
       recentPayments?: any[];
     }>(`/payments/member-summary/${ledgerMemberId}${queryStr}`)
@@ -1715,32 +1744,54 @@ export const PaymentsPage: React.FC = () => {
           {/* Search bar, Member filter & Redesigned Date Picker */}
           <div className="glass-card p-4 space-y-3">
             <div className="flex flex-wrap items-center gap-3">
-              {/* Member Selector Dropdown (Swapped to first place, with wide flex-1 matching Search) */}
-              <div className="flex items-center gap-2 min-w-[240px] flex-1">
+              {/* Member Selector Dropdown with 1-Click Prev/Next Navigation */}
+              <div className="flex items-center gap-2 min-w-[280px] flex-1">
                 <label className="text-xs font-bold text-gray-400 uppercase tracking-wider whitespace-nowrap">
                   {t('Member:')}
                 </label>
-                <select
-                  aria-label={t('Member:')}
-                  className="form-select text-xs py-2 px-3 bg-slate-900 border-gray-700 rounded-lg text-white flex-1"
-                  value={ledgerMemberId || (selectedMemberSummary?.member ? (membersList.find((m) => m._id === selectedMemberSummary.member._id || m.memberId === selectedMemberSummary.member.memberId)?._id || selectedMemberSummary.member._id || '') : '')}
-                  onChange={(e) => {
-                    setLedgerMemberId(e.target.value);
-                    setLedgerPage(1);
-                  }}
-                >
-                  <option value="">{t('All Members')}</option>
-                  {selectedMemberSummary?.member && !membersList.some((m) => m._id === selectedMemberSummary.member._id || m.memberId === selectedMemberSummary.member.memberId) && (
-                    <option value={selectedMemberSummary.member._id || selectedMemberSummary.member.memberId}>
-                      {selectedMemberSummary.member.memberId} — {selectedMemberSummary.member.name}
-                    </option>
-                  )}
-                  {membersList.map((m) => (
-                    <option key={m._id} value={m._id}>
-                      {m.memberId} — {m.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-1 flex-1">
+                  <button
+                    type="button"
+                    onClick={handlePrevMember}
+                    disabled={!membersList.length}
+                    title={t('Previous Member')}
+                    aria-label={t('Previous Member')}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-slate-800 bg-slate-900 border border-gray-700 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <select
+                    aria-label={t('Member:')}
+                    className="form-select text-xs py-2 px-3 bg-slate-900 border-gray-700 rounded-lg text-white flex-1 min-w-0"
+                    value={ledgerMemberId || (selectedMemberSummary?.member ? (membersList.find((m) => m._id === selectedMemberSummary.member._id || m.memberId === selectedMemberSummary.member.memberId)?._id || selectedMemberSummary.member._id || '') : '')}
+                    onChange={(e) => {
+                      setLedgerMemberId(e.target.value);
+                      setLedgerPage(1);
+                    }}
+                  >
+                    <option value="">{t('All Members')}</option>
+                    {selectedMemberSummary?.member && !membersList.some((m) => m._id === selectedMemberSummary.member._id || m.memberId === selectedMemberSummary.member.memberId) && (
+                      <option value={selectedMemberSummary.member._id || selectedMemberSummary.member.memberId}>
+                        {selectedMemberSummary.member.memberId} — {selectedMemberSummary.member.name}
+                      </option>
+                    )}
+                    {membersList.map((m) => (
+                      <option key={m._id} value={m._id}>
+                        {m.memberId} — {m.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleNextMember}
+                    disabled={!membersList.length}
+                    title={t('Next Member')}
+                    aria-label={t('Next Member')}
+                    className="p-2 text-gray-400 hover:text-white hover:bg-slate-800 bg-slate-900 border border-gray-700 rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
               </div>
 
               {/* Search text input (Swapped to second place) */}
@@ -2092,6 +2143,49 @@ export const PaymentsPage: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* 2024 Audit Baseline Status & Remarks Banner */}
+              {(() => {
+                const auditRemark =
+                  selectedMemberSummary.member.auditRemarks2024 ||
+                  selectedMemberSummary.summary.auditRemarks2024 ||
+                  membersList.find((m) => m._id === selectedMemberSummary.member._id || m.memberId === selectedMemberSummary.member.memberId)?.auditRemarks2024;
+
+                if (!auditRemark) return null;
+
+                const isAllPaid = auditRemark.toLowerCase().includes('all paid');
+
+                return (
+                  <div
+                    className={`flex items-start gap-3 p-3.5 rounded-xl border transition-all ${
+                      isAllPaid
+                        ? 'bg-emerald-950/25 border-emerald-500/30 text-emerald-200'
+                        : 'bg-amber-950/25 border-amber-500/40 text-amber-200 shadow-sm'
+                    }`}
+                  >
+                    <div
+                      className={`p-2 rounded-lg shrink-0 mt-0.5 ${
+                        isAllPaid ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                      }`}
+                    >
+                      <FileText size={16} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-xs uppercase tracking-wider text-amber-300">
+                          {t('2024 Audit Baseline Status & Remarks')}
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-900/90 border border-white/10 font-mono text-gray-300">
+                          {language === 'bn' ? 'অডিট ২০২৪ পিডিএফ থেকে' : 'From Audit 2024 PDF'}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-white/95 leading-relaxed">
+                        "{auditRemark}"
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Metric Cards: Paid Summary + Dues Breakdown (Zero-value dues hidden; All-cleared state when totalDue === 0) */}
               {(() => {

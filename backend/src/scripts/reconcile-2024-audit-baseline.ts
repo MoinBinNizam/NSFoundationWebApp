@@ -76,6 +76,9 @@ async function run() {
       continue;
     }
 
+    // Always assign audited remarks to member profile
+    member.auditRemarks2024 = baseline.remarks;
+
     // 1. If member was dropped (e.g. NSF007)
     if (baseline.droppedAfterMonth) {
       member.status = MemberStatus.DROPPED;
@@ -123,8 +126,12 @@ async function run() {
       // Handle cashout charge if any
       if (baseline.dueDetails?.cashoutDue) {
         member.cashoutDue = baseline.dueDetails.cashoutDue;
-        await member.save();
+        await MonthlyLedger.findOneAndUpdate(
+          { memberId: member._id, month: '2024-05' },
+          { $set: { cashoutDue: baseline.dueDetails.cashoutDue } }
+        );
       }
+      await member.save();
 
       // If member has due months
       if (baseline.dueDetails && baseline.dueDetails.dueMonths.length > 0) {
@@ -219,7 +226,7 @@ async function run() {
 
     // 3. Update MemberYearAccount for 2024
     const shortfall = baseline.dueDetails ? baseline.dueDetails.dueMonths.length * baseline.dueDetails.principalDuePerMonth : 0;
-    const isSettled = shortfall === 0;
+    const isSettled = shortfall === 0 && (baseline.dueDetails?.penaltyDueTotal || 0) === 0 && (baseline.dueDetails?.cashoutDue || 0) === 0 && (baseline.penaltyOnlyDue || 0) === 0;
     await MemberYearAccount.findOneAndUpdate(
       { memberId: member._id, year: 2024 },
       {
@@ -227,6 +234,10 @@ async function run() {
           finalShares: baseline.decShares,
           annualObligation: baseline.annualFee,
           totalPrincipalPaid: baseline.annualFee - shortfall,
+          totalPaid: baseline.totalPaid,
+          totalPenaltyPaid: baseline.totalPenaltyPaid,
+          totalCashoutPaid: baseline.code === 'NSF020' ? 25 : 0,
+          cashoutDue: baseline.dueDetails?.cashoutDue || 0,
           shortfall,
           excessAdvance: baseline.adv,
           isSettled,

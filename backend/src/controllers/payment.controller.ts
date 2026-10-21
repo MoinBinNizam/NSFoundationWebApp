@@ -21,7 +21,7 @@ export class PaymentController {
   static async getCollectionMembers(_req: Request, res: Response, next: NextFunction) {
     try {
       const members = await Member.find({ status: 'ACTIVE' })
-        .select('name memberId phone status')
+        .select('name memberId phone status cashoutDue auditRemarks2024')
         .sort({ memberId: 1 })
         .limit(500)
         .lean();

@@ -55,6 +55,11 @@ const memberYearAccountSchema = new Schema<IMemberYearAccount>(
       default: 0,
       min: [0, 'Advance credit cannot be negative'],
     },
+    cashoutDue: {
+      type: Number,
+      default: 0,
+      min: [0, 'Cashout due cannot be negative'],
+    },
     isSettled: {
       type: Boolean,
       default: false,

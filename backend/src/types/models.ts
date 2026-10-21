@@ -209,6 +209,7 @@ export interface IMember {
   joinDate: Date;
   address?: string;
   cashoutDue?: number; // Outstanding cash out charges from unpaid gateway fees
+  auditRemarks2024?: string; // Authoritative 2024 Audit baseline remarks/status
   createdAt: Date;
   updatedAt: Date;
 }
@@ -258,6 +259,7 @@ export interface IMemberYearAccount {
   totalPaid?: number;
   shortfall: number;
   excessAdvance: number;
+  cashoutDue?: number;
   isSettled: boolean;
   settledAt?: Date;
   notes?: string;

@@ -1571,20 +1571,28 @@ export class PaymentService {
       const dayUnpaid = payments.reduce((sum, p) => sum + Number(p.unpaidCashoutCharge || 0), 0);
       cashoutDue = Math.max(0, dayUnpaid - dayPaid);
     } else if (query?.month || query?.year) {
-      const periodCashoutIncurred = ledgers.reduce((sum, l) => sum + Number(l.cashoutDue || 0), 0);
-      const netPeriodCashout = Math.max(0, periodCashoutIncurred - totalCashoutChargePaid);
+      const yearAccount = query?.year ? await MemberYearAccount.findOne({ memberId: member._id, year: Number(query.year) }).lean() : null;
+      const periodLedgerCashout = ledgers.reduce((sum, l) => sum + Number(l.cashoutDue || 0), 0);
       const currentYearStr = String(new Date().getFullYear());
       const currentMonthStr = toYearMonth(new Date());
       const isCurrentPeriod = (query.year && query.year === currentYearStr) || (query.month && (query.month === currentMonthStr || `${query.year}-${query.month.padStart(2, '0')}` === currentMonthStr));
-      cashoutDue = isCurrentPeriod && member.cashoutDue
-        ? Math.max(netPeriodCashout, Number(member.cashoutDue || 0))
-        : netPeriodCashout;
+
+      if (yearAccount && typeof yearAccount.cashoutDue === 'number' && yearAccount.cashoutDue > 0) {
+        cashoutDue = yearAccount.cashoutDue;
+      } else if (periodLedgerCashout > 0) {
+        cashoutDue = periodLedgerCashout;
+      } else if (isCurrentPeriod && member.cashoutDue) {
+        cashoutDue = Number(member.cashoutDue || 0);
+      } else {
+        cashoutDue = 0;
+      }
     } else {
       // All-time view: member's current active outstanding cashout charge
       cashoutDue = Number(member.cashoutDue || 0);
     }
     const totalDues = totalPrincipalDue + totalPenaltyDue + cashoutDue;
     const currentShares = share?.shareCount || 1;
+    const auditRemarks2024 = (member as any).auditRemarks2024 || '';
 
     return {
       member: {
@@ -1595,6 +1603,7 @@ export class PaymentService {
         currentShares,
         status: member.status,
         cashoutDue,
+        auditRemarks2024,
       },
       summary: {
         totalPayments,
@@ -1608,6 +1617,7 @@ export class PaymentService {
         totalCashoutChargePaid,
         cashoutDue,
         paymentCount: payments.length,
+        auditRemarks2024,
       },
       recentPayments: payments.slice(0, 100).map((p) => {
         const receiver = p.receiverId as any;

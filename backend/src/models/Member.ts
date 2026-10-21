@@ -59,6 +59,11 @@ const memberSchema = new Schema<IMember>(
       default: 0,
       min: [0, 'Cash out due cannot be negative'],
     },
+    auditRemarks2024: {
+      type: String,
+      trim: true,
+      default: '',
+    },
   },
   {
     timestamps: true,
