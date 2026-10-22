@@ -28,19 +28,19 @@ interface AuditMemberBaseline {
 const AUDIT_2024_DATA: Record<string, AuditMemberBaseline> = {
   NSF001: { code: 'NSF001', decShares: 5, annualFee: 30000, totalPaid: 30200, totalPenaltyPaid: 200, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
   NSF002: { code: 'NSF002', decShares: 3, annualFee: 18000, totalPaid: 19560, totalPenaltyPaid: 60, dueAmount: 0, duesMonths: 0, adv: 1500, remarks: 'No. of Share adjusted with 3 share. All Paid. January 25 advance 1500 tk.' },
-  NSF003: { code: 'NSF003', decShares: 2, annualFee: 12000, totalPaid: 13500, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
+  NSF003: { code: 'NSF003', decShares: 2, annualFee: 12000, totalPaid: 12000, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
   NSF004: { code: 'NSF004', decShares: 4, annualFee: 24000, totalPaid: 24000, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
   NSF005: { code: 'NSF005', decShares: 2, annualFee: 12000, totalPaid: 12070, totalPenaltyPaid: 70, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
   NSF006: { code: 'NSF006', decShares: 1, annualFee: 6000, totalPaid: 6030, totalPenaltyPaid: 30, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Paid penalty 10 tk. All Paid' },
-  NSF007: { code: 'NSF007', decShares: 1, annualFee: 6000, totalPaid: 1500, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, droppedAfterMonth: '2024-03', remarks: 'March porjonto porishodhito (Dropped)' },
+  NSF007: { code: 'NSF007', decShares: 1, annualFee: 6000, totalPaid: 1500, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, droppedAfterMonth: '2024-03', remarks: 'মার্চ পর্যন্ত পরিশোধিত (অব্যাহত রাখেননি)' },
   NSF008: { code: 'NSF008', decShares: 1, annualFee: 6000, totalPaid: 6080, totalPenaltyPaid: 80, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
-  NSF009: { code: 'NSF009', decShares: 2, annualFee: 12000, totalPaid: 12000, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
+  NSF009: { code: 'NSF009', decShares: 2, annualFee: 12000, totalPaid: 12000, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Taken another share & paid at once for all months. All Paid' },
   NSF010: { code: 'NSF010', decShares: 1, annualFee: 6000, totalPaid: 6000, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All paid' },
   NSF011: { code: 'NSF011', decShares: 2, annualFee: 12000, totalPaid: 12070, totalPenaltyPaid: 70, dueAmount: 10, duesMonths: 0, adv: 0, penaltyOnlyDue: 10, remarks: 'Due 10 tk penalty. Paid 30 tk penalty.' },
   NSF012: { code: 'NSF012', decShares: 2, annualFee: 12000, totalPaid: 10110, totalPenaltyPaid: 80, dueAmount: 2050, duesMonths: 2, adv: 0, dueDetails: { dueMonths: ['2024-11', '2024-12'], principalDuePerMonth: 1000, penaltyDueTotal: 50 }, remarks: 'Due Nov+Dec payment' },
-  NSF013: { code: 'NSF013', decShares: 2, annualFee: 12000, totalPaid: 13170, totalPenaltyPaid: 170, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Penalty 40 tk paid. All Paid' },
+  NSF013: { code: 'NSF013', decShares: 2, annualFee: 12000, totalPaid: 13170, totalPenaltyPaid: 170, dueAmount: 0, duesMonths: 0, adv: 1000, remarks: 'Penalty 40 tk paid. All Paid' },
   NSF014: { code: 'NSF014', decShares: 6, annualFee: 36000, totalPaid: 36120, totalPenaltyPaid: 120, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
-  NSF015: { code: 'NSF015', decShares: 1, annualFee: 6000, totalPaid: 6100, totalPenaltyPaid: 100, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Penalty July-December 100 tk. All Paid' },
+  NSF015: { code: 'NSF015', decShares: 1, annualFee: 6000, totalPaid: 6100, totalPenaltyPaid: 100, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Penalty July-December 100 tk penalty fee paid. All Paid' },
   NSF016: { code: 'NSF016', decShares: 1, annualFee: 6000, totalPaid: 6000, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
   NSF017: { code: 'NSF017', decShares: 4, annualFee: 24000, totalPaid: 24000, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
   NSF018: { code: 'NSF018', decShares: 2, annualFee: 12000, totalPaid: 12040, totalPenaltyPaid: 40, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
@@ -48,19 +48,35 @@ const AUDIT_2024_DATA: Record<string, AuditMemberBaseline> = {
   NSF020: { code: 'NSF020', decShares: 1, annualFee: 6000, totalPaid: 2525, totalPenaltyPaid: 0, dueAmount: 3640, duesMonths: 7, adv: 0, dueDetails: { dueMonths: ['2024-06', '2024-07', '2024-08', '2024-09', '2024-10', '2024-11', '2024-12'], principalDuePerMonth: 500, penaltyDueTotal: 120, cashoutDue: 20 }, remarks: 'Due June-Dec payment+May cash out charge 20 tk' },
   NSF021: { code: 'NSF021', decShares: 2, annualFee: 12000, totalPaid: 12080, totalPenaltyPaid: 80, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Nov due+ penalty paid. All paid' },
   NSF022: { code: 'NSF022', decShares: 2, annualFee: 12000, totalPaid: 4000, totalPenaltyPaid: 0, dueAmount: 8280, duesMonths: 8, adv: 0, dueDetails: { dueMonths: ['2024-05', '2024-06', '2024-07', '2024-08', '2024-09', '2024-10', '2024-11', '2024-12'], principalDuePerMonth: 1000, penaltyDueTotal: 280 }, remarks: 'May-Dec payment unpaid' },
-  NSF023: { code: 'NSF023', decShares: 1, annualFee: 6000, totalPaid: 6130, totalPenaltyPaid: 130, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'No. of Share adjusted with 1 share. All Paid' },
+  NSF023: {
+    code: 'NSF023',
+    decShares: 1,
+    annualFee: 6000,
+    totalPaid: 3000,
+    totalPenaltyPaid: 0,
+    dueAmount: 3130,
+    duesMonths: 6,
+    adv: 0,
+    dueDetails: {
+      dueMonths: ['2024-07', '2024-08', '2024-09', '2024-10', '2024-11', '2024-12'],
+      principalDuePerMonth: 500,
+      penaltyDueTotal: 120,
+      cashoutDue: 10,
+    },
+    remarks: 'Due May cash out charge tk 10+ june - Dec payment + penalty. No. of Share adjusted with 1 share.',
+  },
   NSF024: { code: 'NSF024', decShares: 1, annualFee: 6000, totalPaid: 6060, totalPenaltyPaid: 60, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Nov Penalty fee 20 tk paid. All paid' },
-  NSF025: { code: 'NSF025', decShares: 2, annualFee: 12000, totalPaid: 8050, totalPenaltyPaid: 50, dueAmount: 4230, duesMonths: 4, adv: 0, dueDetails: { dueMonths: ['2024-09', '2024-10', '2024-11', '2024-12'], principalDuePerMonth: 1000, penaltyDueTotal: 230 }, remarks: 'Due July, aug penalty+Sept+Oct+Nov+Dec' },
+  NSF025: { code: 'NSF025', decShares: 2, annualFee: 12000, totalPaid: 8050, totalPenaltyPaid: 50, dueAmount: 4230, duesMonths: 4, adv: 0, dueDetails: { dueMonths: ['2024-09', '2024-10', '2024-11', '2024-12'], principalDuePerMonth: 1000, penaltyDueTotal: 230 }, remarks: 'Due July, aug penalty+Sept+Oct+Nov+Dec payment & penalty.' },
   NSF026: { code: 'NSF026', decShares: 1, annualFee: 6000, totalPaid: 6020, totalPenaltyPaid: 20, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
   NSF027: { code: 'NSF027', decShares: 1, annualFee: 6000, totalPaid: 5580, totalPenaltyPaid: 80, dueAmount: 620, duesMonths: 1, adv: 0, dueDetails: { dueMonths: ['2024-12'], principalDuePerMonth: 500, penaltyDueTotal: 120 }, remarks: 'Paid 500 tk. Due 120 tk June - dec penalty. No. of share adjusted with 1 share.' },
   NSF028: { code: 'NSF028', decShares: 2, annualFee: 12000, totalPaid: 12050, totalPenaltyPaid: 50, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Adv paid for Nov & Dec' },
   NSF029: { code: 'NSF029', decShares: 1, annualFee: 6000, totalPaid: 6000, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'All Paid' },
-  NSF030: { code: 'NSF030', decShares: 2, annualFee: 12000, totalPaid: 12040, totalPenaltyPaid: 40, dueAmount: 40, duesMonths: 0, adv: 0, penaltyOnlyDue: 40, remarks: 'Due Dec Penalty fee 40 tk.' },
+  NSF030: { code: 'NSF030', decShares: 2, annualFee: 12000, totalPaid: 12040, totalPenaltyPaid: 40, dueAmount: 40, duesMonths: 0, adv: 0, penaltyOnlyDue: 40, remarks: 'Due Dec Penalty fee 40 tk. Paid Nov+Dec payment + 40 tk Nov penalty fee.' },
   NSF031: { code: 'NSF031', decShares: 1, annualFee: 6000, totalPaid: 6000, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Adv paid for Sept-Dec 24.' },
   NSF032: { code: 'NSF032', decShares: 2, annualFee: 12000, totalPaid: 2000, totalPenaltyPaid: 0, dueAmount: 10400, duesMonths: 10, adv: 0, dueDetails: { dueMonths: ['2024-03', '2024-04', '2024-05', '2024-06', '2024-07', '2024-08', '2024-09', '2024-10', '2024-11', '2024-12'], principalDuePerMonth: 1000, penaltyDueTotal: 400 }, remarks: 'Due March-Decmber payment' },
   NSF033: { code: 'NSF033', decShares: 2, annualFee: 12000, totalPaid: 12280, totalPenaltyPaid: 280, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Paid Nov & Dec payment with due 100 tk penalties. All Paid' },
-  NSF034: { code: 'NSF034', decShares: 4, annualFee: 24000, totalPaid: 24240, totalPenaltyPaid: 240, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Adjusted to 4 shares, all clear' },
-  NSF035: { code: 'NSF035', decShares: 1, annualFee: 6000, totalPaid: 6000, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Joined Oct, paid Jan-Dec at once' },
+  NSF034: { code: 'NSF034', decShares: 4, annualFee: 24000, totalPaid: 24240, totalPenaltyPaid: 240, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'He paid December payment 3000 tk in 14 Dec. Then he adjusted his No. of shares with 4 share and Paid 3000 tk in 30 Dec 24. All clear.' },
+  NSF035: { code: 'NSF035', decShares: 1, annualFee: 6000, totalPaid: 6000, totalPenaltyPaid: 0, dueAmount: 0, duesMonths: 0, adv: 0, remarks: 'Advanced. He joined in October & paid January- December-24 at once.' },
 };
 
 async function run() {
@@ -123,13 +139,19 @@ async function run() {
         });
       }
 
-      // Handle cashout charge if any
+      // Handle cashout charge if any - reset all 2024 months first
+      await MonthlyLedger.updateMany(
+        { memberId: member._id, month: { $gte: '2024-01', $lte: '2024-12' } },
+        { $set: { cashoutDue: 0 } }
+      );
       if (baseline.dueDetails?.cashoutDue) {
         member.cashoutDue = baseline.dueDetails.cashoutDue;
         await MonthlyLedger.findOneAndUpdate(
           { memberId: member._id, month: '2024-05' },
           { $set: { cashoutDue: baseline.dueDetails.cashoutDue } }
         );
+      } else {
+        member.cashoutDue = 0;
       }
       await member.save();
 
@@ -263,12 +285,15 @@ async function run() {
   }
   const membersWithCashout = await Member.find({ cashoutDue: { $gt: 0 } }).lean();
   const totalCashout = membersWithCashout.reduce((s, m) => s + (m.cashoutDue || 0), 0);
+  const all2024YearAccounts = await MemberYearAccount.find({ year: 2024 }).lean();
+  const totalAdv = all2024YearAccounts.reduce((s, y) => s + (y.excessAdvance || 0), 0);
 
   console.log('=== 2024 AUDIT RECONCILIATION COMPLETE ===');
-  console.log(`Principal Due: ৳${totalP} (Target: ৳28,000, Dues Months: ${dueMonthsCount} [Target: 32])`);
-  console.log(`Penalty Due: ৳${totalPen} (Target: ৳1,290)`);
-  console.log(`Cashout Due: ৳${totalCashout} (Target: ৳20)`);
-  console.log(`Total 2024 Dues: ৳${totalP + totalPen + totalCashout} (Target: ৳29,310)`);
+  console.log(`Principal Due: ৳${totalP} (Target: ৳31,000, Unpaid monthly ledgers: ${dueMonthsCount})`);
+  console.log(`Penalty Due: ৳${totalPen} (Target: ৳1,410)`);
+  console.log(`Cashout Due: ৳${totalCashout} (Target: ৳30)`);
+  console.log(`Total 2024 Dues: ৳${totalP + totalPen + totalCashout} (Target: ৳32,440)`);
+  console.log(`Total Advance Balance: ৳${totalAdv} (Target: ৳2,500)`);
 
   process.exit(0);
 }

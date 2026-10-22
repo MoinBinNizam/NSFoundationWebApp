@@ -9,11 +9,13 @@ The project is designed around auditable financial source records: payments, all
 | Area | Technology |
 | --- | --- |
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS |
-| Backend | Node.js, Express, TypeScript |
+| Backend | Node.js, Express, TypeScript (100% TypeScript, No Python) |
 | Database | MongoDB with Mongoose |
 | Authentication | JWT bearer tokens, server-side role checks, session version revocation |
 | Testing | Vitest (backend baseline) |
 | Containers | Docker, Docker Compose, Nginx (frontend), MongoDB 8, Redis 7 |
+
+> **Note on Stack**: This project is built exclusively with **TypeScript / JavaScript** (Node.js backend and React frontend). It does **not** use, require, or depend on Python or any `.py` scripts.
 
 ## Features
 
@@ -29,10 +31,10 @@ The project is designed around auditable financial source records: payments, all
 
 ```text
 NSFoundationWebApp/
-├── frontend/        React application
-├── backend/         Express API, domain services, Mongoose models, and tests
+├── frontend/        React application (TypeScript, Vite, Tailwind)
+├── backend/         Express API, domain services, Mongoose models, and tests (TypeScript)
 ├── docs/            SRS, business rules, implementation plans, walkthroughs, runbooks
-├── scripts/         Local development helper scripts
+├── scripts/         Local development helper scripts (PowerShell & Node.js)
 └── package.json     Root convenience scripts
 ```
 
@@ -41,6 +43,7 @@ NSFoundationWebApp/
 - Node.js 20 or later (Node.js 22 is used in the current development environment).
 - npm 10 or later.
 - MongoDB 8 or a compatible MongoDB server.
+- *Zero Python runtime required.*
 
 For local Windows development, the repository includes a MongoDB service starter. It assumes MongoDB 8 is installed under `C:\Program Files\MongoDB\Server\8.0` and configured as the `MongoDB` Windows service.
 

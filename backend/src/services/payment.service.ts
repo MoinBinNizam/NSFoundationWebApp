@@ -115,13 +115,16 @@ export class PaymentService {
     // If the ledger has cashoutDue, assign it to that month. Otherwise, attach member.cashoutDue
     // once to that member's newest outstanding month.
     const cashoutAssigned = new Set<string>();
+    const membersWithLedgerCashout = new Set<string>(
+      outstanding.filter(({ ledgerCashoutDue }) => ledgerCashoutDue > 0).map(({ member }) => String(member._id))
+    );
     const ledgerRows = outstanding.map(({ ledger, member, principalDue, penaltyDue, ledgerCashoutDue }) => {
       const memberKey = String(member._id);
       let cashoutDue = 0;
       if (ledgerCashoutDue > 0) {
         cashoutDue = ledgerCashoutDue;
         cashoutAssigned.add(memberKey);
-      } else if (!cashoutAssigned.has(memberKey)) {
+      } else if (!membersWithLedgerCashout.has(memberKey) && !cashoutAssigned.has(memberKey)) {
         cashoutDue = money(Number(member.cashoutDue || 0));
         if (cashoutDue > 0) cashoutAssigned.add(memberKey);
       }
@@ -138,7 +141,7 @@ export class PaymentService {
       .select('memberId name phone cashoutDue status').lean();
     for (const member of membersWithCashoutOnly) {
       const memberKey = String(member._id);
-      if (cashoutAssigned.has(memberKey) || !matchesSearch(member)) continue;
+      if (cashoutAssigned.has(memberKey) || membersWithLedgerCashout.has(memberKey) || !matchesSearch(member)) continue;
       const cashoutDue = money(Number(member.cashoutDue || 0));
       const shareCount = resolveMemberShares(member, 0);
       ledgerRows.push({
@@ -1577,10 +1580,10 @@ export class PaymentService {
       const currentMonthStr = toYearMonth(new Date());
       const isCurrentPeriod = (query.year && query.year === currentYearStr) || (query.month && (query.month === currentMonthStr || `${query.year}-${query.month.padStart(2, '0')}` === currentMonthStr));
 
-      if (yearAccount && typeof yearAccount.cashoutDue === 'number' && yearAccount.cashoutDue > 0) {
+      if (yearAccount && typeof yearAccount.cashoutDue === 'number') {
         cashoutDue = yearAccount.cashoutDue;
       } else if (periodLedgerCashout > 0) {
-        cashoutDue = periodLedgerCashout;
+        cashoutDue = Math.max(0, periodLedgerCashout - totalCashoutChargePaid);
       } else if (isCurrentPeriod && member.cashoutDue) {
         cashoutDue = Number(member.cashoutDue || 0);
       } else {
