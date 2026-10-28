@@ -38,6 +38,7 @@
     "sync:gateway-rules": "tsx src/scripts/sync-gateway-rules.ts",
     "test:reporting": "tsx src/scripts/test-reporting.ts",
     "test:settings-members": "tsx src/scripts/test-settings-members.ts",
+    "stage:2024-workbook": "tsx src/scripts/stage-2024-from-updated-workbook.ts",
     "test": "vitest run"
   },
   "keywords": [],
@@ -54,7 +55,9 @@
     "multer": "^2.4.0",
     "pdfkit": "^0.20.2",
     "sharp": "^0.35.5",
-    "tesseract.js": "^7.0.0"
+    "swagger-ui-express": "^5.0.1",
+    "tesseract.js": "^7.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
@@ -64,6 +67,7 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^22.0.0",
     "@types/supertest": "^7.2.1",
+    "@types/swagger-ui-express": "^4.1.8",
     "supertest": "^7.3.0",
     "tsx": "^4.16.2",
     "typescript": "^5.5.4",

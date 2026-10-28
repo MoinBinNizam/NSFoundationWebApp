@@ -26,6 +26,8 @@ import documentRoutes from './routes/document.routes.js';
 import auditRoutes from './routes/audit.routes.js';
 import jobRoutes from './routes/job.routes.js';
 import memberPortalRoutes from './routes/member-portal.routes.js';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerDocument } from './config/swagger.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -114,6 +116,9 @@ app.get('/api/ready', async (_req: Request, res: Response) => {
     queue: queueStats,
   });
 });
+
+// ─── SWAGGER API DOCUMENTATION ──────────────────────────────────────────────
+app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // ─── DOMAIN API ROUTES ───────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);

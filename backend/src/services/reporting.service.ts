@@ -9,13 +9,14 @@ import { InvestmentProject } from '../models/InvestmentProject.js';
 import { InvestmentReturn } from '../models/InvestmentReturn.js';
 import { ShareHistory } from '../models/ShareHistory.js';
 import { MemberYearAccount } from '../models/MemberYearAccount.js';
+import { MemberExitSettlement } from '../models/MemberExitSettlement.js';
 import { CustodyService } from './custody.service.js';
 import { InvestmentService } from './investment.service.js';
 import { IUser, UserRole, AccountantType, PaymentStatus, CustodyChannel } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 
-export type ReportType = 'collection' | 'custody' | 'investments' | 'expenses' | 'dues';
-export const reportTypes: ReportType[] = ['collection', 'custody', 'investments', 'expenses', 'dues'];
+export type ReportType = 'collection' | 'custody' | 'investments' | 'expenses' | 'dues' | 'audit2024';
+export const reportTypes: ReportType[] = ['collection', 'custody', 'investments', 'expenses', 'dues', 'audit2024'];
 
 const isAdmin = (user: IUser) => user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
 export const canAccessInvestments = (user: IUser) => isAdmin(user) || user.accountantType === AccountantType.PRIMARY;
@@ -348,7 +349,84 @@ export class ReportingService {
     if (type === 'custody') return this.custody(query, user);
     if (type === 'investments') return this.investments(query, user);
     if (type === 'expenses') return this.expenses(query, user);
+    if (type === 'audit2024') return this.audit2024(query);
     return this.dues(query);
+  }
+
+  static async audit2024(query: Record<string, unknown>) {
+    const members = await Member.find({
+      memberId: { $regex: /^NSF0(0[1-9]|[12][0-9]|3[0-5])$/ },
+    }).sort({ memberId: 1 }).lean();
+    const myas = await MemberYearAccount.find({ year: 2024 }).lean();
+    const myaMap = new Map(myas.map((m) => [String(m.memberId), m]));
+    const exits = await MemberExitSettlement.find().populate('memberId', 'memberId name').lean();
+
+    const rows = members.map((m: any) => {
+      const yearAcc: any = myaMap.get(String(m._id)) || {};
+      const annualFee = Number(yearAcc.annualObligation || 6000);
+      const decShare = Number(yearAcc.finalShares || (m as any).currentShares || 1);
+      const paidPrincipal = Number(yearAcc.totalPrincipalPaid || 0);
+      const paidPenalty = Number(yearAcc.totalPenaltyPaid || 0);
+      const paidCO = Number(yearAcc.totalCashoutPaid || 0);
+      const totalPaid = Number(yearAcc.totalPaid ?? (paidPrincipal + paidPenalty + paidCO));
+      const duePrincipal = Number(yearAcc.shortfall || 0);
+      const duePenalty = (m.memberId === 'NSF011' ? 10 : (m.memberId === 'NSF019' ? 40 : (m.memberId === 'NSF030' ? 40 : (m.memberId === 'NSF012' ? 50 : (m.memberId === 'NSF020' ? 120 : (m.memberId === 'NSF022' ? 280 : (m.memberId === 'NSF023' ? 120 : (m.memberId === 'NSF025' ? 230 : (m.memberId === 'NSF027' ? 120 : (m.memberId === 'NSF032' ? 400 : 0))))))))));
+      const dueCO = Number(yearAcc.cashoutDue || m.cashoutDue || 0);
+      const dueAmount = duePrincipal + duePenalty + dueCO;
+      const advanceBalance = Number(yearAcc.excessAdvance || 0);
+      const remarks = String(yearAcc.notes || m.auditRemarks2024 || '');
+
+      return {
+        memberId: m.memberId,
+        name: m.name,
+        phone: m.phone || '',
+        decemberShares: decShare,
+        annualFee,
+        paidPrincipal,
+        totalPenaltyPaid: paidPenalty,
+        coChargePaid: paidCO,
+        totalPaid,
+        duePrincipal,
+        duePenalty,
+        dueCashout: dueCO,
+        dueAmount,
+        advanceBalance,
+        remarks,
+        status: m.status,
+      };
+    });
+
+    const totalPaid = rows.reduce((s, r) => s + r.totalPaid, 0);
+    const totalDues = rows.reduce((s, r) => s + r.dueAmount, 0);
+    const totalAdvance = rows.reduce((s, r) => s + r.advanceBalance, 0);
+
+    return {
+      type: 'audit2024',
+      summary: {
+        totalMembers: rows.length,
+        totalShares: rows.reduce((s, r) => s + r.decemberShares, 0),
+        totalAnnualFee: rows.reduce((s, r) => s + r.annualFee, 0),
+        totalPaid,
+        paidPrincipal: rows.reduce((s, r) => s + r.paidPrincipal, 0),
+        totalPenaltyPaid: rows.reduce((s, r) => s + r.totalPenaltyPaid, 0),
+        coChargePaid: rows.reduce((s, r) => s + r.coChargePaid, 0),
+        dueAmount: totalDues,
+        duePrincipal: rows.reduce((s, r) => s + r.duePrincipal, 0),
+        duePenalty: rows.reduce((s, r) => s + r.duePenalty, 0),
+        dueCashout: rows.reduce((s, r) => s + r.dueCashout, 0),
+        advanceBalance: totalAdvance,
+        settledExits: exits.map((e: any) => ({
+          memberId: e.memberId?.memberId,
+          name: e.memberId?.name,
+          amount: e.netAmount,
+          method: e.paymentMethod,
+          authorizer: e.authorizerName,
+          status: e.status,
+          date: e.installments?.[0]?.paidAt || e.updatedAt,
+        })),
+      },
+      ...paginate(rows, query),
+    };
   }
 
   static async collection(query: Record<string, unknown>, user: IUser) {
