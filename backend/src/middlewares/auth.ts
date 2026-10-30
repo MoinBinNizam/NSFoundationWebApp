@@ -21,13 +21,15 @@ export async function authenticate(
 ): Promise<void> {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next(createError('Authorization token is missing or malformed.', 401));
+    let token: string | undefined;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (typeof req.query.token === 'string' && req.query.token.trim()) {
+      token = req.query.token.trim();
     }
 
-    const token = authHeader.split(' ')[1];
     if (!token) {
-      return next(createError('Authentication token not provided.', 401));
+      return next(createError('Authorization token is missing or malformed.', 401));
     }
 
     let decoded: TokenPayload;

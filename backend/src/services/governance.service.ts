@@ -142,6 +142,9 @@ export class GovernanceService {
       paymentMethod?: string;
       transactionRef?: string;
       authorizerName?: string;
+      documentName?: string;
+      receiptUrl?: string;
+      receiptNumber?: string;
     }
   ) {
     const member = await Member.findById(memberId);
@@ -193,6 +196,9 @@ export class GovernanceService {
       paymentMethod: options?.paymentMethod,
       transactionRef: options?.transactionRef,
       authorizerName: options?.authorizerName,
+      documentName: options?.documentName,
+      receiptUrl: options?.receiptUrl,
+      receiptNumber: options?.receiptNumber,
       notes,
       status: MemberExitStatus.PROPOSED,
     });
@@ -370,6 +376,9 @@ export class GovernanceService {
       paymentMethod?: string;
       transactionRef?: string;
       authorizerName?: string;
+      documentName?: string;
+      receiptUrl?: string;
+      receiptNumber?: string;
     },
     user: IUser
   ) {
@@ -403,6 +412,9 @@ export class GovernanceService {
     if (input.paymentMethod !== undefined) settlement.paymentMethod = input.paymentMethod;
     if (input.transactionRef !== undefined) settlement.transactionRef = input.transactionRef;
     if (input.authorizerName !== undefined) settlement.authorizerName = input.authorizerName;
+    if (input.documentName !== undefined) settlement.documentName = input.documentName;
+    if (input.receiptUrl !== undefined) settlement.receiptUrl = input.receiptUrl;
+    if (input.receiptNumber !== undefined) settlement.receiptNumber = input.receiptNumber;
     if (input.notes !== undefined) settlement.notes = input.notes;
 
     if (input.status && Object.values(MemberExitStatus).includes(input.status)) {

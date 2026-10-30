@@ -57,11 +57,97 @@ function paymentMethodChannel(method: PaymentMethod): CustodyChannel {
 
 export class PaymentService {
   /**
+   * Dynamically ensures MonthlyLedger records exist for all active members
+   * from 2024-01 up to the current system month (e.g. 2026-10).
+   * Preserves all existing staged ledgers, payments, vouchers, and penalties.
+   */
+  static async ensureMonthlyLedgersUpToDate(upToMonth?: string): Promise<void> {
+    const currentMonth = upToMonth || toYearMonth(new Date());
+    const startMonth = '2024-01';
+
+    // Generate month list from 2024-01 to currentMonth
+    const months: string[] = [];
+    let [y, m] = startMonth.split('-').map(Number);
+    const [endY, endM] = currentMonth.split('-').map(Number);
+
+    while (y < endY || (y === endY && m <= endM)) {
+      months.push(`${y}-${String(m).padStart(2, '0')}`);
+      m++;
+      if (m > 12) {
+        m = 1;
+        y++;
+      }
+    }
+
+    const activeMembers = await Member.find({
+      status: { $nin: ['DROPPED', 'INACTIVE'] },
+    }).lean();
+
+    if (!activeMembers.length) return;
+
+    // Get latest active shares per member from ShareHistory
+    const shareHistories = await ShareHistory.aggregate([
+      { $sort: { effectiveMonth: -1, createdAt: -1 } },
+      { $group: { _id: '$memberId', latestShares: { $first: '$shareCount' } } },
+    ]);
+    const shareMap = new Map<string, number>();
+    for (const sh of shareHistories) {
+      shareMap.set(String(sh._id), sh.latestShares);
+    }
+
+    const memberIds = activeMembers.map((mem) => mem._id);
+    const existingLedgers = await MonthlyLedger.find({
+      memberId: { $in: memberIds },
+      month: { $in: months },
+    }).select('memberId month').lean();
+
+    const existingSet = new Set(
+      existingLedgers.map((l) => `${String(l.memberId)}_${l.month}`)
+    );
+
+    const ledgersToInsert: any[] = [];
+    for (const member of activeMembers) {
+      const memberKey = String(member._id);
+      const shares = shareMap.get(memberKey) ?? (member as any).shareCount ?? 1;
+      const monthlyObligation = shares * 500;
+
+      for (const monthStr of months) {
+        const key = `${memberKey}_${monthStr}`;
+        if (!existingSet.has(key)) {
+          ledgersToInsert.push({
+            memberId: member._id,
+            month: monthStr,
+            shareCount: shares,
+            principalDue: monthlyObligation,
+            principalPaid: 0,
+            penaltyDue: 0,
+            penaltyPaid: 0,
+            penaltyWaived: 0,
+            cashoutDue: 0,
+            advanceApplied: 0,
+            excessAdvance: 0,
+            status: MonthlyLedgerStatus.DUE,
+            lastRebuiltAt: new Date(),
+          });
+          existingSet.add(key);
+        }
+      }
+    }
+
+    if (ledgersToInsert.length > 0) {
+      await MonthlyLedger.insertMany(ledgersToInsert, { ordered: false });
+    }
+  }
+
+  /**
    * Member-facing outstanding dues projection.  This is deliberately derived
    * from the live monthly ledgers and member cash-out balances instead of a
    * separate cache, so a posted or voided receipt is reflected immediately.
    */
-  static async getOutstandingDues(query: { year?: string; month?: string; search?: string }) {
+  static async getOutstandingDues(query: { year?: string; month?: string; search?: string; statusFilter?: string }) {
+    await this.ensureMonthlyLedgersUpToDate();
+
+    const currentYearMonth = toYearMonth(new Date());
     const year = /^\d{4}$/.test(query.year || '') ? String(query.year) : undefined;
     const monthNumber = Number(query.month);
     const month = monthNumber >= 1 && monthNumber <= 12 ? String(monthNumber).padStart(2, '0') : undefined;
@@ -71,7 +157,7 @@ export class PaymentService {
     } else if (year) {
       ledgerFilter.month = { $gte: `${year}-01`, $lte: `${year}-12` };
     } else {
-      ledgerFilter.month = { $gte: '2024-01', $lte: '2028-12' };
+      ledgerFilter.month = { $gte: '2024-01', $lte: currentYearMonth };
     }
 
     const allLedgers = await MonthlyLedger.find(ledgerFilter)
@@ -102,14 +188,28 @@ export class PaymentService {
       .some((value) => String(value || '').toLowerCase().includes(normalizedSearch));
     const money = (value: number) => currency(Math.max(0, value));
     const outstanding = allLedgers
-      .map((ledger: any) => ({
-        ledger,
-        member: ledger.memberId,
-        principalDue: money(Number(ledger.principalDue || 0) - Number(ledger.principalPaid || 0)),
-        penaltyDue: money(Number(ledger.penaltyDue || 0) - Number(ledger.penaltyPaid || 0) - Number(ledger.penaltyWaived || 0)),
-        ledgerCashoutDue: money(Number(ledger.cashoutDue || 0)),
-      }))
-      .filter(({ member, principalDue, penaltyDue, ledgerCashoutDue }) => member && matchesSearch(member) && (principalDue > 0 || penaltyDue > 0 || ledgerCashoutDue > 0));
+      .map((ledger: any) => {
+        const principalObligation = Number(ledger.principalDue || 0);
+        const principalPaid = Number(ledger.principalPaid || 0);
+        const principalDue = money(principalObligation - principalPaid);
+        const penaltyDue = money(Number(ledger.penaltyDue || 0) - Number(ledger.penaltyPaid || 0) - Number(ledger.penaltyWaived || 0));
+        const ledgerCashoutDue = money(Number(ledger.cashoutDue || 0));
+        return {
+          ledger,
+          member: ledger.memberId,
+          principalObligation,
+          principalPaid,
+          principalDue,
+          penaltyDue,
+          ledgerCashoutDue,
+        };
+      })
+      .filter(({ member }) =>
+        member &&
+        member.status !== 'DROPPED' &&
+        member.status !== 'INACTIVE' &&
+        matchesSearch(member)
+      );
 
     // A cash-out balance can belong to a MonthlyLedger (month-specific) or to the member.
     // If the ledger has cashoutDue, assign it to that month. Otherwise, attach member.cashoutDue
@@ -118,7 +218,7 @@ export class PaymentService {
     const membersWithLedgerCashout = new Set<string>(
       outstanding.filter(({ ledgerCashoutDue }) => ledgerCashoutDue > 0).map(({ member }) => String(member._id))
     );
-    const ledgerRows = outstanding.map(({ ledger, member, principalDue, penaltyDue, ledgerCashoutDue }) => {
+    const ledgerRows = outstanding.map(({ ledger, member, principalObligation, principalPaid, principalDue, penaltyDue, ledgerCashoutDue }) => {
       const memberKey = String(member._id);
       let cashoutDue = 0;
       if (ledgerCashoutDue > 0) {
@@ -130,14 +230,29 @@ export class PaymentService {
       }
       const shareCount = resolveMemberShares(member, ledger.shareCount);
       return {
-        _id: String(ledger._id), month: ledger.month, shareCount,
+        _id: String(ledger._id),
+        month: ledger.month,
+        shareCount,
         member: { _id: String(member._id), memberId: member.memberId, name: member.name, phone: member.phone, status: member.status },
-        principalDue, penaltyDue, cashoutDue, totalDue: money(principalDue + penaltyDue + cashoutDue),
-        details: [{ month: ledger.month, shareCount: ledger.shareCount, principalDue, penaltyDue, penaltyWaived: Number(ledger.penaltyWaived || 0) }],
+        totalObligation: principalObligation,
+        totalPrincipalPaid: principalPaid,
+        principalDue,
+        penaltyDue,
+        cashoutDue,
+        totalDue: money(principalDue + penaltyDue + cashoutDue),
+        details: [{
+          month: ledger.month,
+          shareCount: ledger.shareCount,
+          principalDue: principalObligation,
+          principalPaid,
+          duePrincipal: principalDue,
+          penaltyDue,
+          penaltyWaived: Number(ledger.penaltyWaived || 0)
+        }],
       };
     });
 
-    const membersWithCashoutOnly = await Member.find({ cashoutDue: { $gt: 0 } })
+    const membersWithCashoutOnly = await Member.find({ cashoutDue: { $gt: 0 }, status: { $nin: ['DROPPED', 'INACTIVE'] } })
       .select('memberId name phone cashoutDue status').lean();
     for (const member of membersWithCashoutOnly) {
       const memberKey = String(member._id);
@@ -145,16 +260,26 @@ export class PaymentService {
       const cashoutDue = money(Number(member.cashoutDue || 0));
       const shareCount = resolveMemberShares(member, 0);
       ledgerRows.push({
-        _id: `cashout-${memberKey}`, month: '', shareCount,
+        _id: `cashout-${memberKey}`,
+        month: '',
+        shareCount,
         member: { _id: memberKey, memberId: member.memberId, name: member.name, phone: member.phone, status: member.status },
-        principalDue: 0, penaltyDue: 0, cashoutDue, totalDue: cashoutDue, details: [],
+        totalObligation: 0,
+        totalPrincipalPaid: 0,
+        principalDue: 0,
+        penaltyDue: 0,
+        cashoutDue,
+        totalDue: cashoutDue,
+        details: [],
       });
     }
 
-    const rows = [...ledgerRows.reduce((grouped, row) => {
+    const rowsGrouped = [...ledgerRows.reduce((grouped, row) => {
       const key = row.member._id;
       const existing = grouped.get(key);
       if (existing) {
+        existing.totalObligation = money(existing.totalObligation + row.totalObligation);
+        existing.totalPrincipalPaid = money(existing.totalPrincipalPaid + row.totalPrincipalPaid);
         existing.principalDue = money(existing.principalDue + row.principalDue);
         existing.penaltyDue = money(existing.penaltyDue + row.penaltyDue);
         existing.cashoutDue = money(existing.cashoutDue + row.cashoutDue);
@@ -164,17 +289,25 @@ export class PaymentService {
       return grouped;
     }, new Map<string, any>()).values()];
 
+    // Filter by statusFilter: default only show members who have totalDue > 0
+    const showAll = query.statusFilter === 'ALL';
+    const rows = showAll
+      ? rowsGrouped
+      : rowsGrouped.filter((r) => r.totalDue > 0 || r.principalDue > 0 || r.penaltyDue > 0 || r.cashoutDue > 0);
+
     const allPeriods = allLedgers.map((ledger) => ledger.month).filter(Boolean).sort();
-    const referencePeriod = year && month ? `${year}-${month}` : allPeriods.at(-1) || toYearMonth(new Date());
+    const referencePeriod = year && month ? `${year}-${month}` : allPeriods.at(-1) || currentYearMonth;
     const previousPeriod = addMonths(referencePeriod, -1);
     const total = (field: 'principalDue' | 'penaltyDue' | 'cashoutDue') => currency(rows.reduce((sum, row) => sum + row[field], 0));
 
     return {
       filters: { year: year || 'ALL', month: month || 'ALL', referencePeriod, previousPeriod },
-      availableYears: [...new Set([2028, 2027, 2026, 2025, 2024, ...allPeriods.map((period) => Number(period.slice(0, 4)))])].sort((a, b) => b - a),
+      availableYears: [...new Set([2026, 2025, 2024, ...allPeriods.map((period) => Number(period.slice(0, 4)))])].sort((a, b) => b - a),
       summary: {
         total: currency(rows.reduce((sum, row) => sum + row.totalDue, 0)),
         principal: total('principalDue'),
+        totalObligation: currency(rows.reduce((sum, row) => sum + (row.totalObligation || 0), 0)),
+        totalPrincipalPaid: currency(rows.reduce((sum, row) => sum + (row.totalPrincipalPaid || 0), 0)),
         penalty: total('penaltyDue'),
         cashout: total('cashoutDue'),
         currentPrincipal: currency(ledgerRows.filter((row) => row.month === referencePeriod).reduce((sum, row) => sum + row.principalDue, 0)),
@@ -1455,6 +1588,8 @@ export class PaymentService {
     memberIdentifier: string,
     query?: { year?: string; month?: string; day?: string; timeframe?: string }
   ) {
+    await this.ensureMonthlyLedgersUpToDate();
+
     const isObjectId = Types.ObjectId.isValid(memberIdentifier);
     const member = await Member.findOne({
       $or: [
@@ -1546,6 +1681,7 @@ export class PaymentService {
       totalAdvancedPaid = totalPrincipalDue > 0 ? 0 : myasExcess;
     }
 
+    const totalObligation = ledgers.reduce((sum, l) => sum + Number(l.principalDue || 0), 0);
     // Ensure totalPrincipalPaid + totalAdvancedPaid + totalPenaltyPaid + cashoutCharge = totalPayments
     const totalPrincipalPaid = Math.max(0, totalPayments - totalAdvancedPaid - totalPenaltyPaid - totalCashoutChargePaid);
 
@@ -1562,12 +1698,13 @@ export class PaymentService {
       (sum, l) => sum + Math.max(0, Number(l.penaltyDue || 0) - Number(l.penaltyPaid || 0) - Number(l.penaltyWaived || 0)),
       0
     );
-    if (exitSettlement) {
+    const isDroppedOrInactive = member.status === 'DROPPED' || member.status === 'INACTIVE';
+    if (isDroppedOrInactive || exitSettlement) {
       totalPrincipalDue = 0;
       totalPenaltyDue = 0;
     }
     let cashoutDue = 0;
-    if (exitSettlement) {
+    if (isDroppedOrInactive || exitSettlement) {
       cashoutDue = 0;
     } else if (query?.day) {
       const dayPaid = payments.reduce((sum, p) => sum + Number(p.cashoutCharge || 0), 0);
@@ -1610,6 +1747,7 @@ export class PaymentService {
       },
       summary: {
         totalPayments,
+        totalObligation,
         totalPrincipalPaid,
         totalAdvancedPaid,
         totalDues,

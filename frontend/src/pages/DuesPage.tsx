@@ -12,11 +12,14 @@ import {
 } from 'lucide-react';
 import { apiRequest } from '../services/api';
 import { usePreferences } from '../context/PreferencesContext';
+import { ModuleGuide } from '../components/ModuleGuide';
 
 type Detail = {
   month: string;
   shareCount: number;
   principalDue: number;
+  principalPaid?: number;
+  duePrincipal?: number;
   penaltyDue: number;
   penaltyWaived: number;
 };
@@ -31,6 +34,8 @@ type DueRow = {
     phone: string;
     status?: string;
   };
+  totalObligation?: number;
+  totalPrincipalPaid?: number;
   principalDue: number;
   penaltyDue: number;
   cashoutDue: number;
@@ -43,6 +48,8 @@ type Dues = {
   summary: {
     total: number;
     principal: number;
+    totalObligation?: number;
+    totalPrincipalPaid?: number;
     penalty: number;
     cashout: number;
     currentPrincipal: number;
@@ -72,6 +79,8 @@ function generateMemberNoticeText(row: DueRow, deadlineText: string = 'চলত
   const monthNames = row.details?.map((d) => d.month).filter(Boolean);
   const monthsStr = monthNames && monthNames.length > 0 ? monthNames.join(', ') : 'চলতি বকেয়া';
 
+  const totObligation = Number(row.totalObligation || 0);
+  const pPaid = Number(row.totalPrincipalPaid || 0);
   const pDue = Number(row.principalDue || 0);
   const penDue = Number(row.penaltyDue || 0);
   const cashDue = Number(row.cashoutDue || 0);
@@ -79,11 +88,15 @@ function generateMemberNoticeText(row: DueRow, deadlineText: string = 'চলত
 
   let text = `সম্মানিত সদস্য ${memberName} (আইডি: ${memberId}),\n`;
   text += `আসসালামু আলাইকুম। এনএস ফাউন্ডেশনের পক্ষ থেকে জানানো যাচ্ছে যে, আগামী ${deadlineText} মধ্যে আপনার সমিতির বকেয়া পরিশোধ করার জন্য বিনীত অনুরোধ করা হচ্ছে।\n\n`;
-  text += `📊 আপনার বকেয়ার বিবরণ:\n`;
-  if (monthNames && monthNames.length > 0) {
-    text += `• বকেয়া কিস্তির মাস: ${monthsStr}\n`;
+  text += `📊 আপনার হিসাব ও বকেয়ার বিবরণ:\n`;
+  if (totObligation > 0) {
+    text += `• মোট দেওয়ার কথা (ধার্যকৃত মূল চাঁদা): ৳ ${totObligation.toLocaleString('en-BD', { minimumFractionDigits: 2 })}\n`;
+    text += `• মোট পরিশোধিত মূল চাঁদা: ৳ ${pPaid.toLocaleString('en-BD', { minimumFractionDigits: 2 })}\n`;
   }
-  text += `• মূল চাঁদা বকেয়া: ৳ ${pDue.toLocaleString('en-BD', { minimumFractionDigits: 2 })}\n`;
+  text += `• বর্তমান মূল চাঁদা বকেয়া: ৳ ${pDue.toLocaleString('en-BD', { minimumFractionDigits: 2 })}\n`;
+  if (monthNames && monthNames.length > 0) {
+    text += `• বকেয়া কিস্তির মাস (${monthNames.length} মাস): ${monthsStr}\n`;
+  }
   if (penDue > 0) {
     text += `• বিলম্ব জরিমানা: ৳ ${penDue.toLocaleString('en-BD', { minimumFractionDigits: 2 })}\n`;
   }
@@ -137,6 +150,7 @@ export const DuesPage: React.FC = () => {
   const [year, setYear] = useState('ALL');
   const [month, setMonth] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'OVERDUE' | 'ALL'>('OVERDUE');
   const [selected, setSelected] = useState<DueRow | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -191,12 +205,13 @@ export const DuesPage: React.FC = () => {
       if (year !== 'ALL') params.set('year', year);
       if (month !== 'ALL') params.set('month', month);
       if (search.trim()) params.set('search', search.trim());
+      if (statusFilter !== 'OVERDUE') params.set('statusFilter', statusFilter);
       const response = await apiRequest<Dues>(`/payments/dues?${params}`);
       setData(response.data);
     } finally {
       setLoading(false);
     }
-  }, [year, month, search]);
+  }, [year, month, search, statusFilter]);
 
   useEffect(() => {
     void load();
@@ -204,6 +219,8 @@ export const DuesPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10">
+      <ModuleGuide moduleKey="PAYMENTS" defaultOpen={false} />
+
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900 border border-emerald-500/50 shadow-2xl shadow-emerald-500/20 text-white px-5 py-3.5 rounded-xl text-sm font-medium animate-in fade-in slide-in-from-bottom-5">
@@ -229,7 +246,7 @@ export const DuesPage: React.FC = () => {
           </h1>
           <p className="text-sm text-gray-400 mt-1">
             {t(
-              'Review each member’s unpaid monthly share, penalty, and any cash-out charge recorded by the accountant.'
+              '২০২৪ থেকে আজ পর্যন্ত সদস্যদের মোট প্রদেয় শেয়ার চাঁদা, আদায়কৃত মূলধন ও বর্তমান বকেয়ার স্বয়ংক্রিয় পুঙ্খানুপুঙ্খ হিসাব।'
             )}
           </p>
         </div>
@@ -262,63 +279,110 @@ export const DuesPage: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 flex flex-col lg:flex-row gap-3">
+      <div className="glass-card p-4 flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
         <input
           className="form-input flex-1"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={t('Search member ID, name, or phone...')}
         />
-        <select
-          className="form-select lg:w-36"
-          value={year}
-          onChange={(e) => setYear(e.target.value)}
-        >
-          <option value="ALL">{t('All years')}</option>
-          {(data?.availableYears || []).map((item) => (
-            <option key={item}>{item}</option>
-          ))}
-        </select>
-        <select
-          className="form-select lg:w-40"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-        >
-          <option value="ALL">{t('All months')}</option>
-          {Array.from({ length: 12 }, (_, index) => (
-            <option key={index + 1} value={index + 1}>
-              {t(new Date(2024, index, 1).toLocaleString('en', { month: 'long' }))}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <select
+            className="form-select lg:w-44"
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+          >
+            <option value="ALL">সর্বমোট (আজ পর্যন্ত)</option>
+            {(data?.availableYears || []).map((item) => (
+              <option key={item} value={item}>{item} সাল</option>
+            ))}
+          </select>
+          <select
+            className="form-select lg:w-36"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+          >
+            <option value="ALL">{t('All months')}</option>
+            {Array.from({ length: 12 }, (_, index) => (
+              <option key={index + 1} value={index + 1}>
+                {t(new Date(2024, index, 1).toLocaleString('en', { month: 'long' }))}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Status Filter Toggle */}
+        <div className="flex items-center gap-1 bg-black/40 p-1 rounded-xl border border-white/10 shrink-0">
+          <button
+            type="button"
+            onClick={() => setStatusFilter('OVERDUE')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              statusFilter === 'OVERDUE'
+                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 shadow-sm'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            শুধুমাত্র বকেয়া সদস্য ({data?.rows.length ?? 0})
+          </button>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('ALL')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              statusFilter === 'ALL'
+                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40 shadow-sm'
+                : 'text-gray-400 hover:text-white'
+            }`}
+          >
+            সকল সক্রিয় সদস্য
+          </button>
+        </div>
       </div>
 
       {/* Summary Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {[
-          [t('Total Due'), data?.summary.total, 'text-rose-300'],
-          [t('Principal due'), data?.summary.principal, 'text-blue-300'],
-          [t('Penalty due'), data?.summary.penalty, 'text-amber-300'],
-          [t('Cash-out due'), data?.summary.cashout, 'text-fuchsia-300'],
-        ].map(([label, value, color]) => (
-          <div key={String(label)} className="glass-card p-4">
-            <p className="text-xs font-bold text-gray-400 uppercase">{label}</p>
-            <p className={`mt-2 text-2xl font-extrabold ${color}`}>{money(Number(value))}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="glass-card p-4 border border-rose-500/30 bg-rose-500/5">
+          <p className="text-xs font-bold text-rose-300 uppercase tracking-wider">{t('Total Due')}</p>
+          <p className="mt-2 text-2xl font-black text-rose-200">{money(Number(data?.summary.total || 0))}</p>
+          <p className="text-[11px] text-gray-400 mt-1">প্রদেয় মূল চাঁদা + বিলম্ব জরিমানা + চার্জ</p>
+        </div>
+        <div className="glass-card p-4 border border-blue-500/20 bg-blue-500/5">
+          <p className="text-xs font-bold text-blue-300 uppercase tracking-wider">{t('Principal due')}</p>
+          <p className="mt-2 text-2xl font-black text-blue-200">{money(Number(data?.summary.principal || 0))}</p>
+          <p className="text-[11px] text-gray-400 mt-1">মোট অনাদায়ী মূল চাঁদা</p>
+        </div>
+        <div className="glass-card p-4 border border-emerald-500/20 bg-emerald-500/5">
+          <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider">মোট প্রদেয় চাঁদা</p>
+          <p className="mt-2 text-2xl font-black text-emerald-200">{money(Number(data?.summary.totalObligation || 0))}</p>
+          <p className="text-[11px] text-gray-400 mt-1">আজ পর্যন্ত ধার্যকৃত মোট শেয়ার চাঁদা</p>
+        </div>
+        <div className="glass-card p-4 border border-teal-500/20 bg-teal-500/5">
+          <p className="text-xs font-bold text-teal-300 uppercase tracking-wider">পরিশোধিত প্রিন্সিপাল</p>
+          <p className="mt-2 text-2xl font-black text-teal-200">{money(Number(data?.summary.totalPrincipalPaid || 0))}</p>
+          <p className="text-[11px] text-gray-400 mt-1">সদস্যদের জমাকৃত মোট মূল চাঁদা</p>
+        </div>
+        <div className="glass-card p-4 border border-amber-500/20 bg-amber-500/5">
+          <p className="text-xs font-bold text-amber-300 uppercase tracking-wider">জরিমানা ও চার্জ</p>
+          <p className="mt-2 text-2xl font-black text-amber-200">
+            {money(Number(data?.summary.penalty || 0) + Number(data?.summary.cashout || 0))}
+          </p>
+          <p className="text-[11px] text-gray-400 mt-1">
+            বিলম্ব জরিমানা: {money(Number(data?.summary.penalty || 0))} · চার্জ: {money(Number(data?.summary.cashout || 0))}
+          </p>
+        </div>
       </div>
 
       {/* Dues Table */}
       <div className="table-container glass-card overflow-x-auto">
-        <table className="data-table min-w-[940px]">
+        <table className="data-table min-w-[1020px]">
           <thead>
             <tr>
               <th>{t('Member')}</th>
               <th className="text-center">{t('Share')}</th>
+              <th>মোট প্রদেয় (আজ পর্যন্ত)</th>
+              <th>পরিশোধিত প্রিন্সিপাল</th>
               <th>{t('Months due')}</th>
               <th>{t('Principal due')}</th>
-              <th>{t('Penalty due')}</th>
-              <th>{t('Cash-out due')}</th>
+              <th>{t('Penalty & Cashout')}</th>
               <th>{t('Total Due')}</th>
               <th className="text-center min-w-[200px]">{t('Notice & Actions')}</th>
             </tr>
@@ -326,13 +390,13 @@ export const DuesPage: React.FC = () => {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={8} className="text-center py-10 text-gray-400">
+                <td colSpan={9} className="text-center py-10 text-gray-400">
                   {t('Loading outstanding dues...')}
                 </td>
               </tr>
             ) : !data?.rows.length ? (
               <tr>
-                <td colSpan={8} className="text-center py-10 text-gray-400">
+                <td colSpan={9} className="text-center py-10 text-gray-400">
                   {t('No outstanding dues match the selected filters.')}
                 </td>
               </tr>
@@ -358,18 +422,27 @@ export const DuesPage: React.FC = () => {
                     <td className="text-center font-bold text-amber-300">
                       {row.shareCount ?? 0}
                     </td>
+                    <td className="font-medium text-slate-300">
+                      {money(row.totalObligation || 0)}
+                    </td>
+                    <td className="font-medium text-emerald-300">
+                      {money(row.totalPrincipalPaid || 0)}
+                    </td>
                     <td>
                       {row.details.length ? (
                         <span className="badge badge-inactive">
                           {row.details.length} {t('Months')}
                         </span>
                       ) : (
-                        '—'
+                        <span className="badge badge-success text-[10px]">
+                          পরিশোধিত
+                        </span>
                       )}
                     </td>
-                    <td>{money(row.principalDue)}</td>
-                    <td>{money(row.penaltyDue)}</td>
-                    <td>{money(row.cashoutDue)}</td>
+                    <td className="font-bold text-blue-300">{money(row.principalDue)}</td>
+                    <td className="text-amber-300 text-xs">
+                      {money((row.penaltyDue || 0) + (row.cashoutDue || 0))}
+                    </td>
                     <td className="font-bold text-rose-200 text-base">{money(row.totalDue)}</td>
                     <td>
                       <div className="flex items-center justify-center gap-1.5 flex-nowrap">
@@ -551,6 +624,30 @@ export const DuesPage: React.FC = () => {
             </div>
 
             <div className="p-5 space-y-4">
+              {/* Stat Tiles in Modal */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="glass-card p-3 border border-emerald-500/20 bg-emerald-500/5 rounded-xl">
+                  <p className="text-[10px] uppercase font-bold text-emerald-400">মোট ধার্যকৃত চাঁদা</p>
+                  <p className="text-lg font-black text-emerald-200 mt-1">{money(selected.totalObligation || 0)}</p>
+                  <p className="text-[10px] text-gray-400">শুরু থেকে আজ পর্যন্ত</p>
+                </div>
+                <div className="glass-card p-3 border border-teal-500/20 bg-teal-500/5 rounded-xl">
+                  <p className="text-[10px] uppercase font-bold text-teal-400">পরিশোধিত প্রিন্সিপাল</p>
+                  <p className="text-lg font-black text-teal-200 mt-1">{money(selected.totalPrincipalPaid || 0)}</p>
+                  <p className="text-[10px] text-gray-400">আদায়কৃত মূল চাঁদা</p>
+                </div>
+                <div className="glass-card p-3 border border-blue-500/20 bg-blue-500/5 rounded-xl">
+                  <p className="text-[10px] uppercase font-bold text-blue-400">বকেয়া মূল চাঁদা</p>
+                  <p className="text-lg font-black text-blue-200 mt-1">{money(selected.principalDue)}</p>
+                  <p className="text-[10px] text-gray-400">অনাদায়ী প্রিন্সিপাল</p>
+                </div>
+                <div className="glass-card p-3 border border-rose-500/30 bg-rose-500/10 rounded-xl">
+                  <p className="text-[10px] uppercase font-bold text-rose-400">সর্বমোট প্রদেয়</p>
+                  <p className="text-lg font-black text-rose-200 mt-1">{money(selected.totalDue)}</p>
+                  <p className="text-[10px] text-gray-400">মূল + জরিমানা + চার্জ</p>
+                </div>
+              </div>
+
               {/* Quick Notice Send Bar */}
               <div className="bg-gradient-to-r from-slate-950 to-slate-900 p-3.5 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -612,25 +709,31 @@ export const DuesPage: React.FC = () => {
 
               <div className="border-t border-slate-800 pt-3">
                 <p className="text-xs font-semibold text-gray-300 mb-2">
-                  {t('The following months remain unpaid. Any approved penalty waiver is shown separately.')}
+                  বকেয়া কিস্তির মাস ও নির্ধারিত চাঁদার পুঙ্খানুপুঙ্খ বিবরণ ({selected.details.length} মাস):
                 </p>
-                <div className="table-container max-h-48 overflow-y-auto">
+                <div className="table-container max-h-56 overflow-y-auto">
                   <table className="data-table text-xs">
                     <thead>
                       <tr>
                         <th>{t('Month')}</th>
-                        <th>{t('Principal due')}</th>
-                        <th>{t('Penalty due')}</th>
-                        <th>{t('Penalty waiver')}</th>
+                        <th className="text-center">শেয়ার</th>
+                        <th>ধার্যকৃত চাঁদা</th>
+                        <th>পরিশোধিত</th>
+                        <th>বাকি চাঁদা</th>
+                        <th>বিলম্ব জরিমানা</th>
+                        <th>মওকুফ</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selected.details.map((item) => (
                         <tr key={item.month}>
-                          <td>{item.month}</td>
+                          <td className="font-mono font-bold text-white">{item.month}</td>
+                          <td className="text-center font-bold text-amber-300">{item.shareCount}</td>
                           <td>{money(item.principalDue)}</td>
-                          <td>{money(item.penaltyDue)}</td>
-                          <td>{money(item.penaltyWaived)}</td>
+                          <td className="text-emerald-400">{money(item.principalPaid || 0)}</td>
+                          <td className="font-bold text-blue-300">{money(item.duePrincipal ?? item.principalDue)}</td>
+                          <td className="text-amber-300">{money(item.penaltyDue)}</td>
+                          <td className="text-gray-400">{money(item.penaltyWaived)}</td>
                         </tr>
                       ))}
                     </tbody>

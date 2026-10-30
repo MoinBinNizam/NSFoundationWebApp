@@ -25,6 +25,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
+import { ModuleGuide } from '../components/ModuleGuide';
 import { apiRequest } from '../services/api';
 import {
   downloadMemberReportImage,
@@ -408,6 +409,8 @@ export const DocumentsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
+      <ModuleGuide moduleKey="REPORTING" defaultOpen={false} />
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>

@@ -1,7 +1,10 @@
+import path from 'path';
 import { NextFunction, Response } from 'express';
 import { AuthRequest } from '../middlewares/auth.js';
 import { createError } from '../middlewares/error.js';
 import { GovernanceService } from '../services/governance.service.js';
+import { ReceiptStorageService } from '../services/ocr/storage/receipt-storage.service.js';
+
 export class GovernanceController {
   static async annualSummary(req: AuthRequest, res: Response, next: NextFunction) { try { res.json({ success: true, data: await GovernanceService.annualSummary(Number(req.params.year)) }); } catch (error) { next(error); } }
   static async createAnnual(req: AuthRequest, res: Response, next: NextFunction) { try { if (!req.user) return next(createError('Authentication required.', 401)); res.status(201).json({ success: true, data: await GovernanceService.createAnnualClosing(Number(req.body.year), req.body.notes, req.user) }); } catch (error) { next(error); } }
@@ -17,7 +20,21 @@ export class GovernanceController {
   static async exitPropose(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       if (!req.user) return next(createError('Authentication required.', 401));
-      const { memberId, eligibleAmount, notes, custodyAccountId, autoSettle, deductionRate, netAmount, paymentMethod, transactionRef, authorizerName } = req.body;
+      const {
+        memberId,
+        eligibleAmount,
+        notes,
+        custodyAccountId,
+        autoSettle,
+        deductionRate,
+        netAmount,
+        paymentMethod,
+        transactionRef,
+        authorizerName,
+        documentName,
+        receiptUrl,
+        receiptNumber,
+      } = req.body;
       const settlement = await GovernanceService.proposeExit(
         memberId,
         Number(eligibleAmount),
@@ -31,6 +48,9 @@ export class GovernanceController {
           paymentMethod,
           transactionRef,
           authorizerName,
+          documentName,
+          receiptUrl,
+          receiptNumber,
         }
       );
       res.status(201).json({ success: true, data: settlement });
@@ -61,6 +81,49 @@ export class GovernanceController {
     try {
       if (!req.user) return next(createError('Authentication required.', 401));
       res.json(await GovernanceService.deleteExit(req.params.id, req.user));
+    } catch (error) { next(error); }
+  }
+
+  static async uploadExitReceipt(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const file = req.file;
+      if (!file) return next(createError('No document or receipt file uploaded.', 400));
+
+      const storageResult = await ReceiptStorageService.putBuffer(
+        file.buffer,
+        file.originalname,
+        file.mimetype
+      );
+
+      const receiptNumber = req.body.receiptNumber || `RCPT-EXIT-${Date.now().toString().slice(-6)}`;
+      const receiptUrl = `/api/governance/exits/file?key=${encodeURIComponent(storageResult.storageKey)}`;
+
+      res.status(201).json({
+        success: true,
+        message: 'Receipt document uploaded successfully.',
+        data: {
+          documentName: file.originalname,
+          storageKey: storageResult.storageKey,
+          receiptUrl,
+          receiptNumber,
+          mimeType: storageResult.mimeType,
+          byteSize: storageResult.byteSize,
+        },
+      });
+    } catch (error) { next(error); }
+  }
+
+  static async streamExitReceiptFile(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const key = req.query.key as string;
+      if (!key) return next(createError('File key is required.', 400));
+      const { stream, fullPath } = await ReceiptStorageService.getReadStream(key);
+      const ext = path.extname(fullPath).toLowerCase();
+      const contentType = ext === '.pdf' ? 'application/pdf' : ext === '.webp' ? 'image/webp' : ext === '.png' ? 'image/png' : 'image/jpeg';
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'private, max-age=86400');
+      stream.pipe(res);
     } catch (error) { next(error); }
   }
 }

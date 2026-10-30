@@ -22,11 +22,11 @@ describe('2024 Authoritative Audit & Member Exit Settlements Suite', () => {
       const s = report.summary;
       expect(s.totalMembers).toBe(35);
       expect(s.totalShares).toBe(70);
-      expect(s.totalAnnualFee).toBe(420000);
+      expect(s.totalAnnualFee).toBe(405500);
       expect(s.totalPaid).toBe(388975);
-      expect(s.dueAmount).toBe(32440);
-      expect(s.duePrincipal).toBe(31000);
-      expect(s.duePenalty).toBe(1410);
+      expect(s.dueAmount).toBe(22040);
+      expect(s.duePrincipal).toBe(21000);
+      expect(s.duePenalty).toBe(1010);
       expect(s.dueCashout).toBe(30);
       expect(s.advanceBalance).toBe(2500);
     });
@@ -71,6 +71,17 @@ describe('2024 Authoritative Audit & Member Exit Settlements Suite', () => {
       expect(nsf023.duePenalty).toBe(120);
       expect(nsf023.dueCashout).toBe(10);
       expect(nsf023.dueAmount).toBe(3130);
+
+      // Dropped Members: Must NOT have any dues
+      const nsf007 = map.get('NSF007');
+      expect(nsf007).toBeDefined();
+      expect(nsf007.status).toBe('DROPPED');
+      expect(nsf007.dueAmount).toBe(0);
+
+      const nsf032 = map.get('NSF032');
+      expect(nsf032).toBeDefined();
+      expect(nsf032.status).toBe('DROPPED');
+      expect(nsf032.dueAmount).toBe(0);
     });
   });
 

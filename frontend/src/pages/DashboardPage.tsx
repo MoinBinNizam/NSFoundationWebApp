@@ -3,6 +3,7 @@ import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useNavigate } from 'react-router-dom';
+import { ModuleGuide } from '../components/ModuleGuide';
 import {
   Activity,
   BarChart3,
@@ -333,6 +334,9 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto pb-10">
+      {/* Module Operational Guide */}
+      <ModuleGuide moduleKey="DASHBOARD" defaultOpen={false} />
+
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

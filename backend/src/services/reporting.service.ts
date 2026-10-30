@@ -369,9 +369,10 @@ export class ReportingService {
       const paidPenalty = Number(yearAcc.totalPenaltyPaid || 0);
       const paidCO = Number(yearAcc.totalCashoutPaid || 0);
       const totalPaid = Number(yearAcc.totalPaid ?? (paidPrincipal + paidPenalty + paidCO));
-      const duePrincipal = Number(yearAcc.shortfall || 0);
-      const duePenalty = (m.memberId === 'NSF011' ? 10 : (m.memberId === 'NSF019' ? 40 : (m.memberId === 'NSF030' ? 40 : (m.memberId === 'NSF012' ? 50 : (m.memberId === 'NSF020' ? 120 : (m.memberId === 'NSF022' ? 280 : (m.memberId === 'NSF023' ? 120 : (m.memberId === 'NSF025' ? 230 : (m.memberId === 'NSF027' ? 120 : (m.memberId === 'NSF032' ? 400 : 0))))))))));
-      const dueCO = Number(yearAcc.cashoutDue || m.cashoutDue || 0);
+      const isDropped = m.status === 'DROPPED' || m.status === 'INACTIVE';
+      const duePrincipal = isDropped ? 0 : Number(yearAcc.shortfall || 0);
+      const duePenalty = isDropped ? 0 : (m.memberId === 'NSF011' ? 10 : (m.memberId === 'NSF019' ? 40 : (m.memberId === 'NSF030' ? 40 : (m.memberId === 'NSF012' ? 50 : (m.memberId === 'NSF020' ? 120 : (m.memberId === 'NSF022' ? 280 : (m.memberId === 'NSF023' ? 120 : (m.memberId === 'NSF025' ? 230 : (m.memberId === 'NSF027' ? 120 : 0)))))))));
+      const dueCO = isDropped ? 0 : Number(yearAcc.cashoutDue || m.cashoutDue || 0);
       const dueAmount = duePrincipal + duePenalty + dueCO;
       const advanceBalance = Number(yearAcc.excessAdvance || 0);
       const remarks = String(yearAcc.notes || m.auditRemarks2024 || '');
@@ -457,8 +458,23 @@ export class ReportingService {
   }
 
   static async dues(query: Record<string, unknown>) {
-    const ledgers = await MonthlyLedger.find(query.month ? { month: String(query.month) } : {}).populate('memberId', 'memberId name').lean();
-    const rows = ledgers.map((item: any) => ({ memberId: item.memberId?.memberId || '', member: item.memberId?.name || '', month: item.month, status: item.status, principalDue: item.principalDue, penaltyDue: item.penaltyDue, paid: item.principalPaid + item.penaltyPaid, waivedPenalty: item.penaltyWaived || 0, advance: item.excessAdvance, outstanding: Math.max(0, item.principalDue + item.penaltyDue - item.principalPaid - item.penaltyPaid - (item.penaltyWaived || 0)) }));
+    const ledgers = await MonthlyLedger.find(query.month ? { month: String(query.month) } : {})
+      .populate('memberId', 'memberId name status')
+      .lean();
+    const rows = ledgers
+      .filter((item: any) => item.memberId && item.memberId.status !== 'DROPPED' && item.memberId.status !== 'INACTIVE' && item.status !== 'WAIVED')
+      .map((item: any) => ({
+        memberId: item.memberId?.memberId || '',
+        member: item.memberId?.name || '',
+        month: item.month,
+        status: item.status,
+        principalDue: item.principalDue,
+        penaltyDue: item.penaltyDue,
+        paid: item.principalPaid + item.penaltyPaid,
+        waivedPenalty: item.penaltyWaived || 0,
+        advance: item.excessAdvance,
+        outstanding: Math.max(0, item.principalDue + item.penaltyDue - item.principalPaid - item.penaltyPaid - (item.penaltyWaived || 0)),
+      }));
     return { type: 'dues', ...paginate(rows, query) };
   }
 

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
 import { BrandLogo } from '../components/BrandLogo';
+import { ModuleGuide } from '../components/ModuleGuide';
 import {
   CreditCard,
   Plus,
@@ -1138,6 +1139,7 @@ export const PaymentsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      <ModuleGuide moduleKey="PAYMENTS" defaultOpen={false} />
       {!canEdit && (
         <div className="glass-card px-4 py-3 bg-amber-500/10 border-amber-500/30 text-amber-200 text-xs flex items-center justify-between rounded-xl">
           <div className="flex items-center gap-2">

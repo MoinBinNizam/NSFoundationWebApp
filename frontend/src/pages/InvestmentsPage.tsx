@@ -3,6 +3,7 @@ import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { groupCustodyAccounts } from '../utils/custodyUtils';
+import { ModuleGuide } from '../components/ModuleGuide';
 import {
   TrendingUp,
   Plus,
@@ -631,6 +632,8 @@ export const InvestmentsPage: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12">
+      <ModuleGuide moduleKey="INVESTMENTS" defaultOpen={false} />
+
       {/* Notifications */}
       {successMessage && (
         <div className="flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-sm animate-in fade-in slide-in-from-top-2 duration-200">

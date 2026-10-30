@@ -20,6 +20,9 @@ export interface IMemberExitSettlement {
   paymentMethod?: string;
   transactionRef?: string;
   authorizerName?: string;
+  documentName?: string;
+  receiptUrl?: string;
+  receiptNumber?: string;
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
@@ -48,6 +51,9 @@ const schema = new Schema<IMemberExitSettlement>(
     paymentMethod: { type: String, trim: true },
     transactionRef: { type: String, trim: true },
     authorizerName: { type: String, trim: true },
+    documentName: { type: String, trim: true },
+    receiptUrl: { type: String, trim: true },
+    receiptNumber: { type: String, trim: true },
     notes: { type: String, trim: true },
   },
   { timestamps: true }

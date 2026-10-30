@@ -3,6 +3,7 @@ import { apiRequest } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { usePreferences } from "../context/PreferencesContext";
 import { groupCustodyAccounts } from "../utils/custodyUtils";
+import { ModuleGuide } from "../components/ModuleGuide";
 import {
   ChevronLeft,
   ChevronRight,
@@ -266,6 +267,7 @@ export const ExpensesPage: React.FC = () => {
   ];
   return (
     <div className="space-y-6">
+      <ModuleGuide moduleKey="EXPENSES" defaultOpen={false} />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2 text-rose-400">
