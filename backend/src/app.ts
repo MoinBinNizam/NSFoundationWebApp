@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import { getDatabaseStatus } from './config/db.js';
 import { errorHandler, createError } from './middlewares/error.js';
 import { sanitizeRequest } from './middlewares/sanitize.js';
-import { securityHeaders } from './middlewares/security.js';
+import { securityHeaders, apiRateLimit } from './middlewares/security.js';
 import { correlationMiddleware } from './middlewares/correlation.js';
 import { JobWorkerService } from './services/jobs/job-worker.service.js';
 import { JobQueueService } from './services/jobs/job-queue.service.js';
@@ -32,6 +32,7 @@ import { swaggerDocument } from './config/swagger.js';
 const app = express();
 app.disable('x-powered-by');
 app.use(securityHeaders);
+app.use(apiRateLimit);
 app.use(correlationMiddleware);
 
 // ─── CORS ────────────────────────────────────────────────────────────────────

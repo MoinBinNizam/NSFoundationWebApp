@@ -5,6 +5,22 @@ import { AuthRequest } from './auth.js';
 import { createError } from './error.js';
 
 const attempts = new Map<string, { count: number; resetAt: number }>();
+const apiTraffic = new Map<string, { count: number; resetAt: number }>();
+
+// Periodic sweep every 5 minutes to prevent memory leaks from inactive IPs
+if (typeof setInterval !== 'undefined') {
+  const cleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of attempts.entries()) {
+      if (val.resetAt <= now) attempts.delete(key);
+    }
+    for (const [key, val] of apiTraffic.entries()) {
+      if (val.resetAt <= now) apiTraffic.delete(key);
+    }
+  }, 5 * 60 * 1000);
+  if (cleanupTimer.unref) cleanupTimer.unref();
+}
+
 export function securityHeaders(_req: Request, res: Response, next: NextFunction): void {
   const requestId = crypto.randomUUID(); res.setHeader('X-Request-Id', requestId);
   res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('X-Frame-Options', 'DENY'); res.setHeader('Referrer-Policy', 'no-referrer');
@@ -12,10 +28,26 @@ export function securityHeaders(_req: Request, res: Response, next: NextFunction
   if (process.env.NODE_ENV === 'production') res.setHeader('Content-Security-Policy', "default-src 'self'; frame-ancestors 'none'; base-uri 'self'");
   next();
 }
+
 export function loginRateLimit(req: Request, _res: Response, next: NextFunction): void {
   const key = `${req.ip}:${String(req.body?.email || '').toLowerCase()}`; const now = Date.now(); const current = attempts.get(key);
   if (current && current.resetAt > now && current.count >= 10) return next(createError('Too many sign-in attempts. Please try again in 15 minutes.', 429));
   attempts.set(key, { count: current && current.resetAt > now ? current.count + 1 : 1, resetAt: now + 15 * 60 * 1000 }); next();
+}
+
+export function apiRateLimit(req: Request, _res: Response, next: NextFunction): void {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const current = apiTraffic.get(ip);
+  if (current && current.resetAt > now) {
+    if (current.count >= 300) {
+      return next(createError('Too many requests. Please slow down.', 429));
+    }
+    current.count += 1;
+  } else {
+    apiTraffic.set(ip, { count: 1, resetAt: now + 60 * 1000 }); // 300 requests per minute
+  }
+  next();
 }
 export function financialIdempotency(operation: string) {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {

@@ -23,6 +23,8 @@ function clean(value: unknown): unknown {
 export function sanitizeRequest(req: Request, _res: Response, next: NextFunction): void {
   try {
     if (req.body && typeof req.body === 'object') req.body = clean(req.body);
+    if (req.query && typeof req.query === 'object') req.query = clean(req.query) as any;
+    if (req.params && typeof req.params === 'object') req.params = clean(req.params) as any;
     next();
   } catch (error) { next(error); }
 }

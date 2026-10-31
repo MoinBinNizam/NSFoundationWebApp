@@ -1,7 +1,8 @@
 import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../middlewares/auth.js';
-import { AnnualClosing, Expense, InvestmentProject, InvestmentReturn, Member, Payment, MonthlyLedger, ShareHistory } from '../models/index.js';
+import { AnnualClosing, Expense, InvestmentProject, InvestmentReturn, Member, Payment, MonthlyLedger, ShareHistory, PaymentReceipt } from '../models/index.js';
 import { UserRole } from '../types/models.js';
+import { ReceiptGateway, ReceiptStatus } from '../types/receipt.js';
 import { createError } from '../middlewares/error.js';
 import { getMemberTransparencySettings } from '../services/settings.service.js';
 
@@ -93,3 +94,82 @@ export function requireOwnMember(req: AuthRequest, _res: Response, next: NextFun
   if (req.user.role === UserRole.MEMBER && String(req.user.memberId) !== req.params.memberId) return next(createError('Members may access only their own records.', 403));
   next();
 }
+
+/**
+ * Member Self-Service: Submit offline deposit proof (bKash/Nagad/Bank/Cash) with TrxID.
+ * Enters the Accountant's review queue for verification.
+ */
+export async function submitDepositRequest(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.user?.memberId) return next(createError('A linked member profile is required.', 403));
+    const member = await Member.findById(req.user.memberId);
+    if (!member) return next(createError('Member profile not found.', 404));
+
+    const { amount, paymentMethod, transactionReference, paymentDate, notes } = req.body;
+    const parsedAmount = Number(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return next(createError('A valid payment amount greater than 0 is required.', 400));
+    }
+    if (!transactionReference || String(transactionReference).trim().length < 3) {
+      return next(createError('Transaction Reference (TrxID / Bank Slip Ref) is required.', 400));
+    }
+
+    const receiptId = `MEMBER_DEP_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    const receipt = await PaymentReceipt.create({
+      receiptId,
+      originalFilename: `member-deposit-${member.memberId}.txt`,
+      storedPath: `member-deposits/${receiptId}.json`,
+      fileSize: 0,
+      mimeType: 'application/json',
+      gateway:
+        paymentMethod === 'BKASH'
+          ? ReceiptGateway.BKASH
+          : paymentMethod === 'NAGAD'
+          ? ReceiptGateway.NAGAD
+          : paymentMethod === 'BANK_TRANSFER'
+          ? ReceiptGateway.BANK
+          : ReceiptGateway.UNKNOWN,
+      status: ReceiptStatus.NEEDS_REVIEW,
+      uploaderId: req.user._id,
+      uploaderRole: req.user.role,
+      extractedData: {
+        memberIdentifier: member.memberId,
+        memberName: member.name,
+        senderPhone: member.phone,
+        amount: parsedAmount,
+        transactionId: String(transactionReference).trim(),
+        reference: notes ? String(notes).trim() : null,
+        rawText: `Member Self-Service Deposit: ${member.name} (${member.memberId}) paid ৳${parsedAmount} via ${paymentMethod}. TrxID: ${transactionReference}. Notes: ${notes || ''}`,
+        confidence: 1.0,
+        provider: 'MEMBER_SELF_SERVICE',
+      },
+      reviewedData: {
+        memberId: member._id,
+        amount: parsedAmount,
+        paymentDate: paymentDate ? new Date(paymentDate) : new Date(),
+        paymentMethod: paymentMethod || 'BKASH',
+        transactionReference: String(transactionReference).trim(),
+        notes: `Member Self-Service Submission: ${notes || ''}`.trim(),
+      },
+      memberMatch: {
+        selectedMemberId: member._id,
+        confidence: 1.0,
+        strategy: 'EXACT_ID',
+        candidates: [{ memberId: member._id, name: member.name, phone: member.phone, score: 100 }],
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Deposit request submitted successfully. It is now awaiting accountant verification.',
+      data: {
+        receiptId: receipt.receiptId,
+        status: receipt.status,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+

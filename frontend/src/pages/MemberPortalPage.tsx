@@ -10,6 +10,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
+  PlusCircle,
+  X,
+  Send,
 } from 'lucide-react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -93,6 +96,49 @@ export const MemberPortalPage: React.FC = () => {
   const [transparency, setTransparency] = useState<Transparency | null>(null);
   const [error, setError] = useState('');
   const [downloadingImg, setDownloadingImg] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [submittingDeposit, setSubmittingDeposit] = useState(false);
+  const [depositSuccess, setDepositSuccess] = useState('');
+  const [depositForm, setDepositForm] = useState({
+    amount: '',
+    paymentMethod: 'BKASH',
+    transactionReference: '',
+    paymentDate: new Date().toISOString().slice(0, 10),
+    notes: '',
+  });
+
+  const handleDepositSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!depositForm.amount || Number(depositForm.amount) <= 0) {
+      setError('সঠিক টাকার পরিমাণ উল্লেখ করুন / Please enter a valid amount.');
+      return;
+    }
+    if (!depositForm.transactionReference.trim()) {
+      setError('ট্রানজেকশন আইডি (TrxID) অথবা ব্যাংক রেফারেন্স আবশ্যক / Transaction Reference is required.');
+      return;
+    }
+    try {
+      setSubmittingDeposit(true);
+      setError('');
+      await apiRequest('/member-portal/deposit-request', {
+        method: 'POST',
+        body: JSON.stringify(depositForm),
+      });
+      setDepositSuccess('আপনার পেমেন্ট স্লিপ সফলভাবে সাবমিট হয়েছে! অ্যাকাউন্ট্যান্ট যাচাই করে লেজারে অনুমোদন করবেন।');
+      setShowDepositModal(false);
+      setDepositForm({
+        amount: '',
+        paymentMethod: 'BKASH',
+        transactionReference: '',
+        paymentDate: new Date().toISOString().slice(0, 10),
+        notes: '',
+      });
+    } catch (err: any) {
+      setError(err.message || 'Failed to submit deposit');
+    } finally {
+      setSubmittingDeposit(false);
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -186,20 +232,41 @@ export const MemberPortalPage: React.FC = () => {
         <Card icon={<WalletCards />} label={t('Advance credit')} value={money(data.advance)} />
       </div>
 
-      {/* Official Annual Statement Section */}
-      <section className="glass-card p-5">
-        <div className="flex justify-between items-center gap-3">
-          <div>
-            <h2 className="font-bold text-white">{t('Official annual statement')}</h2>
-            <p className="text-sm text-gray-400 mt-1">{t('Download your personal statement only.')}</p>
+      {depositSuccess && (
+        <div className="alert alert-success flex items-center justify-between p-4 bg-emerald-950/40 border border-emerald-500/40 text-emerald-200 rounded-xl">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-emerald-400" />
+            <span>{depositSuccess}</span>
           </div>
-          <button
-            className="btn btn-primary"
-            onClick={() => user?.memberId && download(`/members/${user.memberId}/statement.pdf`, 'my-member-statement.pdf')}
-          >
-            <FileDown size={16} />
-            Download PDF
+          <button onClick={() => setDepositSuccess('')} className="text-emerald-400 hover:text-white">
+            <X size={16} />
           </button>
+        </div>
+      )}
+
+      {/* Official Actions & Annual Statement Section */}
+      <section className="glass-card p-5">
+        <div className="flex flex-wrap justify-between items-center gap-3">
+          <div>
+            <h2 className="font-bold text-white text-lg">{t('Member Quick Actions')}</h2>
+            <p className="text-sm text-gray-400 mt-1">পেমেন্ট ডিপোজিট স্লিপ জমা দিন অথবা ব্যক্তিগত স্টেটমেন্ট ডাউনলোড করুন</p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              className="btn btn-primary bg-emerald-600 hover:bg-emerald-500 text-white font-semibold flex items-center gap-2 shadow-lg shadow-emerald-600/20"
+              onClick={() => setShowDepositModal(true)}
+            >
+              <PlusCircle size={16} />
+              পেমেন্ট স্লিপ জমা দিন / Deposit
+            </button>
+            <button
+              className="btn btn-secondary flex items-center gap-2"
+              onClick={() => user?.memberId && download(`/members/${user.memberId}/statement.pdf`, 'my-member-statement.pdf')}
+            >
+              <FileDown size={16} />
+              Download Statement PDF
+            </button>
+          </div>
         </div>
       </section>
 
@@ -466,6 +533,120 @@ export const MemberPortalPage: React.FC = () => {
           </table>
         </div>
       </section>
+
+      {/* Member Deposit Submission Modal */}
+      {showDepositModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative">
+            <button
+              onClick={() => setShowDepositModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-white"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                <PlusCircle size={22} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">পেমেন্ট স্লিপ জমা দিন</h3>
+                <p className="text-xs text-gray-400">বিকাশ, নগদ বা ব্যাংক জমার তথ্য পাঠান</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleDepositSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1">
+                  টাকার পরিমাণ (BDT) *
+                </label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  placeholder="যেমন: 2000"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
+                  value={depositForm.amount}
+                  onChange={(e) => setDepositForm({ ...depositForm, amount: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1">
+                  পেমেন্ট মাধ্যম *
+                </label>
+                <select
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
+                  value={depositForm.paymentMethod}
+                  onChange={(e) => setDepositForm({ ...depositForm, paymentMethod: e.target.value })}
+                >
+                  <option value="BKASH">bKash (বিকাশ)</option>
+                  <option value="NAGAD">Nagad (নগদ)</option>
+                  <option value="BANK_TRANSFER">Bank Transfer (ব্যাংক স্থানান্তর)</option>
+                  <option value="CASH">Cash (ক্যাশ জমা)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1">
+                  ট্রানজেকশন আইডি / রেফারেন্স নম্বর *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="যেমন: BLA1234567 বা ব্যাংক ডিপোজিট স্লিপ নং"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500 font-mono"
+                  value={depositForm.transactionReference}
+                  onChange={(e) => setDepositForm({ ...depositForm, transactionReference: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1">
+                  পেমেন্টের তারিখ
+                </label>
+                <input
+                  type="date"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
+                  value={depositForm.paymentDate}
+                  onChange={(e) => setDepositForm({ ...depositForm, paymentDate: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1">
+                  অতিরিক্ত বিবরণ / নোট (ঐচ্ছিক)
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="যেমন: অক্টোবর মাসের চাঁদা ও কিস্তি"
+                  className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-emerald-500"
+                  value={depositForm.notes}
+                  onChange={(e) => setDepositForm({ ...depositForm, notes: e.target.value })}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowDepositModal(false)}
+                  className="btn btn-secondary px-4 py-2 text-sm"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingDeposit}
+                  className="btn btn-primary bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-5 py-2 text-sm flex items-center gap-2"
+                >
+                  <Send size={15} />
+                  {submittingDeposit ? 'জমা হচ্ছে...' : 'পেমেন্ট রিকোয়েস্ট পাঠান'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
