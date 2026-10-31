@@ -14,7 +14,7 @@ import {
   X,
   Send,
 } from 'lucide-react';
-import { apiRequest } from '../services/api';
+import { apiRequest, getApiUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
@@ -153,7 +153,7 @@ export const MemberPortalPage: React.FC = () => {
   }, []);
 
   const download = async (path: string, name: string) => {
-    const response = await fetch(`/api/documents${path}`, {
+    const response = await fetch(getApiUrl(`/documents${path}`), {
       headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
     });
     if (!response.ok) {

@@ -46,9 +46,9 @@ async function startServer(): Promise<void> {
     server.listen(PORT, () => {
       console.log(`[server] NS Foundation API is running.`);
       console.log(`[server] Environment : ${process.env.NODE_ENV ?? 'development'}`);
-      console.log(`[server] Port        : ${PORT}`);
-      console.log(`[server] Health      : http://localhost:${PORT}/api/health`);
-      console.log(`[server] Readiness   : http://localhost:${PORT}/api/ready`);
+      const baseUrl = process.env.API_URL || `http://localhost:${PORT}`;
+      console.log(`[server] Health      : ${baseUrl}/api/health`);
+      console.log(`[server] Readiness   : ${baseUrl}/api/ready`);
     });
 
     // Graceful shutdown handlers

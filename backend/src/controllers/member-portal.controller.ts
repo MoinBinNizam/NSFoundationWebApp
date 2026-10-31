@@ -5,6 +5,7 @@ import { UserRole } from '../types/models.js';
 import { ReceiptGateway, ReceiptStatus } from '../types/receipt.js';
 import { createError } from '../middlewares/error.js';
 import { getMemberTransparencySettings } from '../services/settings.service.js';
+import { ReceiptStorageService } from '../services/ocr/storage/receipt-storage.service.js';
 
 export async function getMyPortal(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -115,13 +116,22 @@ export async function submitDepositRequest(req: AuthRequest, res: Response, next
     }
 
     const receiptId = `MEMBER_DEP_${Date.now()}_${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const rawContent = `Member Self-Service Deposit: ${member.name} (${member.memberId})\nMethod: ${paymentMethod || 'BKASH'}\nTrxID: ${transactionReference}\nAmount: ৳${parsedAmount}\nDate: ${paymentDate || new Date().toISOString().split('T')[0]}\nNotes: ${notes || 'N/A'}`;
+    const buffer = Buffer.from(rawContent, 'utf8');
+    const storageResult = await ReceiptStorageService.putBuffer(
+      buffer,
+      `deposit-${member.memberId}-${receiptId}.txt`,
+      'text/plain'
+    );
 
     const receipt = await PaymentReceipt.create({
       receiptId,
-      originalFilename: `member-deposit-${member.memberId}.txt`,
-      storedPath: `member-deposits/${receiptId}.json`,
-      fileSize: 0,
-      mimeType: 'application/json',
+      originalFilename: `deposit-${member.memberId}-${receiptId}.txt`,
+      storageKey: storageResult.storageKey,
+      fileSize: storageResult.byteSize,
+      byteSize: storageResult.byteSize,
+      mimeType: 'text/plain',
+      sha256: storageResult.sha256,
       gateway:
         paymentMethod === 'BKASH'
           ? ReceiptGateway.BKASH
@@ -131,8 +141,8 @@ export async function submitDepositRequest(req: AuthRequest, res: Response, next
           ? ReceiptGateway.BANK
           : ReceiptGateway.UNKNOWN,
       status: ReceiptStatus.NEEDS_REVIEW,
-      uploaderId: req.user._id,
-      uploaderRole: req.user.role,
+      uploadedBy: req.user._id,
+      uploadedAt: new Date(),
       extractedData: {
         memberIdentifier: member.memberId,
         memberName: member.name,
@@ -140,7 +150,7 @@ export async function submitDepositRequest(req: AuthRequest, res: Response, next
         amount: parsedAmount,
         transactionId: String(transactionReference).trim(),
         reference: notes ? String(notes).trim() : null,
-        rawText: `Member Self-Service Deposit: ${member.name} (${member.memberId}) paid ৳${parsedAmount} via ${paymentMethod}. TrxID: ${transactionReference}. Notes: ${notes || ''}`,
+        rawText: rawContent,
         confidence: 1.0,
         provider: 'MEMBER_SELF_SERVICE',
       },
@@ -166,6 +176,8 @@ export async function submitDepositRequest(req: AuthRequest, res: Response, next
       data: {
         receiptId: receipt.receiptId,
         status: receipt.status,
+        amount: parsedAmount,
+        transactionReference: String(transactionReference).trim(),
       },
     });
   } catch (error) {

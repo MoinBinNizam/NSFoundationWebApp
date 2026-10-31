@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Download, FileText, Loader2, AlertCircle, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 import { usePreferences } from '../context/PreferencesContext';
+import { getApiUrl } from '../services/api';
 
 interface SourceReceiptModalProps {
   receiptId: string | null;
@@ -36,7 +37,7 @@ export const SourceReceiptModal: React.FC<SourceReceiptModalProps> = ({
     const fetchReceiptFile = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`/api/payments/receipts/${receiptId}/file`, {
+        const response = await fetch(getApiUrl(`/payments/receipts/${receiptId}/file`), {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
 

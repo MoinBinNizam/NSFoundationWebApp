@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { apiRequest } from '../services/api';
+import { apiRequest, getApiUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { groupCustodyAccounts } from '../utils/custodyUtils';
@@ -346,7 +346,7 @@ export const DistributionPage: React.FC = () => {
     link.href = `/api/distributions/batches/${batchId}/export`;
     link.setAttribute('download', `ns-foundation-distribution-${batchNumber}.csv`);
     // Native fetch download with auth header
-    fetch(`/api/distributions/batches/${batchId}/export`, {
+    fetch(getApiUrl(`/distributions/batches/${batchId}/export`), {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.blob())

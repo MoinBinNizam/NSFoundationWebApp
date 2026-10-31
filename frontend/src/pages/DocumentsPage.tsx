@@ -26,7 +26,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
 import { ModuleGuide } from '../components/ModuleGuide';
-import { apiRequest } from '../services/api';
+import { apiRequest, getApiUrl } from '../services/api';
 import {
   downloadMemberReportImage,
   downloadAnnualReportImage,
@@ -295,7 +295,7 @@ export const DocumentsPage: React.FC = () => {
       setError('');
       setSuccessNotice('');
       const token = localStorage.getItem('token') || '';
-      const response = await fetch(`/api/documents${path}`, {
+      const response = await fetch(getApiUrl(`/documents${path}`), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) {

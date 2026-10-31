@@ -40,6 +40,9 @@
     "test:settings-members": "tsx src/scripts/test-settings-members.ts",
     "stage:2024-workbook": "tsx src/scripts/stage-2024-from-updated-workbook.ts",
     "inspect:dropped-audit": "tsx src/scripts/inspect-dropped-audit.ts",
+    "db:backup": "tsx src/scripts/backup-db.ts",
+    "db:restore": "tsx src/scripts/restore-db.ts",
+    "check:readiness": "tsx src/scripts/check-prod-readiness.ts",
     "test": "vitest run"
   },
   "keywords": [],

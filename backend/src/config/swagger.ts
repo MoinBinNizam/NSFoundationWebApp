@@ -11,13 +11,21 @@ export const swaggerDocument = {
     },
   },
   servers: [
+    ...(process.env.API_URL
+      ? [
+          {
+            url: process.env.API_URL,
+            description: 'Active API Environment',
+          },
+        ]
+      : []),
+    {
+      url: '/',
+      description: 'Current Relative Host (Automatic)',
+    },
     {
       url: 'http://localhost:5000',
       description: 'Local Development Server',
-    },
-    {
-      url: 'https://api.nsfoundation.org',
-      description: 'Production API Server',
     },
   ],
   components: {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { apiRequest } from '../services/api';
+import { apiRequest, getApiUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
@@ -437,7 +437,7 @@ export const MembersPage: React.FC = () => {
         uploadForm.append('file', exitReceiptFile);
         if (receiptNumber) uploadForm.append('receiptNumber', receiptNumber);
 
-        const uploadRes = await fetch('/api/governance/exits/upload-receipt', {
+        const uploadRes = await fetch(getApiUrl('/governance/exits/upload-receipt'), {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
@@ -506,7 +506,7 @@ export const MembersPage: React.FC = () => {
       uploadForm.append('file', uploadFile);
       if (uploadReceiptNo) uploadForm.append('receiptNumber', uploadReceiptNo.trim());
 
-      const uploadRes = await fetch('/api/governance/exits/upload-receipt', {
+      const uploadRes = await fetch(getApiUrl('/governance/exits/upload-receipt'), {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
@@ -798,7 +798,7 @@ export const MembersPage: React.FC = () => {
     const form = new FormData();
     form.append('file', importFile);
     try {
-      const response = await fetch('/api/members/import/preview', {
+      const response = await fetch(getApiUrl('/members/import/preview'), {
         method: 'POST',
         headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
         body: form,

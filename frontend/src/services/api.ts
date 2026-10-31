@@ -1,6 +1,22 @@
 import { translateText } from '../i18n/translations';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const rawApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
+export const API_BASE_URL = rawApiUrl
+  ? rawApiUrl.endsWith('/api')
+    ? rawApiUrl
+    : `${rawApiUrl}/api`
+  : '/api';
+
+export function getApiUrl(endpoint: string): string {
+  const clean = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  if (clean.startsWith('/api/')) {
+    return `${API_BASE_URL}${clean.slice(4)}`;
+  }
+  if (clean === '/api') {
+    return API_BASE_URL;
+  }
+  return `${API_BASE_URL}${clean}`;
+}
 
 function localizeApiMessage(message: string): string {
   const language = localStorage.getItem('language') === 'bn' ? 'bn' : 'en';
@@ -39,7 +55,7 @@ export async function apiRequest<T = unknown>(
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const url = getApiUrl(endpoint);
 
   try {
     const response = await fetch(url, {

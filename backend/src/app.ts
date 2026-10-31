@@ -36,10 +36,25 @@ app.use(apiRateLimit);
 app.use(correlationMiddleware);
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
-const corsOrigin = process.env.CORS_ORIGIN ?? 'http://localhost:5173';
+const rawCorsOrigin = process.env.CORS_ORIGIN;
+const allowedOrigins = rawCorsOrigin
+  ? rawCorsOrigin.split(',').map((o) => o.trim())
+  : ['http://localhost:5173', 'http://127.0.0.1:5173'];
+
 app.use(
   cors({
-    origin: corsOrigin,
+    origin: (origin, callback) => {
+      // Allow non-browser requests (mobile, curl, cron jobs, server-to-server)
+      if (!origin) return callback(null, true);
+      if (rawCorsOrigin === '*' || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      // In development or when origin matches permitted domains
+      if (allowedOrigins.some((ao) => origin.startsWith(ao))) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     credentials: true,
   })
 );

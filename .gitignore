@@ -20,3 +20,5 @@ yarn-error.log*
 backend/output/
 output/
 *.traineddata
+backend/backups/
+backups/

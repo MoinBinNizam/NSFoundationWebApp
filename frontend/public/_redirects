@@ -1,0 +1,3 @@
+# Cloudflare Pages / Netlify SPA Client-side routing redirects
+# Direct all sub-paths to index.html with HTTP 200 so React Router handles page transitions
+/*    /index.html   200

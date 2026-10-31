@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { apiRequest } from '../services/api';
+import { apiRequest, getApiUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useNavigate } from 'react-router-dom';
@@ -310,7 +310,7 @@ export const DashboardPage: React.FC = () => {
 
   const exportCsv = async () => {
     try {
-      const response = await fetch(`/api/reports/data/${reportType}/export?${query()}`, {
+      const response = await fetch(getApiUrl(`/reports/data/${reportType}/export?${query()}`), {
         headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
       });
       if (!response.ok) throw new Error('Could not export this report.');
