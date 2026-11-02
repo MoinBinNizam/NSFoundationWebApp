@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
+import { TableScrollControls } from '../components/TableScrollControls';
 import {
   PieChart,
   Coins,
@@ -182,6 +183,10 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
 
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<boolean>(false);
+
+  // Table horizontal scroll refs
+  const annualTableRef = useRef<HTMLDivElement>(null);
+  const positionsTableRef = useRef<HTMLDivElement>(null);
 
   // Fetch Stats & Member Positions
   const fetchPositions = useCallback(async () => {
@@ -530,8 +535,12 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
 
       {/* TAB 1: MEMBER SHARES & POSITIONS */}
       {activeTab === 'positions' && (
-        <div className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
-          <table className="data-table min-w-[920px]">
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <TableScrollControls containerRef={positionsTableRef} />
+          </div>
+          <div ref={positionsTableRef} className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
+            <table className="data-table min-w-[920px]">
             <thead>
               <tr>
                 <th>{t('Member')}</th>
@@ -628,6 +637,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
               )}
             </tbody>
           </table>
+        </div>
         </div>
       )}
 
@@ -820,26 +830,29 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
               </select>
             </div>
 
-            {canModify && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => handleBulkReconcile(selectedYear)}
-                  disabled={submitting}
-                  className="btn btn-primary btn-sm text-xs inline-flex items-center gap-1.5"
-                >
-                  <RefreshCw size={14} className={submitting ? 'animate-spin' : ''} />
-                  <span>{t(`Reconcile All Members (${selectedYear})`)}</span>
-                </button>
-                <button type="button" onClick={() => handleOpenReconcile()} className="btn btn-secondary btn-sm text-xs inline-flex items-center gap-1.5">
-                  <CalendarCheck size={16} />
-                  <span>{t('Reconcile Member')}</span>
-                </button>
-              </div>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              <TableScrollControls containerRef={annualTableRef} />
+              {canModify && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleBulkReconcile(selectedYear)}
+                    disabled={submitting}
+                    className="btn btn-primary btn-sm text-xs inline-flex items-center gap-1.5"
+                  >
+                    <RefreshCw size={14} className={submitting ? 'animate-spin' : ''} />
+                    <span>{t(`Reconcile All Members (${selectedYear})`)}</span>
+                  </button>
+                  <button type="button" onClick={() => handleOpenReconcile()} className="btn btn-secondary btn-sm text-xs inline-flex items-center gap-1.5">
+                    <CalendarCheck size={16} />
+                    <span>{t('Reconcile Member')}</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
-          <div className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
+          <div ref={annualTableRef} className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
             <table className="data-table min-w-[1240px]">
               <thead>
                 <tr>

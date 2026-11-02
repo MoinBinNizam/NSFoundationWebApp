@@ -341,26 +341,58 @@ export const ModuleGuide: React.FC<ModuleGuideProps> = ({ moduleKey, defaultOpen
   const isBn = language === 'bn';
   const guide = MODULE_GUIDES[moduleKey];
 
-  const storageKey = `ns_module_guide_open_${moduleKey}`;
-  const [isOpen, setIsOpen] = useState<boolean>(() => {
-    const saved = localStorage.getItem(storageKey);
-    return saved !== null ? saved === 'true' : defaultOpen;
-  });
+  // By default all guides start collapsed (hidden)
+  const [isOpen, setIsOpen] = useState<boolean>(defaultOpen);
 
   const toggle = () => {
-    const next = !isOpen;
-    setIsOpen(next);
-    localStorage.setItem(storageKey, String(next));
+    setIsOpen((prev) => !prev);
   };
 
   if (!guide) return null;
 
+  // When collapsed: sleek compact trigger bar that takes minimal space
+  if (!isOpen) {
+    return (
+      <div
+        onClick={toggle}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggle();
+          }
+        }}
+        className="rounded-xl border border-blue-500/20 bg-gradient-to-r from-blue-950/30 via-slate-900/40 to-slate-950/60 hover:from-blue-950/40 hover:via-slate-900/60 hover:to-slate-950/80 px-4 py-2.5 shadow-sm backdrop-blur-md transition-all cursor-pointer flex items-center justify-between gap-3 mb-4 group"
+        title={isBn ? 'ব্যবহারবিধি ও নির্দেশিকা দেখতে ক্লিক করুন' : 'Click to show guide & instructions'}
+      >
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 group-hover:scale-105 transition-transform shrink-0">
+            <HelpCircle size={15} />
+          </div>
+          <span className="text-xs font-bold text-slate-200 group-hover:text-white transition-colors truncate">
+            {isBn ? guide.titleBn : guide.title}
+          </span>
+          <span className="hidden sm:inline px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-300 border border-blue-500/25 uppercase tracking-wider shrink-0">
+            {isBn ? guide.badgeBn : guide.badge}
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold text-blue-300 bg-blue-500/10 group-hover:bg-blue-500/20 border border-blue-500/30 transition shadow-sm shrink-0">
+          <span>{isBn ? 'ব্যবহারবিধি ও নির্দেশিকা' : 'Show Guide'}</span>
+          <ChevronDown size={14} className="group-hover:translate-y-0.5 transition-transform" />
+        </div>
+      </div>
+    );
+  }
+
+  // When expanded: full interactive command center guide
   return (
-    <div className="rounded-2xl border border-blue-500/20 bg-gradient-to-r from-blue-950/30 via-slate-900/40 to-slate-950/60 p-4 sm:p-5 shadow-lg backdrop-blur-md transition-all mb-4">
+    <div className="rounded-2xl border border-blue-500/30 bg-gradient-to-r from-blue-950/40 via-slate-900/50 to-slate-950/70 p-4 sm:p-5 shadow-lg backdrop-blur-md transition-all mb-4 animate-in fade-in slide-in-from-top-2">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 shadow-inner">
-            <HelpCircle size={20} className="animate-pulse" />
+          <div className="p-2.5 rounded-xl bg-blue-500/15 text-blue-400 border border-blue-500/30 shadow-inner">
+            <HelpCircle size={20} />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -380,48 +412,46 @@ export const ModuleGuide: React.FC<ModuleGuideProps> = ({ moduleKey, defaultOpen
         <button
           type="button"
           onClick={toggle}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 transition shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 bg-slate-800/80 hover:bg-slate-700 border border-slate-600 transition shadow-sm"
         >
-          <span>{isOpen ? (isBn ? 'গাইড লুকান' : 'Hide Guide') : (isBn ? 'ব্যবহারবিধি ও নির্দেশিকা' : 'How It Works')}</span>
-          {isOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+          <span>{isBn ? 'গাইড লুকান' : 'Hide Guide'}</span>
+          <ChevronUp size={15} />
         </button>
       </div>
 
-      {isOpen && (
-        <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4 animate-fadeIn">
-          {guide.sections.map((sec, idx) => (
-            <div
-              key={idx}
-              className="rounded-xl border border-white/5 bg-slate-950/50 p-3.5 space-y-2.5 hover:border-white/10 transition-colors"
-            >
-              <h4 className="text-xs font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck size={14} className="text-blue-400 shrink-0" />
-                <span>{isBn ? sec.titleBn : sec.title}</span>
-              </h4>
-              <ul className="space-y-2 text-xs">
-                {sec.points.map((pt, pIdx) => (
-                  <li
-                    key={pIdx}
-                    className={`flex items-start gap-2 p-1.5 rounded-lg ${
-                      pt.highlight
-                        ? 'bg-blue-500/10 border border-blue-500/20 text-blue-100 font-medium'
-                        : 'text-gray-300'
+      <div className="mt-4 pt-4 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-4">
+        {guide.sections.map((sec, idx) => (
+          <div
+            key={idx}
+            className="rounded-xl border border-white/5 bg-slate-950/50 p-3.5 space-y-2.5 hover:border-white/10 transition-colors"
+          >
+            <h4 className="text-xs font-bold text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
+              <ShieldCheck size={14} className="text-blue-400 shrink-0" />
+              <span>{isBn ? sec.titleBn : sec.title}</span>
+            </h4>
+            <ul className="space-y-2 text-xs">
+              {sec.points.map((pt, pIdx) => (
+                <li
+                  key={pIdx}
+                  className={`flex items-start gap-2 p-1.5 rounded-lg ${
+                    pt.highlight
+                      ? 'bg-blue-500/10 border border-blue-500/20 text-blue-100 font-medium'
+                      : 'text-gray-300'
+                  }`}
+                >
+                  <CheckCircle2
+                    size={14}
+                    className={`shrink-0 mt-0.5 ${
+                      pt.highlight ? 'text-emerald-400' : 'text-blue-400'
                     }`}
-                  >
-                    <CheckCircle2
-                      size={14}
-                      className={`shrink-0 mt-0.5 ${
-                        pt.highlight ? 'text-emerald-400' : 'text-blue-400'
-                      }`}
-                    />
-                    <span className="leading-relaxed">{isBn ? pt.textBn : pt.text}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      )}
+                  />
+                  <span className="leading-relaxed">{isBn ? pt.textBn : pt.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

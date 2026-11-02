@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
 import { BrandLogo } from '../components/BrandLogo';
 import { ModuleGuide } from '../components/ModuleGuide';
+import { TableScrollControls } from '../components/TableScrollControls';
 import {
   CreditCard,
   Plus,
@@ -432,11 +433,14 @@ export const PaymentsPage: React.FC = () => {
     setShareModalAllocations(allocations || []);
   };
 
+  // Table horizontal scroll ref for ledger
+  const paymentsTableRef = useRef<HTMLDivElement>(null);
+
   // Collect Payment Form State
   const [formData, setFormData] = useState({
     memberId: '',
     custodyAccountId: '',
-    receiverId: user?.id || '',
+    receiverId: '',
     paymentDate: new Date().toISOString().split('T')[0],
     totalAmount: '',
     paymentMethod: 'CASH',
@@ -511,16 +515,22 @@ export const PaymentsPage: React.FC = () => {
       setPenaltyRules(rulesRes.data || []);
       setPenaltyWaivers(waiversRes.data || []);
 
-      // Default custody account if available
+      // Default custody account and receiver: prioritize Primary Accountant Moin Uddin
       if (custodyRes.data && custodyRes.data.length > 0 && !formData.custodyAccountId) {
-        const currentReceiverId = formData.receiverId || user?.id || '';
-        const matching = custodyRes.data.filter((c) => !currentReceiverId || c.holderId?._id === currentReceiverId);
-        const picked = matching[0] || custodyRes.data[0];
+        const moinAccount = custodyRes.data.find(
+          (c) =>
+            c.holderId?.accountantType === 'PRIMARY' ||
+            (c.holderId?.name || '').toLowerCase().includes('moin') ||
+            c.channel === 'BANK'
+        ) || custodyRes.data[0];
+
+        const moinReceiverId = moinAccount?.holderId?._id || '';
+
         setFormData((prev) => ({
           ...prev,
-          receiverId: prev.receiverId || picked.holderId?._id || currentReceiverId,
-          custodyAccountId: picked._id,
-          paymentMethod: paymentMethodForAccount(picked),
+          receiverId: prev.receiverId || moinReceiverId,
+          custodyAccountId: prev.custodyAccountId || moinAccount?._id || '',
+          paymentMethod: prev.paymentMethod || paymentMethodForAccount(moinAccount),
         }));
       }
     } catch (err) {
@@ -1144,7 +1154,38 @@ export const PaymentsPage: React.FC = () => {
   const setPaymentPeriod = (year: string, month: string) => {
     const currentDay = Number(formData.paymentDate.slice(8, 10)) || 1;
     const maxDay = new Date(Number(year), Number(month), 0).getDate();
-    setFormData({ ...formData, paymentDate: `${year}-${month}-${String(Math.min(currentDay, maxDay)).padStart(2, '0')}` });
+    const newDate = `${year}-${month}-${String(Math.min(currentDay, maxDay)).padStart(2, '0')}`;
+
+    let nextReceiverId = formData.receiverId;
+    let nextCustodyId = formData.custodyAccountId;
+    let nextPaymentMethod = formData.paymentMethod;
+
+    if (Number(year) >= 2025) {
+      const moinAccount = custodyAccounts.find(
+        (c) =>
+          c.holderId?.accountantType === 'PRIMARY' ||
+          (c.holderId?.name || '').toLowerCase().includes('moin') ||
+          c.channel === 'BANK'
+      );
+      if (moinAccount?.holderId?._id) {
+        const currentReceiverAccount = custodyAccounts.find((c) => c.holderId?._id === formData.receiverId);
+        if (currentReceiverAccount?.holderId?.accountantType !== 'ASSISTANT') {
+          nextReceiverId = moinAccount.holderId._id;
+          if (!nextCustodyId || currentReceiverAccount?.holderId?.accountantType !== 'PRIMARY') {
+            nextCustodyId = moinAccount._id;
+            nextPaymentMethod = paymentMethodForAccount(moinAccount);
+          }
+        }
+      }
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      paymentDate: newDate,
+      receiverId: nextReceiverId,
+      custodyAccountId: nextCustodyId,
+      paymentMethod: nextPaymentMethod,
+    }));
     setAllocationPreview(null);
   };
 
@@ -1198,16 +1239,24 @@ export const PaymentsPage: React.FC = () => {
                   .map((c) => c.holderId!)
                   .filter((v, i, a) => a.findIndex((t) => t._id === v._id) === i);
 
+                const moinReceiver = availableReceivers.find(
+                  (r) => r.accountantType === 'PRIMARY' || (r.name || '').toLowerCase().includes('moin')
+                );
+                const userReceiver = availableReceivers.find((r) => r._id === user?.id);
                 const initialReceiverId =
-                  availableReceivers.find((r) => r._id === user?.id)?._id ||
+                  (userReceiver?.accountantType === 'ASSISTANT' ? userReceiver._id : undefined) ||
+                  moinReceiver?._id ||
+                  userReceiver?._id ||
                   availableReceivers[0]?._id ||
-                  user?.id ||
                   '';
 
                 const receiverCustodies = custodyAccounts.filter(
                   (c) => !initialReceiverId || c.holderId?._id === initialReceiverId
                 );
-                const defaultCustodyAccount = receiverCustodies[0] || custodyAccounts[0];
+                const defaultCustodyAccount =
+                  receiverCustodies.find((c) => c.channel === 'BANK' || c.name.toLowerCase().includes('ibbl')) ||
+                  receiverCustodies[0] ||
+                  custodyAccounts[0];
 
                 setCollectError(null);
                 setAllocationPreview(null);
@@ -1763,10 +1812,10 @@ export const PaymentsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Dual Cards Grid */}
+                  {/* Dual Cards: Stacked Vertically (Primary Moin Uddin on top, Assistant Samrat underneath) */}
                   {dualAccountants.length > 0 ? (
                     <div className="space-y-5">
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pt-1">
+                      <div className="flex flex-col gap-5 pt-1">
                         {dualAccountants.map((acc) => {
                           const isPrimary = acc.accountantType === 'PRIMARY' || acc.name.toLowerCase().includes('moin');
                           const sharePct = totalDualCollections > 0 ? Math.round((acc.total / totalDualCollections) * 100) : (isPrimary ? 100 : 0);
@@ -1883,7 +1932,7 @@ export const PaymentsPage: React.FC = () => {
                                   <p className="text-2xl font-black text-white tracking-tight">
                                     ৳ {acc.total.toLocaleString()}
                                   </p>
-                                  <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-white/5 text-[11px] text-slate-400">
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 pt-1 border-t border-white/5 text-[11px] text-slate-400">
                                     <span>{language === 'bn' ? 'মূল কিস্তি:' : 'Principal:'} <b className="text-slate-200">৳{acc.principal.toLocaleString()}</b></span>
                                     <span>{language === 'bn' ? 'জরিমানা:' : 'Penalty:'} <b className="text-amber-400">৳{acc.penalty.toLocaleString()}</b></span>
                                     <span>{language === 'bn' ? 'অগ্রিম জমা:' : 'Advance:'} <b className="text-blue-300">৳{(acc.advance || 0).toLocaleString()}</b></span>
@@ -2015,7 +2064,7 @@ export const PaymentsPage: React.FC = () => {
                             : 'Per organizational governance, Executive Committee members oversee policy, audits, and administration, while financial collections and custody are exclusively maintained by designated accountants.'}
                         </p>
 
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                           {/* 1. Director */}
                           <div className="p-2 rounded-lg bg-slate-900/90 border border-purple-500/20 text-center">
                             <span className="text-[10px] font-bold text-purple-300 block truncate">
@@ -2729,7 +2778,13 @@ export const PaymentsPage: React.FC = () => {
           )}
 
           {/* Payments Table */}
-          <div className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
+            <span className="text-xs text-slate-400 font-medium">
+              {t('Showing payment records and official vouchers')}
+            </span>
+            <TableScrollControls containerRef={paymentsTableRef} />
+          </div>
+          <div ref={paymentsTableRef} className="table-container glass-card overflow-x-auto overflow-y-hidden overscroll-x-contain">
             <table className="data-table min-w-[1060px]">
               <thead>
                 <tr>
@@ -3180,11 +3235,19 @@ export const PaymentsPage: React.FC = () => {
                       .filter((c) => c.holderId)
                       .map((c) => c.holderId!)
                       .filter((v, i, a) => a.findIndex((t) => t._id === v._id) === i)
-                      .map((acc) => (
-                        <option key={acc._id} value={acc._id}>
-                          {acc.name} ({acc.accountantType || 'ACC'})
-                        </option>
-                      ))}
+                      .sort((a, b) => {
+                        const aIsPrimary = a.accountantType === 'PRIMARY' || (a.name || '').toLowerCase().includes('moin');
+                        const bIsPrimary = b.accountantType === 'PRIMARY' || (b.name || '').toLowerCase().includes('moin');
+                        return aIsPrimary ? -1 : bIsPrimary ? 1 : 0;
+                      })
+                      .map((acc) => {
+                        const isPrimary = acc.accountantType === 'PRIMARY' || (acc.name || '').toLowerCase().includes('moin');
+                        return (
+                          <option key={acc._id} value={acc._id}>
+                            {acc.name} ({isPrimary ? (language === 'bn' ? 'প্রধান হিসাবরক্ষক' : 'Primary Accountant') : (language === 'bn' ? 'সহকারী হিসাবরক্ষক' : 'Assistant Accountant')})
+                          </option>
+                        );
+                      })}
                   </select>
                 </div>
 

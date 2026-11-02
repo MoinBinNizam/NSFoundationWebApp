@@ -23,6 +23,7 @@ import {
   IUser,
   CustodyChannel,
   AccountantType,
+  AccountType,
   MemberDesignation,
 } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
@@ -708,6 +709,36 @@ export class PaymentService {
     const paymentDate = input.paymentDate ? new Date(input.paymentDate) : new Date();
     const currentYearMonth = toYearMonth(paymentDate);
 
+    // Resolve Primary Accountant Moin Uddin for 2025+ collections or when entered by non-accountant staff
+    let finalReceiverId = receiverId;
+    const [moinUser, samratUser] = await Promise.all([
+      User.findOne({
+        $or: [
+          { accountantType: AccountantType.PRIMARY },
+          { email: 'admin@nsfoundation.org' },
+          { designation: MemberDesignation.ACCOUNTANT },
+        ],
+      }).select('_id').lean(),
+      User.findOne({
+        $or: [
+          { accountantType: AccountantType.ASSISTANT },
+          { email: 'assistant@nsfoundation.org' },
+          { designation: MemberDesignation.ASSISTANT_ACCOUNTANT },
+        ],
+      }).select('_id').lean(),
+    ]);
+
+    const is2025OrLater = paymentDate >= new Date('2025-01-01');
+    const isExplicitSamrat = samratUser && String(finalReceiverId || '') === String(samratUser._id);
+
+    if (moinUser) {
+      if (is2025OrLater && !isExplicitSamrat) {
+        finalReceiverId = String(moinUser._id);
+      } else if (!finalReceiverId || (!isExplicitSamrat && String(finalReceiverId) !== String(moinUser._id))) {
+        finalReceiverId = String(moinUser._id);
+      }
+    }
+
     // 1. Calculate authoritative allocations
     const preview = await this.calculatePaymentPreview({
       memberId,
@@ -751,7 +782,7 @@ export class PaymentService {
     const payment = await Payment.create({
       receiptNumber,
       memberId: member._id,
-      receiverId,
+      receiverId: finalReceiverId,
       custodyAccountId: custodyAccount._id,
       paymentDate,
       totalAmount,
@@ -885,7 +916,7 @@ export class PaymentService {
       sourceRefId: payment._id,
       date: paymentDate,
       description: `Collection from ${member.name} (${member.memberId}) - ${receiptNumber} [${paymentMethod}]`,
-      performedBy: (actingUser as unknown as { _id: Types.ObjectId })._id || receiverId,
+      performedBy: (actingUser as unknown as { _id: Types.ObjectId })._id || finalReceiverId,
     });
 
     // 8. Update CustodyAccount.cachedBalance derived from ledger
@@ -903,7 +934,7 @@ export class PaymentService {
 
     // 9. Audit Log
     await AuditLog.create({
-      performedBy: (actingUser as unknown as { _id: Types.ObjectId })._id || receiverId,
+      performedBy: (actingUser as unknown as { _id: Types.ObjectId })._id || finalReceiverId,
       action: 'COLLECT_MEMBER_PAYMENT',
       entityName: 'Payment',
       entityId: payment._id,
@@ -1061,12 +1092,16 @@ export class PaymentService {
       },
       ]),
 
-      // 3. Live accountant collections aggregation
+      // 3. Live accountant collections aggregation with payment details for accurate 2024 vs 2025+ custodian assignment
       Payment.aggregate([
         { $match: matchQuery },
         {
           $group: {
-            _id: '$receiverId',
+            _id: {
+              receiverId: '$receiverId',
+              custodyAccountId: '$custodyAccountId',
+              is2025OrLater: { $gte: ['$paymentDate', new Date('2025-01-01')] },
+            },
             total: { $sum: '$totalAmount' },
             principal: { $sum: '$principalAmount' },
             penalty: { $sum: '$penaltyAmount' },
@@ -1126,22 +1161,50 @@ export class PaymentService {
       return isMoin || isSamrat;
     });
 
-    const aggMap = new Map(
-      (byAccountant || []).map((item: any) => [String(item._id), item])
+    const samratStaff = designatedAccountants.find((s: any) => {
+      const nameLower = String(s.name || '').toLowerCase();
+      const emailLower = String(s.email || '').toLowerCase();
+      return nameLower.includes('samrat') || emailLower.includes('assistant') || s.accountantType === AccountantType.ASSISTANT;
+    });
+    const samratIdStr = samratStaff ? String(samratStaff._id) : '';
+
+    const samratCustodyIds = new Set(
+      allCustodyAccounts
+        .filter((acc: any) => {
+          const hId = acc.holderId?._id ? String(acc.holderId._id) : String(acc.holderId || '');
+          const nLower = String(acc.name || '').toLowerCase();
+          return hId === samratIdStr || nLower.includes('samrat') || acc.channel === CustodyChannel.NAGAD;
+        })
+        .map((a: any) => String(a._id))
     );
+
+    // Dynamic 2025+ Custody Attribution:
+    // In 2024, Assistant Accountant Samrat collected official payments.
+    // From 2025 onwards, Primary Accountant Moin Uddin is the custodian of all society collections.
+    const moinAgg = { total: 0, principal: 0, penalty: 0, advance: 0, cashout: 0, count: 0 };
+    const samratAgg = { total: 0, principal: 0, penalty: 0, advance: 0, cashout: 0, count: 0 };
+
+    for (const item of byAccountant || []) {
+      const recIdStr = String(item._id?.receiverId || '');
+      const accIdStr = String(item._id?.custodyAccountId || '');
+      const is2025OrLater = Boolean(item._id?.is2025OrLater);
+
+      const isSamratPayment = !is2025OrLater
+        ? (recIdStr === samratIdStr || samratCustodyIds.has(accIdStr))
+        : (recIdStr === samratIdStr && samratCustodyIds.has(accIdStr));
+
+      const target = isSamratPayment ? samratAgg : moinAgg;
+      target.total += Number(item.total || 0);
+      target.principal += Number(item.principal || 0);
+      target.penalty += Number(item.penalty || 0);
+      target.advance += Number(item.advance || 0);
+      target.cashout += Number(item.cashout || 0);
+      target.count += Number(item.count || 0);
+    }
 
     // Merge collection stats and active custody accounts for Moin and Samrat
     const enrichedAccountants = designatedAccountants.map((staff: any) => {
       const staffIdStr = String(staff._id);
-      const agg = aggMap.get(staffIdStr) || {
-        total: 0,
-        principal: 0,
-        penalty: 0,
-        advance: 0,
-        cashout: 0,
-        count: 0,
-      };
-
       const staffNameLower = String(staff.name || '').toLowerCase();
       const emailLower = String(staff.email || '').toLowerCase();
       const isPrimary =
@@ -1151,6 +1214,7 @@ export class PaymentService {
         staff.accountantType === AccountantType.PRIMARY;
 
       const accountantType = isPrimary ? AccountantType.PRIMARY : AccountantType.ASSISTANT;
+      const agg = isPrimary ? moinAgg : samratAgg;
 
       const accounts = allCustodyAccounts.filter((acc: any) => {
         const holderIdStr = acc.holderId?._id
@@ -1158,11 +1222,29 @@ export class PaymentService {
           : acc.holderId
           ? String(acc.holderId)
           : '';
-        if (holderIdStr === staffIdStr) return true;
         const accNameLower = String(acc.name || '').toLowerCase();
-        if (isPrimary && (accNameLower.includes('moin') || accNameLower.includes('primary') || acc.channel === CustodyChannel.BANK || acc.channel === CustodyChannel.BKASH)) return true;
-        if (!isPrimary && (accNameLower.includes('samrat') || accNameLower.includes('assistant') || acc.channel === CustodyChannel.NAGAD)) return true;
-        return false;
+
+        // Exclude external partner wallets
+        if (acc.accountType === AccountType.EXTERNAL_WALLET || accNameLower.includes('partner') || (accNameLower.includes('wallet') && !accNameLower.includes('samrat'))) {
+          return false;
+        }
+
+        if (isPrimary) {
+          // Primary Accountant (Moin Uddin)
+          if (holderIdStr === staffIdStr) return true;
+          if (accNameLower.includes('samrat') || accNameLower.includes('assistant')) return false;
+          if (accNameLower.includes('moin') || accNameLower.includes('primary') || acc.channel === CustodyChannel.BANK || accNameLower.includes('ibbl') || accNameLower.includes('petty cash') || accNameLower.includes('merchant')) {
+            return true;
+          }
+          return false;
+        } else {
+          // Assistant Accountant (Nurul Islam Samrat)
+          if (holderIdStr === staffIdStr) return true;
+          if (accNameLower.includes('samrat') || accNameLower.includes('assistant') || acc.channel === CustodyChannel.NAGAD) {
+            return true;
+          }
+          return false;
+        }
       });
 
       const custodyBalance = accounts.reduce(

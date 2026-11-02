@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import {
   Eye,
   X,
@@ -13,6 +13,7 @@ import {
 import { apiRequest } from '../services/api';
 import { usePreferences } from '../context/PreferencesContext';
 import { ModuleGuide } from '../components/ModuleGuide';
+import { TableScrollControls } from '../components/TableScrollControls';
 
 type Detail = {
   month: string;
@@ -163,6 +164,9 @@ export const DuesPage: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [copiedRowId, setCopiedRowId] = useState<string | null>(null);
 
+  // Table horizontal scroll ref
+  const duesTableRef = useRef<HTMLDivElement>(null);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -246,7 +250,7 @@ export const DuesPage: React.FC = () => {
           </h1>
           <p className="text-sm text-gray-400 mt-1">
             {t(
-              '২০২৪ থেকে আজ পর্যন্ত সদস্যদের মোট প্রদেয় শেয়ার চাঁদা, আদায়কৃত মূলধন ও বর্তমান বকেয়ার স্বয়ংক্রিয় পুঙ্খানুপুঙ্খ হিসাব।'
+              'Automated comprehensive calculation of member share contributions, collected capital, and active dues from 2024 to date.'
             )}
           </p>
         </div>
@@ -268,7 +272,7 @@ export const DuesPage: React.FC = () => {
             onClick={() => {
               if (!data?.rows.length) return;
               const text = generateAllDuesSummaryText(data.rows, data.summary.total);
-              void copyText(text, 'সকল বকেয়া সদস্যের সংক্ষিপ্ত তালিকা ক্লিপবোর্ডে কপি হয়েছে!');
+              void copyText(text, t('All dues summary copied to clipboard!'));
             }}
             className="btn btn-secondary flex items-center gap-2 border border-slate-700 bg-slate-800/80 hover:bg-slate-700 text-gray-200 text-sm font-semibold"
           >
@@ -292,9 +296,9 @@ export const DuesPage: React.FC = () => {
             value={year}
             onChange={(e) => setYear(e.target.value)}
           >
-            <option value="ALL">সর্বমোট (আজ পর্যন্ত)</option>
+            <option value="ALL">{t('All Time (To Date)')}</option>
             {(data?.availableYears || []).map((item) => (
-              <option key={item} value={item}>{item} সাল</option>
+              <option key={item} value={item}>{t(`Year ${item}`)}</option>
             ))}
           </select>
           <select
@@ -322,7 +326,7 @@ export const DuesPage: React.FC = () => {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            শুধুমাত্র বকেয়া সদস্য ({data?.rows.length ?? 0})
+            {t('Overdue Members Only')} ({data?.rows.length ?? 0})
           </button>
           <button
             type="button"
@@ -333,7 +337,7 @@ export const DuesPage: React.FC = () => {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            সকল সক্রিয় সদস্য
+            {t('All Active Members')}
           </button>
         </div>
       </div>
@@ -343,43 +347,54 @@ export const DuesPage: React.FC = () => {
         <div className="glass-card p-4 border border-rose-500/30 bg-rose-500/5">
           <p className="text-xs font-bold text-rose-300 uppercase tracking-wider">{t('Total Due')}</p>
           <p className="mt-2 text-2xl font-black text-rose-200">{money(Number(data?.summary.total || 0))}</p>
-          <p className="text-[11px] text-gray-400 mt-1">প্রদেয় মূল চাঁদা + বিলম্ব জরিমানা + চার্জ</p>
+          <p className="text-[11px] text-gray-400 mt-1">{t('Principal Due + Late Penalty + Charges')}</p>
         </div>
         <div className="glass-card p-4 border border-blue-500/20 bg-blue-500/5">
           <p className="text-xs font-bold text-blue-300 uppercase tracking-wider">{t('Principal due')}</p>
           <p className="mt-2 text-2xl font-black text-blue-200">{money(Number(data?.summary.principal || 0))}</p>
-          <p className="text-[11px] text-gray-400 mt-1">মোট অনাদায়ী মূল চাঁদা</p>
+          <p className="text-[11px] text-gray-400 mt-1">{t('Total uncollected share principal')}</p>
         </div>
         <div className="glass-card p-4 border border-emerald-500/20 bg-emerald-500/5">
-          <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider">মোট প্রদেয় চাঁদা</p>
+          <p className="text-xs font-bold text-emerald-300 uppercase tracking-wider">{t('Total Obligation')}</p>
           <p className="mt-2 text-2xl font-black text-emerald-200">{money(Number(data?.summary.totalObligation || 0))}</p>
-          <p className="text-[11px] text-gray-400 mt-1">আজ পর্যন্ত ধার্যকৃত মোট শেয়ার চাঁদা</p>
+          <p className="text-[11px] text-gray-400 mt-1">{t('Total assessed share contributions to date')}</p>
         </div>
         <div className="glass-card p-4 border border-teal-500/20 bg-teal-500/5">
-          <p className="text-xs font-bold text-teal-300 uppercase tracking-wider">পরিশোধিত প্রিন্সিপাল</p>
+          <p className="text-xs font-bold text-teal-300 uppercase tracking-wider">{t('Principal Paid')}</p>
           <p className="mt-2 text-2xl font-black text-teal-200">{money(Number(data?.summary.totalPrincipalPaid || 0))}</p>
-          <p className="text-[11px] text-gray-400 mt-1">সদস্যদের জমাকৃত মোট মূল চাঁদা</p>
+          <p className="text-[11px] text-gray-400 mt-1">{t('Total share principal deposited by members')}</p>
         </div>
         <div className="glass-card p-4 border border-amber-500/20 bg-amber-500/5">
-          <p className="text-xs font-bold text-amber-300 uppercase tracking-wider">জরিমানা ও চার্জ</p>
+          <p className="text-xs font-bold text-amber-300 uppercase tracking-wider">{t('Penalty & Charges')}</p>
           <p className="mt-2 text-2xl font-black text-amber-200">
             {money(Number(data?.summary.penalty || 0) + Number(data?.summary.cashout || 0))}
           </p>
           <p className="text-[11px] text-gray-400 mt-1">
-            বিলম্ব জরিমানা: {money(Number(data?.summary.penalty || 0))} · চার্জ: {money(Number(data?.summary.cashout || 0))}
+            {t('Late Penalty')}: {money(Number(data?.summary.penalty || 0))} · {t('Charges')}: {money(Number(data?.summary.cashout || 0))}
           </p>
         </div>
       </div>
 
+      {/* Dues Table Header with Scroll Controls */}
+      <div className="flex items-center justify-between gap-3 flex-wrap pt-2">
+        <h3 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
+          <span>{t('Dues Schedule & Member Obligation')}</span>
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+            {data?.rows.length ?? 0} {t('records')}
+          </span>
+        </h3>
+        <TableScrollControls containerRef={duesTableRef} />
+      </div>
+
       {/* Dues Table */}
-      <div className="table-container glass-card overflow-x-auto">
+      <div ref={duesTableRef} className="table-container glass-card overflow-x-auto">
         <table className="data-table min-w-[1020px]">
           <thead>
             <tr>
               <th>{t('Member')}</th>
               <th className="text-center">{t('Share')}</th>
-              <th>মোট প্রদেয় (আজ পর্যন্ত)</th>
-              <th>পরিশোধিত প্রিন্সিপাল</th>
+              <th>{t('Total Obligation (To Date)')}</th>
+              <th>{t('Principal Paid')}</th>
               <th>{t('Months due')}</th>
               <th>{t('Principal due')}</th>
               <th>{t('Penalty & Cashout')}</th>
