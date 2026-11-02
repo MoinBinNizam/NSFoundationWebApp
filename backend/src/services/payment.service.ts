@@ -12,6 +12,7 @@ import { MemberYearAccount } from '../models/MemberYearAccount.js';
 import { MemberExitSettlement } from '../models/MemberExitSettlement.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { PaymentReceipt } from '../models/PaymentReceipt.js';
+import { User } from '../models/User.js';
 import {
   AllocationType,
   MonthlyLedgerStatus,
@@ -21,9 +22,12 @@ import {
   PaymentStatus,
   IUser,
   CustodyChannel,
+  AccountantType,
+  MemberDesignation,
 } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 import { getGatewayRateForChannel, getMonthlyShareValue } from './settings.service.js';
+import { CustodyService } from './custody.service.js';
 
 
 /**
@@ -1057,48 +1061,20 @@ export class PaymentService {
       },
       ]),
 
-      // 3. Breakdown by Accountant (Moin vs Samrat) for Admin oversight
+      // 3. Live accountant collections aggregation
       Payment.aggregate([
-      { $match: matchQuery },
-      {
-        $group: {
-          _id: '$receiverId',
-          total: { $sum: '$totalAmount' },
-          principal: { $sum: '$principalAmount' },
-          penalty: { $sum: '$penaltyAmount' },
-          advance: { $sum: '$advanceAmount' },
-          cashout: { $sum: '$cashoutCharge' },
-          count: { $sum: 1 },
+        { $match: matchQuery },
+        {
+          $group: {
+            _id: '$receiverId',
+            total: { $sum: '$totalAmount' },
+            principal: { $sum: '$principalAmount' },
+            penalty: { $sum: '$penaltyAmount' },
+            advance: { $sum: '$advanceAmount' },
+            cashout: { $sum: '$cashoutCharge' },
+            count: { $sum: 1 },
+          },
         },
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'receiver',
-        },
-      },
-      {
-        $unwind: {
-          path: '$receiver',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          name: '$receiver.name',
-          email: '$receiver.email',
-          accountantType: '$receiver.accountantType',
-          total: 1,
-          principal: 1,
-          penalty: 1,
-          advance: 1,
-          cashout: 1,
-          count: 1,
-        },
-      },
       ]),
 
       // Outstanding ledger parts are dynamically scoped to the selected timeframe
@@ -1111,6 +1087,118 @@ export class PaymentService {
           ])
         : Promise.resolve([]),
     ]);
+
+    // Fetch specifically the designated accountants:
+    // 1. Primary Accountant: Moin Uddin (AccountantType.PRIMARY / designation: ACCOUNTANT)
+    // 2. Assistant Accountant: Nurul Islam Samrat (AccountantType.ASSISTANT / designation: ASSISTANT_ACCOUNTANT)
+    // Board members (Director Shuvo, President Shahidul/Safiqul, GS Nayem, Convener Mannan/Hannan)
+    // are governing body officials and MUST NOT be classified or displayed as accountants.
+    const [allStaff, allCustodyAccounts] = await Promise.all([
+      User.find({
+        $or: [
+          { accountantType: { $in: [AccountantType.PRIMARY, AccountantType.ASSISTANT] } },
+          { designation: { $in: [MemberDesignation.ACCOUNTANT, MemberDesignation.ASSISTANT_ACCOUNTANT] } },
+          { email: { $in: ['admin@nsfoundation.org', 'assistant@nsfoundation.org'] } },
+          { name: { $regex: /Moin|Samrat/i } },
+        ],
+      })
+        .select('_id name email role accountantType designation')
+        .lean(),
+      CustodyService.getCustodyAccounts({ isActive: true }).catch(() => []),
+    ]);
+
+    // Strictly filter out any board members who hold other executive designations
+    const designatedAccountants = (allStaff || []).filter((staff: any) => {
+      const desig = staff.designation;
+      if (
+        desig === MemberDesignation.DIRECTOR ||
+        desig === MemberDesignation.PRESIDENT ||
+        desig === MemberDesignation.GENERAL_SECRETARY ||
+        desig === MemberDesignation.CONVENER ||
+        desig === MemberDesignation.GENERAL_MEMBER
+      ) {
+        return false;
+      }
+      const staffNameLower = String(staff.name || '').toLowerCase();
+      const emailLower = String(staff.email || '').toLowerCase();
+      const isMoin = staffNameLower.includes('moin') || emailLower.includes('admin@nsfoundation') || staff.accountantType === AccountantType.PRIMARY || desig === MemberDesignation.ACCOUNTANT;
+      const isSamrat = staffNameLower.includes('samrat') || emailLower.includes('assistant@nsfoundation') || staff.accountantType === AccountantType.ASSISTANT || desig === MemberDesignation.ASSISTANT_ACCOUNTANT;
+      return isMoin || isSamrat;
+    });
+
+    const aggMap = new Map(
+      (byAccountant || []).map((item: any) => [String(item._id), item])
+    );
+
+    // Merge collection stats and active custody accounts for Moin and Samrat
+    const enrichedAccountants = designatedAccountants.map((staff: any) => {
+      const staffIdStr = String(staff._id);
+      const agg = aggMap.get(staffIdStr) || {
+        total: 0,
+        principal: 0,
+        penalty: 0,
+        advance: 0,
+        cashout: 0,
+        count: 0,
+      };
+
+      const staffNameLower = String(staff.name || '').toLowerCase();
+      const emailLower = String(staff.email || '').toLowerCase();
+      const isPrimary =
+        staffNameLower.includes('moin') ||
+        emailLower.includes('admin@nsfoundation') ||
+        staff.designation === MemberDesignation.ACCOUNTANT ||
+        staff.accountantType === AccountantType.PRIMARY;
+
+      const accountantType = isPrimary ? AccountantType.PRIMARY : AccountantType.ASSISTANT;
+
+      const accounts = allCustodyAccounts.filter((acc: any) => {
+        const holderIdStr = acc.holderId?._id
+          ? String(acc.holderId._id)
+          : acc.holderId
+          ? String(acc.holderId)
+          : '';
+        if (holderIdStr === staffIdStr) return true;
+        const accNameLower = String(acc.name || '').toLowerCase();
+        if (isPrimary && (accNameLower.includes('moin') || accNameLower.includes('primary') || acc.channel === CustodyChannel.BANK || acc.channel === CustodyChannel.BKASH)) return true;
+        if (!isPrimary && (accNameLower.includes('samrat') || accNameLower.includes('assistant') || acc.channel === CustodyChannel.NAGAD)) return true;
+        return false;
+      });
+
+      const custodyBalance = accounts.reduce(
+        (sum: number, acc: any) => sum + Number(acc.derivedBalance || 0),
+        0
+      );
+
+      return {
+        _id: staff._id,
+        name: staff.name,
+        email: staff.email,
+        role: staff.role,
+        designation: staff.designation,
+        accountantType,
+        total: Number(agg.total || 0),
+        principal: Number(agg.principal || 0),
+        penalty: Number(agg.penalty || 0),
+        advance: Number(agg.advance || 0),
+        cashout: Number(agg.cashout || 0),
+        count: Number(agg.count || 0),
+        custodyBalance: Math.round(custodyBalance * 100) / 100,
+        custodyAccounts: accounts.map((acc: any) => ({
+          _id: acc._id,
+          name: acc.name,
+          channel: acc.channel,
+          balance: Number(acc.derivedBalance || 0),
+        })),
+      };
+    });
+
+    // Sort: PRIMARY (Moin) first, ASSISTANT (Samrat) second
+    enrichedAccountants.sort((a, b) => {
+      if (a.accountantType === AccountantType.PRIMARY) return -1;
+      if (b.accountantType === AccountantType.PRIMARY) return 1;
+      return 0;
+    });
 
     const dueSummary = dueLedgers.reduce(
       (summary, ledger) => {
@@ -1145,7 +1233,7 @@ export class PaymentService {
         acc[item._id] = { total: item.total, count: item.count };
         return acc;
       }, {}),
-      byAccountant,
+      byAccountant: enrichedAccountants,
     };
   }
 

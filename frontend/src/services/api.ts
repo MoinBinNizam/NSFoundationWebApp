@@ -35,11 +35,68 @@ export interface ApiResponse<T = unknown> {
   };
 }
 
+export function getAuthToken(): string | null {
+  return sessionStorage.getItem('token') || localStorage.getItem('token');
+}
+
+export function setAuthSession(token: string, user: unknown): void {
+  // Session storage: auto-terminates when browser/tab is closed
+  sessionStorage.setItem('token', token);
+  sessionStorage.setItem('user', JSON.stringify(user));
+  // Keep user profile in local storage for instant hydration, but remove persistent token
+  localStorage.setItem('user', JSON.stringify(user));
+  localStorage.removeItem('token');
+}
+
+export function clearAuthSession(): void {
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('user');
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+}
+
+export function saveInterruptedWork(path: string): void {
+  if (!path || path === '/login' || path === '/dashboard' || path === '/member-portal' || path === '/') {
+    return;
+  }
+  try {
+    localStorage.setItem(
+      'nsf_interrupted_work',
+      JSON.stringify({
+        path,
+        timestamp: Date.now(),
+      })
+    );
+  } catch {
+    // Non-blocking
+  }
+}
+
+export function getInterruptedWork(): string | null {
+  try {
+    const raw = localStorage.getItem('nsf_interrupted_work');
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    // Valid for up to 2 hours
+    if (Date.now() - data.timestamp < 7200000 && data.path) {
+      return data.path;
+    }
+    localStorage.removeItem('nsf_interrupted_work');
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearInterruptedWork(): void {
+  localStorage.removeItem('nsf_interrupted_work');
+}
+
 export async function apiRequest<T = unknown>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> {
-  const token = localStorage.getItem('token');
+  const token = getAuthToken();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -63,10 +120,6 @@ export async function apiRequest<T = unknown>(
       headers,
     });
 
-    // A development-proxy failure (for example, when the backend is not
-    // running) may return an empty response body. Read text first so an empty
-    // or non-JSON response cannot mask the actual request failure with a
-    // JSON parsing exception.
     const responseText = await response.text();
     let data: ApiResponse<T> | { message?: string } | null = null;
 
@@ -86,9 +139,7 @@ export async function apiRequest<T = unknown>(
 
     if (!response.ok) {
       if (response.status === 401) {
-        // Token invalid or expired: clear token and notify auth context
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        clearAuthSession();
         window.dispatchEvent(new Event('auth:unauthorized'));
       }
       const message = data?.message;

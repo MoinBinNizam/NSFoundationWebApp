@@ -22,6 +22,26 @@ export type EnglishFont =
 
 export type FontSize = 'small' | 'medium' | 'large' | 'xlarge';
 
+export const BANGLA_PRIMARY_MAP: Record<BanglaFont, string> = {
+  'hind-siliguri': "'Hind Siliguri', 'Plus Jakarta Sans'",
+  'noto-sans-bengali': "'Noto Sans Bengali', 'Plus Jakarta Sans'",
+  'solaiman-lipi': "'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali'",
+  'kalpurush': "'Kalpurush', 'SolaimanLipi', 'Noto Sans Bengali'",
+  'tiro-bangla': "'Tiro Bangla', 'Noto Serif Bengali'",
+  'anek-bangla': "'Anek Bangla', 'Plus Jakarta Sans'",
+  default: "'Plus Jakarta Sans'",
+};
+
+export const ENGLISH_PRIMARY_MAP: Record<EnglishFont, string> = {
+  'plus-jakarta-sans': "'Plus Jakarta Sans'",
+  inter: "'Inter'",
+  outfit: "'Outfit'",
+  roboto: "'Roboto'",
+  poppins: "'Poppins'",
+  lora: "'Lora', Georgia",
+  default: "'Plus Jakarta Sans'",
+};
+
 export const FONT_FAMILY_MAP: Record<BanglaFont, string> = {
   'hind-siliguri': "'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif",
   'noto-sans-bengali': "'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif",
@@ -33,13 +53,13 @@ export const FONT_FAMILY_MAP: Record<BanglaFont, string> = {
 };
 
 export const ENGLISH_FONT_FAMILY_MAP: Record<EnglishFont, string> = {
-  'plus-jakarta-sans': "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
-  inter: "'Inter', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
-  outfit: "'Outfit', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
-  roboto: "'Roboto', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
-  poppins: "'Poppins', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
-  lora: "'Lora', Georgia, 'Tiro Bangla', serif",
-  default: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif",
+  'plus-jakarta-sans': "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
+  inter: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+  outfit: "'Outfit', -apple-system, BlinkMacSystemFont, sans-serif",
+  roboto: "'Roboto', -apple-system, BlinkMacSystemFont, sans-serif",
+  poppins: "'Poppins', -apple-system, BlinkMacSystemFont, sans-serif",
+  lora: "'Lora', Georgia, serif",
+  default: "'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif",
 };
 
 const FONT_SIZE_MAP: Record<FontSize, string> = {
@@ -116,16 +136,21 @@ export const PreferencesProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, [language]);
 
   // Dynamically apply selected font to root and body based on current language
+  // Ensures user's selected Bangla font is ALWAYS the fallback for Bengali text, even in English mode!
   useEffect(() => {
     document.documentElement.setAttribute('data-language', language);
     document.documentElement.setAttribute('data-bangla-font', banglaFont);
     document.documentElement.setAttribute('data-english-font', englishFont);
 
+    const banglaPrimary = BANGLA_PRIMARY_MAP[banglaFont] || BANGLA_PRIMARY_MAP['hind-siliguri'];
+    const englishPrimary = ENGLISH_PRIMARY_MAP[englishFont] || ENGLISH_PRIMARY_MAP['plus-jakarta-sans'];
+
     const activeFont =
       language === 'bn'
-        ? (FONT_FAMILY_MAP[banglaFont] || FONT_FAMILY_MAP['hind-siliguri'])
-        : (ENGLISH_FONT_FAMILY_MAP[englishFont] || ENGLISH_FONT_FAMILY_MAP['plus-jakarta-sans']);
+        ? `${banglaPrimary}, ${englishPrimary}, system-ui, sans-serif`
+        : `${englishPrimary}, -apple-system, BlinkMacSystemFont, ${banglaPrimary}, system-ui, sans-serif`;
 
+    document.documentElement.style.setProperty('--font-bangla-selected', `${banglaPrimary}, system-ui, sans-serif`);
     document.documentElement.style.setProperty('--font-sans', activeFont);
     document.body.style.setProperty('font-family', activeFont, 'important');
 

@@ -19,6 +19,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
 import { downloadMemberReportImage } from '../utils/report-image';
+import { PwaInstallCard } from '../components/PwaInstallCard';
 
 type Portal = {
   member: {
@@ -224,6 +225,9 @@ export const MemberPortalPage: React.FC = () => {
           {data.member.memberId} · {t('Your shares, contributions, and account status.')}
         </p>
       </header>
+
+      {/* PWA Mobile & Desktop App Hub */}
+      <PwaInstallCard />
 
       {/* Top Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

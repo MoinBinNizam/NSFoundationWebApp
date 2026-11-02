@@ -22,23 +22,32 @@ import {
   Menu,
   X,
   Activity,
+  Download,
 } from 'lucide-react';
 
 import { BrandLogo } from './BrandLogo';
 import { usePreferences } from '../context/PreferencesContext';
-import { BackgroundJobsDrawer } from './BackgroundJobsDrawer';
+import { usePwaInstall } from '../hooks/usePwaInstall';
+import { InstallAppModal } from './InstallAppModal';
+import { CheckCircle2 } from 'lucide-react';
 
 export const Layout: React.FC = () => {
   const { user, logout, canAccess } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [jobsDrawerOpen, setJobsDrawerOpen] = useState(false);
-  const [activeJobsCount, setActiveJobsCount] = useState(0);
   const { theme, setTheme, language, setLanguage, t } = usePreferences();
+  const {
+    isInstalled,
+    hasNativePrompt,
+    platform,
+    showModal,
+    setShowModal,
+    triggerInstall,
+  } = usePwaInstall();
 
   const handleLogout = () => {
-    logout();
+    logout(true);
     navigate('/login');
   };
 
@@ -75,23 +84,23 @@ export const Layout: React.FC = () => {
     : 'Member Management';
 
   const navItems = [
-    ...(user?.role === 'MEMBER' ? [{ label: 'My Member Account', path: '/member-portal', icon: Users, issue: '#24' }] : []),
-    ...(user?.role !== 'MEMBER' && canAccess('REPORTS', 'view') ? [{ label: 'Dashboard & Reports', path: '/dashboard', icon: BarChart3, issue: '#11' }] : []),
-    ...(canAccess('REPORTS', 'view') ? [{ label: 'Statements & Reports', path: '/documents', icon: FileText, issue: '#20' }] : []),
-    ...(canAccess('MEMBERS', 'view') ? [{ label: 'Member Management', path: '/members', icon: Users, issue: '#4' }] : []),
-    ...(canAccess('SHARES', 'view') ? [{ label: 'Shares & Annual Account', path: '/shares', icon: PieChart, issue: '#5' }] : []),
-    ...(canAccess('PAYMENTS', 'view') ? [{ label: 'Contributions & Payments', path: '/payments', icon: CreditCard, issue: '#6' }] : []),
-    ...(canAccess('PAYMENTS', 'view') ? [{ label: 'Outstanding Dues', path: '/dues', icon: Activity, issue: '#26' }] : []),
-    ...(canAccess('CUSTODY', 'view') ? [{ label: 'Accountant Custody', path: '/custody', icon: Wallet, issue: '#7' }] : []),
-    ...(canAccess('INVESTMENTS', 'view') ? [{ label: 'Investments', path: '/investments', icon: TrendingUp, issue: '#8' }] : []),
-    ...(canAccess('PROJECT_WALLETS', 'view') ? [{ label: 'Project Wallets', path: '/reinvestments', icon: Repeat2, issue: '#9' }] : []),
-    ...(canAccess('EXPENSES', 'view') ? [{ label: 'Expenses', path: '/expenses', icon: Receipt, issue: '#10' }] : []),
-    { label: 'Language & Appearance', path: '/preferences', icon: Languages, badge: 'Settings', issue: '#16' },
-    ...(canAccess('SETTINGS', 'view') ? [{ label: 'Settings', path: '/settings', icon: Settings2, badge: 'Admin', issue: '#15' }] : []),
-    ...(canAccess('GOVERNANCE', 'view') ? [{ label: 'Annual Governance', path: '/governance', icon: Scale, badge: 'Admin', issue: '#19' }] : []),
-    ...(canAccess('AUDIT', 'view') ? [{ label: 'Audit & Security', path: '/audit', icon: Shield, badge: 'Admin', issue: '#13' }] : []),
-    ...(canAccess('MIGRATIONS', 'view') ? [{ label: 'Historical Migration', path: '/migrations', icon: Database, badge: 'Admin', issue: '#17' }] : []),
-    ...(canAccess('DISTRIBUTION', 'view') ? [{ label: 'Final Distribution', path: '/distribution', icon: PieChart, issue: '#12' }] : []),
+    ...(user?.role === 'MEMBER' ? [{ label: 'My Member Account', path: '/member-portal', icon: Users }] : []),
+    ...(user?.role !== 'MEMBER' && canAccess('REPORTS', 'view') ? [{ label: 'Dashboard & Reports', path: '/dashboard', icon: BarChart3 }] : []),
+    ...(canAccess('REPORTS', 'view') ? [{ label: 'Statements & Reports', path: '/documents', icon: FileText }] : []),
+    ...(canAccess('MEMBERS', 'view') ? [{ label: 'Member Management', path: '/members', icon: Users }] : []),
+    ...(canAccess('SHARES', 'view') ? [{ label: 'Shares & Annual Account', path: '/shares', icon: PieChart }] : []),
+    ...(canAccess('PAYMENTS', 'view') ? [{ label: 'Contributions & Payments', path: '/payments', icon: CreditCard }] : []),
+    ...(canAccess('PAYMENTS', 'view') ? [{ label: 'Outstanding Dues', path: '/dues', icon: Activity }] : []),
+    ...(canAccess('CUSTODY', 'view') ? [{ label: 'Accountant Custody', path: '/custody', icon: Wallet }] : []),
+    ...(canAccess('INVESTMENTS', 'view') ? [{ label: 'Investments', path: '/investments', icon: TrendingUp }] : []),
+    ...(canAccess('PROJECT_WALLETS', 'view') ? [{ label: 'Project Wallets', path: '/reinvestments', icon: Repeat2 }] : []),
+    ...(canAccess('EXPENSES', 'view') ? [{ label: 'Expenses', path: '/expenses', icon: Receipt }] : []),
+    { label: 'Language & Appearance', path: '/preferences', icon: Languages, badge: 'Settings' },
+    ...(canAccess('SETTINGS', 'view') ? [{ label: 'Settings', path: '/settings', icon: Settings2, badge: 'Admin' }] : []),
+    ...(canAccess('GOVERNANCE', 'view') ? [{ label: 'Annual Governance', path: '/governance', icon: Scale, badge: 'Admin' }] : []),
+    ...(canAccess('AUDIT', 'view') ? [{ label: 'Audit & Security', path: '/audit', icon: Shield, badge: 'Admin' }] : []),
+    ...(canAccess('MIGRATIONS', 'view') ? [{ label: 'Historical Migration', path: '/migrations', icon: Database, badge: 'Admin' }] : []),
+    ...(canAccess('DISTRIBUTION', 'view') ? [{ label: 'Final Distribution', path: '/distribution', icon: PieChart }] : []),
   ];
 
   return (
@@ -159,11 +168,6 @@ export const Layout: React.FC = () => {
                   <span>{t(item.label)}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {item.issue && (
-                    <span title={`Temporary implementation marker for Issue ${item.issue}`} className="text-[9px] font-bold px-1 py-0.5 rounded bg-violet-500/15 text-violet-300 border border-violet-400/25">
-                      {item.issue}
-                    </span>
-                  )}
                   {item.badge && (
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/25 text-blue-400 border border-blue-500/30">
                       {t(item.badge)}
@@ -230,19 +234,27 @@ export const Layout: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
-              onClick={() => setJobsDrawerOpen(true)}
-              className="btn btn-secondary btn-sm px-2.5 relative"
-              title={t('Background Tasks & Queue')}
-              aria-label={t('Background Tasks & Queue')}
+              onClick={triggerInstall}
+              className={`btn btn-secondary btn-sm gap-1.5 px-2.5 transition-all ${
+                isInstalled
+                  ? 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10'
+                  : 'text-amber-300 border-amber-500/30 hover:bg-amber-500/10 shadow-sm'
+              }`}
+              title={
+                isInstalled
+                  ? (language === 'bn' ? 'অ্যাপ ইতিমধ্যে ইনস্টলড আছে' : 'App is already installed')
+                  : (language === 'bn' ? 'ডেস্কটপ ও মোবাইল অ্যাপ ইনস্টল করুন' : 'Install Desktop & Mobile App')
+              }
+              aria-label={language === 'bn' ? 'ডেস্কটপ ও মোবাইল অ্যাপ ইনস্টল করুন' : 'Install Desktop & Mobile App'}
             >
-              <Activity size={16} className={activeJobsCount > 0 ? 'text-amber-400 animate-pulse' : 'text-gray-300'} />
-              {activeJobsCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-[9px] font-extrabold text-black flex items-center justify-center animate-bounce">
-                  {activeJobsCount}
-                </span>
-              )}
+              {isInstalled ? <CheckCircle2 size={15} /> : <Download size={15} />}
+              <span className="hidden sm:inline font-bold text-xs">
+                {isInstalled
+                  ? (language === 'bn' ? 'অ্যাপ ইনস্টল্ড ✓' : 'Installed ✓')
+                  : (language === 'bn' ? 'অ্যাপ ইনস্টল' : 'Install App')}
+              </span>
             </button>
             <button
               onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')}
@@ -261,11 +273,13 @@ export const Layout: React.FC = () => {
           </div>
         </header>
 
-        {/* Background Jobs Drawer */}
-        <BackgroundJobsDrawer
-          isOpen={jobsDrawerOpen}
-          onClose={() => setJobsDrawerOpen(false)}
-          onActiveJobsCountChange={setActiveJobsCount}
+        <InstallAppModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          hasNativePrompt={hasNativePrompt}
+          onNativeInstall={triggerInstall}
+          isInstalled={isInstalled}
+          initialPlatform={platform}
         />
 
         {/* Page Outlet */}

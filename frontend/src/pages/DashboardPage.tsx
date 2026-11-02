@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useNavigate } from 'react-router-dom';
 import { ModuleGuide } from '../components/ModuleGuide';
+import { PwaInstallCard } from '../components/PwaInstallCard';
 import {
   Activity,
   BarChart3,
@@ -445,6 +446,9 @@ export const DashboardPage: React.FC = () => {
           <Loading />
         ) : (
           <div className="flex flex-col gap-6 sm:gap-8">
+            {/* PWA Desktop & Mobile App Installation Hub */}
+            <PwaInstallCard />
+
             {/* EXECUTIVE SECTION A: The 4 Pillars of Society Net Worth */}
             <div className="glass-card p-5 sm:p-6 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-blue-950/40 border border-blue-500/20 shadow-xl space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">

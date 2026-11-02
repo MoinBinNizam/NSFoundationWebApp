@@ -60,64 +60,72 @@
   --font-default: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
   --font-sans: 'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+  /* Dynamic Bangla Font Variable */
+  --font-bangla-selected: 'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
-/* Dynamic Bangla Font Overrides (when in Bangla mode or default) */
-html:not([data-language="en"])[data-bangla-font="hind-siliguri"],
-html:not([data-language="en"])[data-bangla-font="hind-siliguri"] body {
-  --font-sans: 'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif;
+/* Dynamic Bangla Font Selection (Applied whenever user picks a Bangla font) */
+html[data-bangla-font="hind-siliguri"] {
+  --font-bangla-selected: 'Hind Siliguri', 'Plus Jakarta Sans', system-ui, sans-serif;
 }
-html:not([data-language="en"])[data-bangla-font="noto-sans-bengali"],
-html:not([data-language="en"])[data-bangla-font="noto-sans-bengali"] body {
-  --font-sans: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif;
+html[data-bangla-font="noto-sans-bengali"] {
+  --font-bangla-selected: 'Noto Sans Bengali', 'Plus Jakarta Sans', system-ui, sans-serif;
 }
-html:not([data-language="en"])[data-bangla-font="solaiman-lipi"],
-html:not([data-language="en"])[data-bangla-font="solaiman-lipi"] body {
-  --font-sans: 'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali', sans-serif;
+html[data-bangla-font="solaiman-lipi"] {
+  --font-bangla-selected: 'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali', sans-serif;
 }
-html:not([data-language="en"])[data-bangla-font="kalpurush"],
-html:not([data-language="en"])[data-bangla-font="kalpurush"] body {
-  --font-sans: 'Kalpurush', 'SolaimanLipi', 'Noto Sans Bengali', sans-serif;
+html[data-bangla-font="kalpurush"] {
+  --font-bangla-selected: 'Kalpurush', 'SolaimanLipi', 'Noto Sans Bengali', sans-serif;
 }
-html:not([data-language="en"])[data-bangla-font="tiro-bangla"],
-html:not([data-language="en"])[data-bangla-font="tiro-bangla"] body {
-  --font-sans: 'Tiro Bangla', 'Noto Serif Bengali', 'Plus Jakarta Sans', serif;
+html[data-bangla-font="tiro-bangla"] {
+  --font-bangla-selected: 'Tiro Bangla', 'Noto Serif Bengali', serif;
 }
-html:not([data-language="en"])[data-bangla-font="anek-bangla"],
-html:not([data-language="en"])[data-bangla-font="anek-bangla"] body {
-  --font-sans: 'Anek Bangla', 'Plus Jakarta Sans', system-ui, sans-serif;
+html[data-bangla-font="anek-bangla"] {
+  --font-bangla-selected: 'Anek Bangla', 'Plus Jakarta Sans', system-ui, sans-serif;
 }
-html:not([data-language="en"])[data-bangla-font="default"],
-html:not([data-language="en"])[data-bangla-font="default"] body {
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+html[data-bangla-font="default"] {
+  --font-bangla-selected: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
-/* Dynamic English Font Overrides (when in English mode) */
+/* Dynamic Bangla Font Overrides (when in Bangla mode) */
+html:not([data-language="en"]),
+html:not([data-language="en"]) body {
+  --font-sans: var(--font-bangla-selected);
+  font-family: var(--font-bangla-selected) !important;
+}
+
+/* Dynamic English Font Overrides (when in English mode) - Fallback ALWAYS respects user's selected Bangla font */
 html[data-language="en"][data-english-font="plus-jakarta-sans"],
 html[data-language="en"][data-english-font="plus-jakarta-sans"] body,
 html[data-language="en"][data-english-font="default"],
 html[data-language="en"][data-english-font="default"] body {
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, var(--font-bangla-selected), sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, var(--font-bangla-selected), sans-serif !important;
 }
 html[data-language="en"][data-english-font="inter"],
 html[data-language="en"][data-english-font="inter"] body {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, var(--font-bangla-selected), sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, var(--font-bangla-selected), sans-serif !important;
 }
 html[data-language="en"][data-english-font="outfit"],
 html[data-language="en"][data-english-font="outfit"] body {
-  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+  --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, var(--font-bangla-selected), sans-serif;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, var(--font-bangla-selected), sans-serif !important;
 }
 html[data-language="en"][data-english-font="roboto"],
 html[data-language="en"][data-english-font="roboto"] body {
-  --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+  --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, var(--font-bangla-selected), sans-serif;
+  font-family: 'Roboto', -apple-system, BlinkMacSystemFont, var(--font-bangla-selected), sans-serif !important;
 }
 html[data-language="en"][data-english-font="poppins"],
 html[data-language="en"][data-english-font="poppins"] body {
-  --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, 'Hind Siliguri', sans-serif;
+  --font-sans: 'Poppins', -apple-system, BlinkMacSystemFont, var(--font-bangla-selected), sans-serif;
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, var(--font-bangla-selected), sans-serif !important;
 }
 html[data-language="en"][data-english-font="lora"],
 html[data-language="en"][data-english-font="lora"] body {
-  --font-sans: 'Lora', Georgia, 'Tiro Bangla', serif;
+  --font-sans: 'Lora', Georgia, var(--font-bangla-selected), serif;
+  font-family: 'Lora', Georgia, var(--font-bangla-selected), serif !important;
 }
 
 /* Dynamic Font Size Control */
@@ -298,7 +306,7 @@ textarea:focus-visible {
     transform: none !important;
   }
 
-  /* Used by Issue #9 and Issue #10 native controls. Without an explicit
+  /* Native controls styling. Without an explicit
      component style, browsers render these inputs with a white default. */
   .input-field {
     width: 100%;

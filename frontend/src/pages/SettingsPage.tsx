@@ -913,7 +913,7 @@ export const SettingsPage: React.FC = () => {
         </p>
       </section>
 
-      {/* Dynamic Module RBAC Permissions Section (Issue #29) */}
+      {/* Dynamic Module RBAC Permissions Section */}
       <section className="glass-card p-5 sm:p-6 border-l-4 border-l-indigo-500">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-start gap-3">

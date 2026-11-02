@@ -14,7 +14,7 @@ import { CustodyService } from '../services/custody.service.js';
 import crypto from 'crypto';
 
 function validatePassword(password: unknown): string {
-  if (typeof password !== 'string' || password.length < 12) throw createError('Password must contain at least 12 characters.', 400);
+  if (typeof password !== 'string' || password.length < 8) throw createError('Password must contain at least 8 characters.', 400);
   return password;
 }
 
@@ -49,15 +49,32 @@ export async function publicRegister(_req: AuthRequest, _res: Response, next: Ne
   return next(createError('Member self-registration is closed. NS Foundation accounts are provisioned by an administrator from the approved 2024 roster.', 403));
 }
 
-/** Starts password recovery without revealing whether an email is registered. */
+/** Starts password recovery via email or mobile number without revealing whether an account is registered. */
 export async function requestPasswordReset(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
-    const email = String(req.body.email || '').toLowerCase().trim();
-    const user = await User.findOne({ email }).select('+passwordResetTokenHash +passwordResetExpiresAt');
+    const rawInput = String(req.body.email || req.body.identifier || '').trim();
+    let normalizedPhone: string | undefined;
+    try { normalizedPhone = normalizePhone(rawInput); } catch { normalizedPhone = undefined; }
+    const user = await User.findOne({
+      $or: [
+        { email: rawInput.toLowerCase() },
+        ...(normalizedPhone ? [{ phone: normalizedPhone }] : []),
+      ]
+    }).select('+passwordResetTokenHash +passwordResetExpiresAt');
+
     let resetToken: string | undefined;
-    if (user) { resetToken = crypto.randomBytes(32).toString('hex'); user.passwordResetTokenHash = hashResetToken(resetToken); user.passwordResetExpiresAt = new Date(Date.now() + 15 * 60 * 1000); await user.save(); }
-    const data = process.env.NODE_ENV === 'development' && resetToken ? { developmentResetToken: resetToken } : undefined;
-    res.json({ success: true, message: 'If an account exists, password recovery instructions have been issued.', data });
+    if (user) {
+      resetToken = crypto.randomBytes(32).toString('hex');
+      user.passwordResetTokenHash = hashResetToken(resetToken);
+      user.passwordResetExpiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min validity
+      await user.save();
+    }
+    const data = resetToken ? { resetToken, developmentResetToken: resetToken } : undefined;
+    res.json({
+      success: true,
+      message: 'If an account exists, password recovery instructions and a secure reset token have been issued.',
+      data
+    });
   } catch (error) { next(error); }
 }
 

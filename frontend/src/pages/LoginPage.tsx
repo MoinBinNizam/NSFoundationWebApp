@@ -1,22 +1,33 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
-import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, ShieldCheck, AlertCircle, Clock, Sparkles } from 'lucide-react';
 import { BrandLogo } from '../components/BrandLogo';
+import { getInterruptedWork, clearInterruptedWork } from '../services/api';
 
 export const LoginPage: React.FC = () => {
-  const { t } = usePreferences();
-  const [email, setEmail] = useState(import.meta.env.DEV ? 'admin@nsfoundation.org' : '');
-  const [password, setPassword] = useState(import.meta.env.DEV ? 'Admin@123456' : '');
+  const { t, language } = usePreferences();
+  const [searchParams] = useSearchParams();
+  const isTimeout = searchParams.get('reason') === 'idle_timeout';
+
+  const [email, setEmail] = useState('admin@nsfoundation.org');
+  const [password, setPassword] = useState('Admin@123456');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || '/members';
+  const resolveTargetRoute = (userProfile: { mustChangePassword?: boolean; role?: string }) => {
+    if (userProfile?.mustChangePassword) return '/change-password';
+    const interrupted = getInterruptedWork();
+    if (interrupted) {
+      clearInterruptedWork();
+      return interrupted;
+    }
+    return userProfile?.role === 'MEMBER' ? '/member-portal' : '/dashboard';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,8 +36,8 @@ export const LoginPage: React.FC = () => {
 
     try {
       await login(email, password);
-      const stored = JSON.parse(localStorage.getItem('user') || '{}');
-      navigate(stored.mustChangePassword ? '/change-password' : (stored.role === 'MEMBER' ? '/member-portal' : from), { replace: true });
+      const stored = JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user') || '{}');
+      navigate(resolveTargetRoute(stored), { replace: true });
     } catch (err: unknown) {
       setError((err as Error).message || t('Invalid credentials'));
     } finally {
@@ -34,16 +45,26 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleQuickLogin = async (role: 'ADMIN' | 'ACCOUNTANT') => {
+  const handleQuickLogin = async (role: 'ADMIN' | 'ACCOUNTANT' | 'MEMBER') => {
     setError(null);
-    const targetEmail = role === 'ADMIN' ? 'admin@nsfoundation.org' : 'assistant@nsfoundation.org';
-    const targetPassword = role === 'ADMIN' ? 'Admin@123456' : 'Assistant@123456';
+    let targetEmail = 'admin@nsfoundation.org';
+    let targetPassword = 'Admin@123456';
+
+    if (role === 'ACCOUNTANT') {
+      targetEmail = 'assistant@nsfoundation.org';
+      targetPassword = 'Assistant@123456';
+    } else if (role === 'MEMBER') {
+      targetEmail = 'member@nsfoundation.org';
+      targetPassword = 'Member@123456';
+    }
+
     setEmail(targetEmail);
     setPassword(targetPassword);
     setSubmitting(true);
     try {
       await login(targetEmail, targetPassword);
-      navigate(from, { replace: true });
+      const stored = JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user') || '{}');
+      navigate(resolveTargetRoute(stored), { replace: true });
     } catch (err: unknown) {
       setError((err as Error).message || t('Login failed'));
     } finally {
@@ -81,6 +102,17 @@ export const LoginPage: React.FC = () => {
               {t('Approved members and authorized staff credentials.')}
             </p>
           </div>
+
+          {isTimeout && (
+            <div className="flex items-start gap-3 p-3.5 bg-amber-500/10 border border-amber-500/25 rounded-xl text-amber-300 text-xs font-medium mb-5 animate-fadeIn">
+              <Clock size={18} className="shrink-0 mt-0.5 text-amber-400" />
+              <span>
+                {language === 'bn'
+                  ? 'নিরাপত্তার স্বার্থে ৫ মিনিট নিষ্ক্রিয় থাকায় সেশন সমাপ্ত হয়েছে। লগইন করলে আপনার পূর্বের কাজের পেজে স্বয়ংক্রিয়ভাবে ফিরিয়ে নেওয়া হবে।'
+                  : 'For security, your session ended after 5 minutes of inactivity. Logging in will automatically resume your previous work page.'}
+              </span>
+            </div>
+          )}
 
           {error && (
             <div className="flex items-start gap-3 p-3.5 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-medium mb-5 animate-fadeIn">
@@ -155,34 +187,53 @@ export const LoginPage: React.FC = () => {
             <span className="text-slate-500">{t('Member access is issued by Admin')}</span>
           </div>
 
-          {/* Quick Credential Helpers */}
-          {import.meta.env.DEV && (
-            <div className="mt-8 pt-5 border-t border-slate-800">
-              <p className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase mb-3 flex items-center gap-1.5">
-                <span>{t('⚡ One-Click Instant Sign-In:')}</span>
-              </p>
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  type="button"
-                  disabled={submitting}
-                  className="flex items-center justify-center gap-2 py-2.5 px-3 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-blue-500/50 rounded-xl text-xs font-semibold text-slate-200 transition-all hover:text-white"
-                  onClick={() => handleQuickLogin('ADMIN')}
-                >
-                  <ShieldCheck size={15} className="text-blue-400 shrink-0" />
-                  <span className="truncate">{t('Primary Admin')}</span>
-                </button>
-                <button
-                  type="button"
-                  disabled={submitting}
-                  className="flex items-center justify-center gap-2 py-2.5 px-3 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-emerald-500/50 rounded-xl text-xs font-semibold text-slate-200 transition-all hover:text-white"
-                  onClick={() => handleQuickLogin('ACCOUNTANT')}
-                >
-                  <ShieldCheck size={15} className="text-emerald-400 shrink-0" />
-                  <span className="truncate">{t('Assistant Acc.')}</span>
-                </button>
-              </div>
+          {/* Quick 1-Click Instant Testing Access (Admin, Accountant, Member) */}
+          <div className="mt-7 pt-5 border-t border-slate-800">
+            <p className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase mb-3 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Sparkles size={14} className="text-amber-400" />
+                <span>{language === 'bn' ? '১-ক্লিকে ইনস্ট্যান্ট টেস্ট এক্সেস:' : '1-Click Instant Test Access:'}</span>
+              </span>
+              <span className="text-[10px] text-slate-500">
+                {language === 'bn' ? 'টেস্টের জন্য উন্মুক্ত' : 'Instant Sign-In'}
+              </span>
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                disabled={submitting}
+                className="flex flex-col items-center justify-center p-2.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-blue-500/50 rounded-xl text-xs font-medium text-slate-200 transition-all hover:text-white"
+                onClick={() => handleQuickLogin('ADMIN')}
+                title="Log in as Primary Admin (Moin)"
+              >
+                <ShieldCheck size={16} className="text-blue-400 mb-1" />
+                <span className="text-[11px] font-bold text-white truncate w-full text-center">{language === 'bn' ? 'অ্যাডমিন' : 'Admin'}</span>
+                <span className="text-[9px] text-slate-400 truncate w-full text-center">Primary</span>
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                className="flex flex-col items-center justify-center p-2.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-emerald-500/50 rounded-xl text-xs font-medium text-slate-200 transition-all hover:text-white"
+                onClick={() => handleQuickLogin('ACCOUNTANT')}
+                title="Log in as Assistant Accountant (Samrat)"
+              >
+                <ShieldCheck size={16} className="text-emerald-400 mb-1" />
+                <span className="text-[11px] font-bold text-white truncate w-full text-center">{language === 'bn' ? 'হিসাবরক্ষক' : 'Accountant'}</span>
+                <span className="text-[9px] text-slate-400 truncate w-full text-center">Samrat</span>
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                className="flex flex-col items-center justify-center p-2.5 bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-violet-500/50 rounded-xl text-xs font-medium text-slate-200 transition-all hover:text-white"
+                onClick={() => handleQuickLogin('MEMBER')}
+                title="Log in as General Member"
+              >
+                <ShieldCheck size={16} className="text-violet-400 mb-1" />
+                <span className="text-[11px] font-bold text-white truncate w-full text-center">{language === 'bn' ? 'সদস্য' : 'Member'}</span>
+                <span className="text-[9px] text-slate-400 truncate w-full text-center">Portal Demo</span>
+              </button>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Footer */}

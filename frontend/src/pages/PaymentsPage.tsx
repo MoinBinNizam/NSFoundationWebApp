@@ -36,6 +36,10 @@ import {
   Send,
   Share2,
   ChevronDown,
+  Wallet,
+  Landmark,
+  Key,
+  Crown,
 } from 'lucide-react';
 import { downloadMemberReportImage } from '../utils/report-image';
 import { ReceiptOcrManager } from '../components/ReceiptOcrManager';
@@ -234,6 +238,13 @@ interface PaymentStats {
     advance: number;
     cashout: number;
     count: number;
+    custodyBalance?: number;
+    custodyAccounts?: Array<{
+      _id: string;
+      name: string;
+      channel: string;
+      balance: number;
+    }>;
   }>;
 }
 
@@ -1689,49 +1700,388 @@ export const PaymentsPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Admin Multi-Accountant Comparison Card */}
-            <div className="glass-card p-6 space-y-4">
-              <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                <Shield size={16} className="text-emerald-400" />
-                <span>Dual Accountant Collection Comparison</span>
-              </h2>
+            {/* Dual Accountant Collection & Custody Comparison Card */}
+            {(() => {
+              // Strictly isolate the two official accountants:
+              // 1. Primary Accountant: Moin Uddin
+              // 2. Assistant Accountant: Nurul Islam Samrat
+              // Governing body board members (Director Shuvo, President Shahidul, GS Nayem, Convener Mannan)
+              // hold executive governance positions and are not shown as accountants.
+              const rawAccountants = stats?.byAccountant || [];
+              const dualAccountants = rawAccountants
+                .filter((acc) => {
+                  const nameLower = (acc.name || '').toLowerCase();
+                  const emailLower = (acc.email || '').toLowerCase();
+                  const isMoin = nameLower.includes('moin') || emailLower.includes('admin@nsfoundation') || acc.accountantType === 'PRIMARY';
+                  const isSamrat = nameLower.includes('samrat') || emailLower.includes('assistant@nsfoundation') || acc.accountantType === 'ASSISTANT';
+                  return isMoin || isSamrat;
+                })
+                .sort((a, b) => {
+                  const aIsPrimary = a.accountantType === 'PRIMARY' || a.name.toLowerCase().includes('moin');
+                  const bIsPrimary = b.accountantType === 'PRIMARY' || b.name.toLowerCase().includes('moin');
+                  if (aIsPrimary && !bIsPrimary) return -1;
+                  if (!aIsPrimary && bIsPrimary) return 1;
+                  return 0;
+                });
 
-              {stats?.byAccountant && stats.byAccountant.length > 0 ? (
-                <div className="space-y-3 pt-2">
-                  {stats.byAccountant.map((acc) => (
-                    <div
-                      key={acc._id}
-                      className="p-4 rounded-xl bg-slate-900/60 border border-white/5 flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                          {acc.name.charAt(0).toUpperCase()}
+              const totalDualCollections = dualAccountants.reduce((sum, a) => sum + (a.total || 0), 0);
+              const totalDualCustody = dualAccountants.reduce((sum, a) => sum + (a.custodyBalance || 0), 0);
+              const totalDualVouchers = dualAccountants.reduce((sum, a) => sum + (a.count || 0), 0);
+
+              return (
+                <div className="glass-card p-5 sm:p-6 space-y-5 rounded-2xl border border-white/10 shadow-xl bg-gradient-to-b from-slate-900/90 via-slate-900/60 to-slate-950/80">
+                  {/* Header */}
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-white/10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
+                        <Shield size={20} />
+                      </div>
+                      <div>
+                        <h2 className="text-base font-extrabold text-white uppercase tracking-wider flex items-center gap-2">
+                          <span>{language === 'bn' ? 'যুগ্ম হিসাবরক্ষক আদায় ও হেফাজত তহবিল সমন্বয়' : 'Dual Accountant Collection & Custody Alignment'}</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                            RBAC Verified
+                          </span>
+                        </h2>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {language === 'bn'
+                            ? 'সংগঠনের আর্থিক নীতিমালা অনুযায়ী শুধুমাত্র প্রধান হিসাবরক্ষক ও সহকারী হিসাবরক্ষকের আদায় এবং হেফাজত তহবিল'
+                            : 'Official collections & liquid custody exclusively administered by Primary & Assistant Accountants'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[11px] font-bold text-blue-300 bg-blue-950/50 border border-blue-500/30 px-3 py-1 rounded-lg flex items-center gap-1.5">
+                        <Crown size={12} className="text-blue-400" />
+                        <span>{language === 'bn' ? 'প্রধান: মঈন উদ্দীন' : 'Primary: Moin Uddin'}</span>
+                      </span>
+                      <span className="text-[11px] font-bold text-purple-300 bg-purple-950/50 border border-purple-500/30 px-3 py-1 rounded-lg flex items-center gap-1.5">
+                        <Key size={12} className="text-purple-400" />
+                        <span>{language === 'bn' ? 'সহকারী: নুরুল ইসলাম সম্রাট' : 'Assistant: Nurul Islam Samrat'}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Dual Cards Grid */}
+                  {dualAccountants.length > 0 ? (
+                    <div className="space-y-5">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pt-1">
+                        {dualAccountants.map((acc) => {
+                          const isPrimary = acc.accountantType === 'PRIMARY' || acc.name.toLowerCase().includes('moin');
+                          const sharePct = totalDualCollections > 0 ? Math.round((acc.total / totalDualCollections) * 100) : (isPrimary ? 100 : 0);
+
+                          return (
+                            <div
+                              key={acc._id}
+                              className={`relative overflow-hidden rounded-2xl border p-5 sm:p-6 transition-all ${
+                                isPrimary
+                                  ? 'bg-gradient-to-b from-blue-950/40 via-slate-900/90 to-slate-950 border-blue-500/30 shadow-lg shadow-blue-950/25'
+                                  : 'bg-gradient-to-b from-purple-950/40 via-slate-900/90 to-slate-950 border-purple-500/30 shadow-lg shadow-purple-950/25'
+                              }`}
+                            >
+                              {/* Corner glow */}
+                              <div
+                                className={`absolute top-0 right-0 -mt-6 -mr-6 w-32 h-32 rounded-full blur-3xl pointer-events-none ${
+                                  isPrimary ? 'bg-blue-500/10' : 'bg-purple-500/10'
+                                }`}
+                              />
+
+                              {/* Card Header: Avatar, Name, Official Role Badge */}
+                              <div className="relative z-10 flex items-start justify-between gap-3 mb-5">
+                                <div className="flex items-center gap-3.5">
+                                  <div className="relative shrink-0">
+                                    <div
+                                      className={`w-13 h-13 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg ${
+                                        isPrimary
+                                          ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-500/30 ring-2 ring-blue-400/30'
+                                          : 'bg-gradient-to-br from-purple-500 to-pink-600 shadow-purple-500/30 ring-2 ring-purple-400/30'
+                                      }`}
+                                    >
+                                      {acc.name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div
+                                      className={`absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] shadow ${
+                                        isPrimary ? 'bg-blue-600' : 'bg-purple-600'
+                                      }`}
+                                    >
+                                      {isPrimary ? <Crown size={12} /> : <Key size={12} />}
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                                      <span>
+                                        {isPrimary
+                                          ? (language === 'bn' ? 'মঈন উদ্দীন' : 'Moin Uddin')
+                                          : (language === 'bn' ? 'নুরুল ইসলাম সম্রাট' : 'Nurul Islam Samrat')}
+                                      </span>
+                                    </h3>
+                                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                      <span
+                                        className={`inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
+                                          isPrimary
+                                            ? 'bg-blue-500/20 text-blue-300 border border-blue-400/40 shadow-sm'
+                                            : 'bg-purple-500/20 text-purple-300 border border-purple-400/40 shadow-sm'
+                                        }`}
+                                      >
+                                        {isPrimary ? (
+                                          <>
+                                            <Crown size={12} />
+                                            <span>{language === 'bn' ? 'প্রধান হিসাবরক্ষক' : 'Primary Accountant'}</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Key size={12} />
+                                            <span>{language === 'bn' ? 'সহকারী হিসাবরক্ষক' : 'Assistant Accountant'}</span>
+                                          </>
+                                        )}
+                                      </span>
+                                      <span className="text-[11px] text-slate-400 font-mono">
+                                        {acc.email || (isPrimary ? 'admin@nsfoundation.org' : 'assistant@nsfoundation.org')}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 mt-1">
+                                      {isPrimary
+                                        ? (language === 'bn'
+                                            ? 'সার্বিক আর্থিক হেফাজত, ব্যাংক লেনদেন ও মূল হিসাব সমন্বয়'
+                                            : 'Primary custody, Bank authority & Core reconciliation')
+                                        : (language === 'bn'
+                                            ? 'মাঠ পর্যায়ের আদায়, নগদ ও এমএফএস সংগ্রহ কার্যক্রম'
+                                            : 'Field collections, Cash/Nagad MFS & Auxiliary accounting')}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                <div className="text-right shrink-0">
+                                  <span
+                                    className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-xl border ${
+                                      isPrimary
+                                        ? 'bg-blue-900/40 text-blue-300 border-blue-500/30'
+                                        : 'bg-purple-900/40 text-purple-300 border-purple-500/30'
+                                    }`}
+                                  >
+                                    <TrendingUp size={12} />
+                                    <span>{sharePct}% {language === 'bn' ? 'আদায় অনুপাত' : 'Share'}</span>
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Stat Grid: Collection vs Custody */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+                                {/* Metric 1: Collections */}
+                                <div className="p-3.5 bg-slate-950/70 rounded-xl border border-white/5 space-y-2">
+                                  <div className="flex items-center justify-between text-slate-400 text-xs">
+                                    <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                                      <CreditCard size={13} className="text-emerald-400" />
+                                      <span>{language === 'bn' ? 'সিলেক্টেড পিরিয়ডে আদায়' : 'Collections in Period'}</span>
+                                    </span>
+                                    <span className="text-[11px] font-bold text-emerald-400">
+                                      {acc.count} {language === 'bn' ? 'ভাউচার' : 'vouchers'}
+                                    </span>
+                                  </div>
+                                  <p className="text-2xl font-black text-white tracking-tight">
+                                    ৳ {acc.total.toLocaleString()}
+                                  </p>
+                                  <div className="grid grid-cols-2 gap-1.5 pt-1 border-t border-white/5 text-[11px] text-slate-400">
+                                    <span>{language === 'bn' ? 'মূল কিস্তি:' : 'Principal:'} <b className="text-slate-200">৳{acc.principal.toLocaleString()}</b></span>
+                                    <span>{language === 'bn' ? 'জরিমানা:' : 'Penalty:'} <b className="text-amber-400">৳{acc.penalty.toLocaleString()}</b></span>
+                                    <span>{language === 'bn' ? 'অগ্রিম জমা:' : 'Advance:'} <b className="text-blue-300">৳{(acc.advance || 0).toLocaleString()}</b></span>
+                                    <span>{language === 'bn' ? 'ক্যাশআউট:' : 'Cashout:'} <b className="text-pink-300">৳{(acc.cashout || 0).toLocaleString()}</b></span>
+                                  </div>
+                                </div>
+
+                                {/* Metric 2: Live Custody */}
+                                <div className="p-3.5 bg-slate-950/70 rounded-xl border border-white/5 space-y-2">
+                                  <div className="flex items-center justify-between text-slate-400 text-xs">
+                                    <span className="font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                                      <Wallet size={13} className={isPrimary ? 'text-blue-400' : 'text-purple-400'} />
+                                      <span>{language === 'bn' ? 'বর্তমান হেফাজতে তহবিল' : 'Live Custody in Hand'}</span>
+                                    </span>
+                                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/25">
+                                      {language === 'bn' ? 'লাইভ ব্যালেন্স' : 'Active'}
+                                    </span>
+                                  </div>
+                                  <p
+                                    className={`text-2xl font-black tracking-tight ${
+                                      isPrimary ? 'text-blue-300' : 'text-purple-300'
+                                    }`}
+                                  >
+                                    ৳ {(acc.custodyBalance || 0).toLocaleString()}
+                                  </p>
+                                  <div className="pt-1 border-t border-white/5 text-[11px] text-slate-400 flex items-center justify-between">
+                                    <span>{acc.custodyAccounts?.length || 0} {language === 'bn' ? 'টি চ্যানেল অ্যাকাউন্ট' : 'custody channels'}</span>
+                                    <span className="text-emerald-400 font-semibold">{language === 'bn' ? 'যাচাইকৃত' : 'Reconciled'}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Progress bar showing share of collections */}
+                              <div className="mb-4">
+                                <div className="flex items-center justify-between text-[11px] text-slate-400 mb-1">
+                                  <span>{language === 'bn' ? 'মোট আদায়ে অংশীদারিত্ব' : 'Collection Share'}</span>
+                                  <span className="font-bold text-slate-200">{sharePct}%</span>
+                                </div>
+                                <div className="w-full h-2 rounded-full bg-slate-950 border border-white/5 overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-500 ${
+                                      isPrimary
+                                        ? 'bg-gradient-to-r from-blue-500 to-cyan-400'
+                                        : 'bg-gradient-to-r from-purple-500 to-pink-500'
+                                    }`}
+                                    style={{ width: `${Math.min(100, Math.max(0, sharePct))}%` }}
+                                  />
+                                </div>
+                              </div>
+
+                              {/* Custody Channel Badges */}
+                              {acc.custodyAccounts && acc.custodyAccounts.length > 0 && (
+                                <div className="pt-3 border-t border-white/5">
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                                    <Landmark size={12} className="text-slate-400" />
+                                    <span>{language === 'bn' ? 'সংযুক্ত হেফাজত অ্যাকাউন্ট ও বর্তমান ব্যালেন্স:' : 'Linked Custody Accounts & Current Balances:'}</span>
+                                  </p>
+                                  <div className="flex flex-wrap gap-2">
+                                    {acc.custodyAccounts.map((cAcc) => (
+                                      <div
+                                        key={cAcc._id}
+                                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl bg-slate-900/90 border border-white/10 shadow-sm"
+                                      >
+                                        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                        <span className="text-slate-300 font-medium">{cAcc.name}:</span>
+                                        <span className="font-extrabold text-emerald-400">৳ {cAcc.balance.toLocaleString()}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Reconciled Combined Summary Bar */}
+                      <div className="p-4 rounded-xl bg-slate-950/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
+                          <span className="text-slate-300 font-medium">
+                            {language === 'bn'
+                              ? 'উভয় হিসাবরক্ষকের মোট সমন্বিত আদায় ও হেফাজত তহবিল:'
+                              : 'Combined Dual Accountant Collections & Liquid Custody:'}
+                          </span>
                         </div>
-                        <div>
-                          <p className="text-sm font-bold text-white">{acc.name}</p>
-                          <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-wider">
-                            {acc.accountantType || 'ACCOUNTANT'}
+                        <div className="flex items-center gap-4 flex-wrap font-bold">
+                          <span className="text-slate-300">
+                            {language === 'bn' ? 'মোট আদায়:' : 'Total Collections:'}{' '}
+                            <b className="text-emerald-400 text-sm">৳ {totalDualCollections.toLocaleString()}</b>
+                            <span className="text-[10px] text-slate-400 ml-1">({totalDualVouchers} {language === 'bn' ? 'ভাউচার' : 'vouchers'})</span>
+                          </span>
+                          <span className="text-slate-500">•</span>
+                          <span className="text-slate-300">
+                            {language === 'bn' ? 'মোট হেফাজত তহবিল:' : 'Total Custody Funds:'}{' '}
+                            <b className="text-blue-300 text-sm">৳ {totalDualCustody.toLocaleString()}</b>
                           </span>
                         </div>
                       </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500 text-xs">
+                      {language === 'bn'
+                        ? 'কোনো হিসাবরক্ষকের তথ্য পাওয়া যায়নি।'
+                        : 'No accountant collections recorded for the selected interval.'}
+                    </div>
+                  )}
 
-                      <div className="text-right">
-                        <p className="text-base font-extrabold text-white">
-                          ৳ {acc.total.toLocaleString()}
+                  {/* Governing Body Board Roles Footnote */}
+                  <div className="pt-4 border-t border-white/10 rounded-xl bg-slate-950/40 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0 mt-0.5">
+                        <Users size={16} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                          <h4 className="text-xs font-bold text-white uppercase tracking-wider">
+                            {language === 'bn'
+                              ? 'কার্যনির্বাহী পরিচালনা পর্ষদ (Governing Body) পদবি ও দায়িত্ব কাঠামো'
+                              : 'Governing Body Executive Roles & Structure'}
+                          </h4>
+                          <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded border border-white/5">
+                            ৬ জন সদস্য (Board of 6)
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed mb-3">
+                          {language === 'bn'
+                            ? 'এনএস ফাউন্ডেশনের সাংগঠনিক গঠনতন্ত্র অনুসারে কার্যনির্বাহী পরিষদের সদস্যরা সাধারণ প্রশাসন ও নীতি নির্ধারণে দায়িত্ব পালন করেন। আর্থিক আদায় ও কাস্টডি হেফাজত শুধুমাত্র প্রধান হিসাবরক্ষক ও সহকারী হিসাবরক্ষকের দ্বারা পরিচালিত হয়।'
+                            : 'Per organizational governance, Executive Committee members oversee policy, audits, and administration, while financial collections and custody are exclusively maintained by designated accountants.'}
                         </p>
-                        <span className="text-[11px] text-gray-400">
-                          {acc.count} collections (৳ {acc.penalty} penalty)
-                        </span>
+
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                          {/* 1. Director */}
+                          <div className="p-2 rounded-lg bg-slate-900/90 border border-purple-500/20 text-center">
+                            <span className="text-[10px] font-bold text-purple-300 block truncate">
+                              {language === 'bn' ? 'সালাউদ্দিন শুভ' : 'Salahuddin Shuvo'}
+                            </span>
+                            <span className="text-[9px] font-semibold text-purple-400/90 uppercase block mt-0.5">
+                              {language === 'bn' ? 'পরিচালক (Director)' : 'Director / Advisor'}
+                            </span>
+                          </div>
+
+                          {/* 2. President */}
+                          <div className="p-2 rounded-lg bg-slate-900/90 border border-emerald-500/20 text-center">
+                            <span className="text-[10px] font-bold text-emerald-300 block truncate">
+                              {language === 'bn' ? 'মো: শহিদুল ইসলাম' : 'Md. Shahidul Islam'}
+                            </span>
+                            <span className="text-[9px] font-semibold text-emerald-400/90 uppercase block mt-0.5">
+                              {language === 'bn' ? 'সভাপতি (President)' : 'President'}
+                            </span>
+                          </div>
+
+                          {/* 3. Primary Accountant */}
+                          <div className="p-2 rounded-lg bg-slate-900/90 border border-blue-500/40 text-center ring-1 ring-blue-500/30">
+                            <span className="text-[10px] font-bold text-blue-300 block truncate">
+                              {language === 'bn' ? 'মঈন উদ্দীন' : 'Moin Uddin'}
+                            </span>
+                            <span className="text-[9px] font-extrabold text-blue-400 uppercase block mt-0.5">
+                              {language === 'bn' ? 'প্রধান হিসাবরক্ষক' : 'Primary Accountant'}
+                            </span>
+                          </div>
+
+                          {/* 4. Assistant Accountant */}
+                          <div className="p-2 rounded-lg bg-slate-900/90 border border-purple-500/40 text-center ring-1 ring-purple-500/30">
+                            <span className="text-[10px] font-bold text-purple-300 block truncate">
+                              {language === 'bn' ? 'নুরুল ইসলাম সম্রাট' : 'Nurul Islam Samrat'}
+                            </span>
+                            <span className="text-[9px] font-extrabold text-purple-400 uppercase block mt-0.5">
+                              {language === 'bn' ? 'সহকারী হিসাবরক্ষক' : 'Assistant Accountant'}
+                            </span>
+                          </div>
+
+                          {/* 5. General Secretary */}
+                          <div className="p-2 rounded-lg bg-slate-900/90 border border-indigo-500/20 text-center">
+                            <span className="text-[10px] font-bold text-indigo-300 block truncate">
+                              {language === 'bn' ? 'নাঈম ইসলাম' : 'Nayem Islam'}
+                            </span>
+                            <span className="text-[9px] font-semibold text-indigo-400/90 uppercase block mt-0.5">
+                              {language === 'bn' ? 'সাধারণ সম্পাদক (GS)' : 'General Secretary (GS)'}
+                            </span>
+                          </div>
+
+                          {/* 6. Convener */}
+                          <div className="p-2 rounded-lg bg-slate-900/90 border border-amber-500/20 text-center">
+                            <span className="text-[10px] font-bold text-amber-300 block truncate">
+                              {language === 'bn' ? 'আব্দুল মান্নান খান' : 'Abdul Mannan Khan'}
+                            </span>
+                            <span className="text-[9px] font-semibold text-amber-400/90 uppercase block mt-0.5">
+                              {language === 'bn' ? 'আহ্বায়ক (Convener)' : 'Convener'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  ))}
+                  </div>
                 </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500 text-xs">
-                  No accountant collections recorded for the selected interval.
-                </div>
-              )}
-            </div>
+              );
+            })()}
           </div>
         </div>
       )}

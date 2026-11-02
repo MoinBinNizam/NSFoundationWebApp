@@ -1714,10 +1714,52 @@ export const bangla: Record<string, string> = {
 export const englishFromBangla = Object.fromEntries(Object.entries(bangla).map(([english, bengali]) => [bengali, english]));
 
 export function translateText(value: string, language: Language): string {
+  if (!value) return '';
   if (value === '৳' || value === 'BDT' || value === 'টাকা') return '৳';
-  if (language !== 'bn') return englishFromBangla[value] || value;
-  if (value.trim() === 'Moin Uddin') return 'মঈন উদ্দীন';
-  if (value.trim() === 'Moin') return 'মঈন';
+
+  const trimmed = value.trim();
+
+  // ENGLISH MODE: Ensure any Bengali text (names, roles, dues metrics) translates to clean English
+  if (language !== 'bn') {
+    if (trimmed === 'মঈন উদ্দীন' || trimmed === 'মঈন উদ্দিন' || trimmed === 'মঈন') return 'Moin Uddin';
+    if (trimmed === 'নুরুল ইসলাম সম্রাট' || trimmed === 'নুরুল আমিন সম্রাট' || trimmed === 'সম্রাট') return 'Nurul Islam Samrat';
+    if (trimmed === 'সালাউদ্দিন শুভ' || trimmed === 'শুভ') return 'Salahuddin Shuvo';
+    if (trimmed === 'মো: শহিদুল ইসলাম' || trimmed === 'শহিদুল ইসলাম') return 'Md. Shahidul Islam';
+    if (trimmed === 'নাঈম ইসলাম') return 'Nayem Islam';
+    if (trimmed === 'আব্দুল মান্নান খান') return 'Abdul Mannan Khan';
+
+    if (trimmed === 'প্রধান হিসাবরক্ষক' || trimmed === 'প্রধান: মঈন উদ্দিন' || trimmed === 'প্রধান: মঈন উদ্দীন') return 'Primary Accountant';
+    if (trimmed === 'সহকারী হিসাবরক্ষক' || trimmed === 'সহকারী: নুরুল ইসলাম সম্রাট' || trimmed === 'সহকারী: সম্রাট') return 'Assistant Accountant';
+    if (trimmed === 'পরিচালক' || trimmed === 'পরিচালক (Director)') return 'Director / Advisor';
+    if (trimmed === 'সভাপতি' || trimmed === 'সভাপতি (President)') return 'President';
+    if (trimmed === 'সাধারণ সম্পাদক' || trimmed === 'সাধারণ সম্পাদক (GS)') return 'General Secretary (GS)';
+    if (trimmed === 'আহ্বায়ক' || trimmed === 'আহ্বায়ক (Convener)') return 'Convener';
+
+    if (trimmed === 'পরিশোধিত') return 'Paid';
+    if (trimmed === 'বকেয়া' || trimmed === 'বকেয়া') return 'Due';
+    if (trimmed === 'সর্বমোট (আজ পর্যন্ত)') return 'All Time (To Date)';
+    if (trimmed === 'শুধুমাত্র বকেয়া সদস্য' || trimmed === 'শুধুমাত্র বকেয়া সদস্য') return 'Overdue Members Only';
+    if (trimmed === 'সকল সক্রিয় সদস্য' || trimmed === 'সকল সক্রিয় সদস্য') return 'All Active Members';
+    if (trimmed === 'মোট প্রদেয় (আজ পর্যন্ত)' || trimmed === 'মোট প্রদেয় (আজ পর্যন্ত)') return 'Total Due (To Date)';
+    if (trimmed === 'পরিশোধিত প্রিন্সিপাল') return 'Principal Paid';
+    if (trimmed === 'মোট প্রদেয় চাঁদা' || trimmed === 'মোট প্রদেয় চাঁদা') return 'Total Obligation';
+    if (trimmed === 'জরিমানা ও চার্জ') return 'Penalty & Charges';
+    if (trimmed === 'কপি হয়েছে') return 'Copied';
+
+    const yearMatch = trimmed.match(/^(\d{4})\s*সাল$/);
+    if (yearMatch) return `${yearMatch[1]} Year`;
+
+    return englishFromBangla[value] || value;
+  }
+
+  // BANGLA MODE: Translate standard names and values
+  if (trimmed === 'Moin Uddin' || trimmed === 'Moin Bin Nizam') return 'মঈন উদ্দীন';
+  if (trimmed === 'Moin') return 'মঈন';
+  if (trimmed === 'Nurul Islam Samrat' || trimmed === 'Samrat') return 'নুরুল ইসলাম সম্রাট';
+  if (trimmed === 'Salahuddin Shuvo' || trimmed === 'Shuvo') return 'সালাউদ্দিন শুভ';
+  if (trimmed === 'Md. Shahidul Islam' || trimmed === 'Shahidul Islam') return 'মো: শহিদুল ইসলাম';
+  if (trimmed === 'Nayem Islam') return 'নাঈম ইসলাম';
+  if (trimmed === 'Abdul Mannan Khan') return 'আব্দুল মান্নান খান';
 
   const dynamicTranslations: Array<[RegExp, (...matches: string[]) => string]> = [
     [/^Showing (\d+) to (\d+) of (\d+) (?:members|records)$/i, (_whole, from, to, total) => `দেখানো হচ্ছে ${from} থেকে ${to} (মোট ${total}টি রেকর্ড)`],
