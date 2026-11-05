@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { apiRequest, getApiUrl } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
 import { ModuleGuide } from '../components/ModuleGuide';
 import { BrandLogo } from '../components/BrandLogo';
+import { TableScrollControls } from '../components/TableScrollControls';
 import {
   Users,
   UserCheck,
@@ -212,6 +213,10 @@ export const MembersPage: React.FC = () => {
   const [exitNotice, setExitNotice] = useState<string | null>(null);
   const [exitError, setExitError] = useState<string | null>(null);
 
+  // Table Horizontal Scroll Refs
+  const exitsTableRef = useRef<HTMLDivElement>(null);
+  const rosterTableRef = useRef<HTMLDivElement>(null);
+
   // Propose / Settle Exit Modal
   const [showExitModal, setShowExitModal] = useState<boolean>(false);
   const [exitMemberId, setExitMemberId] = useState<string>('');
@@ -220,10 +225,10 @@ export const MembersPage: React.FC = () => {
   const [exitDeductionRate, setExitDeductionRate] = useState<string>('9.99');
   const [exitDeductionAmount, setExitDeductionAmount] = useState<string>('');
   const [exitNetAmount, setExitNetAmount] = useState<string>('');
+  const [exitAccountantKey, setExitAccountantKey] = useState<'MOIN' | 'SAMRAT'>('MOIN');
   const [exitPaymentMethod, setExitPaymentMethod] = useState<string>('BKASH');
   const [exitTransactionRef, setExitTransactionRef] = useState<string>('');
   const [exitAuthorizerName, setExitAuthorizerName] = useState<string>('');
-  const [exitCustodyId, setExitCustodyId] = useState<string>('');
   const [exitNotes, setExitNotes] = useState<string>('');
   const [exitAutoSettle, setExitAutoSettle] = useState<boolean>(true);
   const [exitReceiptFile, setExitReceiptFile] = useState<File | null>(null);
@@ -256,6 +261,7 @@ export const MembersPage: React.FC = () => {
     transactionRef: '',
     authorizerName: '',
     status: 'SETTLED',
+    accountantKey: 'MOIN' as 'MOIN' | 'SAMRAT',
     custodyAccountId: '',
     documentName: '',
     receiptUrl: '',
@@ -270,7 +276,7 @@ export const MembersPage: React.FC = () => {
 
   // Settle Single Exit Modal
   const [settlingExit, setSettlingExit] = useState<ExitRecord | null>(null);
-  const [settleCustodyId, setSettleCustodyId] = useState<string>('');
+  const [settleAccountantKey, setSettleAccountantKey] = useState<'MOIN' | 'SAMRAT'>('MOIN');
   const [settleSubmitting, setSettleSubmitting] = useState<boolean>(false);
 
   // Debounce search effect (300ms)
@@ -307,11 +313,6 @@ export const MembersPage: React.FC = () => {
 
       const rawAccounts = custodyRes.data || [];
       setCustodyAccounts(rawAccounts);
-      const defaultAcc = rawAccounts.find((a) => a.accountType === 'ACCOUNTANT_CUSTODY') || rawAccounts[0];
-      if (defaultAcc) {
-        setExitCustodyId(defaultAcc._id);
-        setSettleCustodyId(defaultAcc._id);
-      }
 
       apiRequest<{ signature?: string; signatureImage?: string }>('/settings/accountant-signature')
         .then((res) => {
@@ -344,10 +345,10 @@ export const MembersPage: React.FC = () => {
       const name = (a.name || '').toLowerCase();
       const bal = Number(a.cachedBalance || 0);
 
-      if (type === 'PRIMARY_ACCOUNTANT' || name.includes('moin')) {
+      if (type === 'PRIMARY_ACCOUNTANT' || type === 'PRIMARY' || name.includes('moin') || name.includes('ibbl') || name.includes('petty cash')) {
         moin.push(a);
         moinTotal += bal;
-      } else if (type === 'SECONDARY_ACCOUNTANT' || name.includes('samrat')) {
+      } else if (type === 'SECONDARY_ACCOUNTANT' || type === 'ASSISTANT' || name.includes('samrat')) {
         samrat.push(a);
         samratTotal += bal;
       } else {
@@ -356,6 +357,37 @@ export const MembersPage: React.FC = () => {
     }
     return { moin, samrat, other, moinTotal, samratTotal };
   }, [custodyAccounts]);
+
+  // Resolve internal custody account based on selected Accountant and Payment Method
+  const resolveCustodyAccountId = useCallback(
+    (accountantKey: 'MOIN' | 'SAMRAT', method: string): string => {
+      const normMethod = (method || 'BKASH').toUpperCase();
+      const pool = accountantKey === 'MOIN' ? groupedCustody.moin : groupedCustody.samrat;
+
+      // 1. Try matching channel in accountant's specific pool
+      const match = pool.find((a) => {
+        const ch = (a.channel || '').toUpperCase();
+        const nm = (a.name || '').toUpperCase();
+        if (normMethod === 'BKASH') return ch === 'BKASH' || nm.includes('BKASH');
+        if (normMethod === 'NAGAD') return ch === 'NAGAD' || nm.includes('NAGAD');
+        if (normMethod === 'BANK') return ch === 'BANK' || nm.includes('BANK') || nm.includes('IBBL');
+        if (normMethod === 'CASH') return ch === 'CASH' || nm.includes('CASH');
+        return false;
+      });
+      if (match) return match._id;
+
+      // 2. Global fallback for Bank if held by Moin/Society
+      if (accountantKey === 'MOIN' && normMethod === 'BANK') {
+        const bankAcc = custodyAccounts.find((a) => (a.channel || '').toUpperCase() === 'BANK');
+        if (bankAcc) return bankAcc._id;
+      }
+
+      // 3. Fallback to first available account in the accountant's pool
+      if (pool.length > 0) return pool[0]._id;
+      return custodyAccounts[0]?._id || '';
+    },
+    [groupedCustody, custodyAccounts]
+  );
 
   // Handle Propose Exit calculations
   const handleSelectExitMember = async (memberDbId: string) => {
@@ -508,6 +540,8 @@ export const MembersPage: React.FC = () => {
         receiptNumber = uploadJson.data?.receiptNumber || receiptNumber;
       }
 
+      const targetCustodyId = resolveCustodyAccountId(exitAccountantKey, exitPaymentMethod);
+
       await apiRequest('/governance/exits', {
         method: 'POST',
         body: JSON.stringify({
@@ -516,7 +550,7 @@ export const MembersPage: React.FC = () => {
           deductionRate: exitWaiveDeduction ? 0 : parseFloat(exitDeductionRate) || 0,
           deductionAmount: parseFloat(exitDeductionAmount) || 0,
           netAmount: parseFloat(exitNetAmount) || eligibleNum,
-          custodyAccountId: exitCustodyId,
+          custodyAccountId: targetCustodyId,
           autoSettle: exitAutoSettle,
           paymentMethod: exitPaymentMethod,
           transactionRef: exitTransactionRef,
@@ -602,12 +636,13 @@ export const MembersPage: React.FC = () => {
 
   // Settle an unsettled exit
   const handleConfirmSettleExit = async () => {
-    if (!settlingExit || !settleCustodyId) return;
+    if (!settlingExit) return;
     setSettleSubmitting(true);
     try {
+      const targetCustodyId = resolveCustodyAccountId(settleAccountantKey, settlingExit.paymentMethod || 'BKASH');
       await apiRequest(`/governance/exits/${settlingExit._id}/settle`, {
         method: 'POST',
-        body: JSON.stringify({ custodyAccountId: settleCustodyId }),
+        body: JSON.stringify({ custodyAccountId: targetCustodyId }),
       });
       setExitNotice(t('Member exit settlement completed and deducted from custody.'));
       setSettlingExit(null);
@@ -626,10 +661,10 @@ export const MembersPage: React.FC = () => {
     const inst = exit.installments?.[0];
     const mov = inst?.custodyMovementId && typeof inst.custodyMovementId === 'object' ? inst.custodyMovementId : null;
     const acc = mov?.custodyAccountId && typeof mov.custodyAccountId === 'object' ? mov.custodyAccountId : null;
-    const moinBkash = custodyAccounts.find(
-      (c) => c.name.toLowerCase().includes('moin') && c.name.toLowerCase().includes('bkash')
-    ) || custodyAccounts[0];
-    const targetCustodyId = acc?._id || (exit as any).custodyAccountId || moinBkash?._id || '';
+    
+    const isSamrat = (acc?.name || '').toLowerCase().includes('samrat') ||
+      groupedCustody.samrat.some((s) => s._id === acc?._id);
+    const accountantKey: 'MOIN' | 'SAMRAT' = isSamrat ? 'SAMRAT' : 'MOIN';
 
     const eligible = exit.eligibleAmount ?? (Number(exit.netAmount || 0) + Number(exit.deductionAmount || 0));
     const dedRate = exit.deductionRate ?? 9.99;
@@ -645,7 +680,8 @@ export const MembersPage: React.FC = () => {
       transactionRef: exit.transactionRef || '',
       authorizerName: exit.authorizerName || '',
       status: exit.status || 'SETTLED',
-      custodyAccountId: targetCustodyId,
+      accountantKey,
+      custodyAccountId: acc?._id || '',
       documentName: exit.documentName || '',
       receiptUrl: exit.receiptUrl || '',
       receiptNumber: exit.receiptNumber || '',
@@ -737,6 +773,8 @@ export const MembersPage: React.FC = () => {
         receiptNumber = uploadJson.data?.receiptNumber || receiptNumber;
       }
 
+      const targetCustodyId = resolveCustodyAccountId(editForm.accountantKey, editForm.paymentMethod);
+
       await apiRequest(`/governance/exits/${editingExit._id}`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -748,7 +786,7 @@ export const MembersPage: React.FC = () => {
           transactionRef: editForm.transactionRef,
           authorizerName: editForm.authorizerName,
           status: editForm.status,
-          custodyAccountId: editForm.custodyAccountId || undefined,
+          custodyAccountId: targetCustodyId || undefined,
           documentName,
           receiptUrl,
           receiptNumber,
@@ -1370,8 +1408,12 @@ export const MembersPage: React.FC = () => {
             </div>
           </div>
 
+          <div className="flex justify-end mb-2">
+            <TableScrollControls containerRef={rosterTableRef} />
+          </div>
+
           {/* Member List Table */}
-          <div className="table-container member-list-container glass-card max-h-[70vh] overflow-y-auto overscroll-contain">
+          <div ref={rosterTableRef} className="table-container member-list-container glass-card max-h-[70vh] overflow-y-auto overscroll-contain">
             <table className="data-table member-list-table">
               <thead>
                 <tr>
@@ -1585,10 +1627,7 @@ export const MembersPage: React.FC = () => {
                     setExitTransactionRef('');
                     setExitAuthorizerName('');
                     setExitNotes('');
-                    const moinBkash = custodyAccounts.find(
-                      (c) => c.name.toLowerCase().includes('moin') && c.name.toLowerCase().includes('bkash')
-                    ) || custodyAccounts[0];
-                    if (moinBkash) setExitCustodyId(moinBkash._id);
+                    setExitAccountantKey('MOIN');
                     setShowExitModal(true);
                   }}
                   className="btn btn-primary btn-sm flex items-center gap-1.5 bg-gradient-to-r from-rose-600 to-amber-600 shadow-md shadow-rose-600/20"
@@ -1667,8 +1706,12 @@ export const MembersPage: React.FC = () => {
               </div>
             </div>
 
+            <div className="flex justify-end mt-4 mb-2">
+              <TableScrollControls containerRef={exitsTableRef} />
+            </div>
+
             {/* Dropped Members Table */}
-            <div className="table-container mt-4">
+            <div ref={exitsTableRef} className="table-container">
               <table className="data-table min-w-[760px]">
                 <thead>
                   <tr>
@@ -1701,10 +1744,11 @@ export const MembersPage: React.FC = () => {
                           ? mov.custodyAccountId
                           : null;
 
-                      const payingCustodyName = acc?.name || 
-                        (e.paymentMethod?.toLowerCase().includes('bkash') 
-                          ? "Moin Uddin (bKash)" 
-                          : "Accountant Moin Custody");
+                      const isSamrat = (acc?.name || '').toLowerCase().includes('samrat') ||
+                        groupedCustody.samrat.some((s) => s._id === acc?._id);
+                      const payingAccountantName = isSamrat
+                        ? (isBn ? 'সম্রাট (সহকারী হিসাবরক্ষক)' : 'Samrat (Secondary Accountant)')
+                        : (isBn ? 'মঈন উদ্দীন (প্রধান হিসাবরক্ষক)' : 'Moin Uddin (Primary Accountant)');
                       const authorizerShort = e.authorizerName || (isBn ? 'পরিচালক অনুমোদিত' : 'Director Authorized');
                       const trxRef = e.transactionRef || '';
 
@@ -1778,9 +1822,9 @@ export const MembersPage: React.FC = () => {
                           {/* 5. Combined: Paid By, Custody & Channel */}
                           <td>
                             <div className="flex flex-col max-w-[210px]">
-                              <span className="text-blue-300 font-semibold text-xs flex items-center gap-1.5 truncate" title={payingCustodyName}>
+                              <span className="text-blue-300 font-semibold text-xs flex items-center gap-1.5 truncate" title={payingAccountantName}>
                                 <ShieldCheck size={13} className="text-blue-400 shrink-0" />
-                                <span className="truncate">{payingCustodyName}</span>
+                                <span className="truncate">{payingAccountantName}</span>
                               </span>
                               <div className="flex items-center gap-1.5 text-[11px] text-gray-400 mt-0.5 flex-wrap">
                                 <span className="font-mono text-gray-300">{e.paymentMethod || 'bKash'}</span>
@@ -1891,7 +1935,7 @@ export const MembersPage: React.FC = () => {
                                   type="button"
                                   onClick={() => {
                                     setSettlingExit(e);
-                                    if (custodyAccounts[0]) setSettleCustodyId(custodyAccounts[0]._id);
+                                    setSettleAccountantKey('MOIN');
                                   }}
                                   className="btn btn-warning btn-sm text-xs py-1 px-2 flex items-center gap-1"
                                   title={t('Settle / Deduct Custody')}
@@ -2008,12 +2052,10 @@ export const MembersPage: React.FC = () => {
                     {isBn ? 'ক্লিক করে দ্রুত রেট বসান' : 'Quick select preset rate'}
                   </span>
                 </div>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {[
-                    { rate: '0', label: isBn ? '০% (মওকুফ)' : '0% Waived' },
-                    { rate: '9.9', label: isBn ? '৯.৯% (সাধারণ বিধি)' : '9.9% Rule' },
-                    { rate: '9.99', label: isBn ? '৯.৯৯% (স্ট্যান্ডার্ড)' : '9.99% Std' },
-                    { rate: '33.33', label: isBn ? '৩৩.৩৩% (বায়েজিদ)' : '33.33% Bayzid' },
+                    { rate: '0', label: isBn ? '০% (মওকুফ - সম্পূর্ণ ফেরত)' : '0% (Waived - Full Refund)' },
+                    { rate: '9.99', label: isBn ? '৯.৯৯% (স্ট্যান্ডার্ড নীতি)' : '9.99% (Standard Policy)' },
                   ].map((p) => {
                     const isSelected = !exitWaiveDeduction
                       ? Number(exitDeductionRate) === Number(p.rate)
@@ -2023,7 +2065,7 @@ export const MembersPage: React.FC = () => {
                         key={p.rate}
                         type="button"
                         onClick={() => handleExitRateChange(p.rate)}
-                        className={`text-xs py-2 px-2 rounded-xl font-bold border transition text-center ${
+                        className={`text-xs py-2 px-3 rounded-xl font-bold border transition text-center ${
                           isSelected
                             ? 'bg-rose-600/35 text-rose-200 border-rose-500 shadow-sm shadow-rose-600/20 ring-1 ring-rose-500/50'
                             : 'bg-slate-900/70 text-gray-300 border-white/10 hover:bg-slate-800/80 hover:text-white'
@@ -2129,32 +2171,33 @@ export const MembersPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Custody Account Selector */}
+              {/* Disbursing Accountant Selector */}
               <div>
                 <label className="block text-xs font-bold text-gray-300 mb-1">
-                  {isBn ? 'যে কাস্টডি একাউন্ট থেকে টাকা দেওয়া হয়েছে' : 'Disbursing Custody Account'} *
+                  {isBn ? 'পরিশোধকারী হিসাবরক্ষক (কাস্টডি তহবিল)' : 'Disbursing Accountant (Custody Pool)'} *
                 </label>
                 <select
                   required
                   className="form-select text-xs w-full bg-slate-950 border-gray-700 text-white rounded-lg p-2.5"
-                  value={exitCustodyId}
-                  onChange={(e) => setExitCustodyId(e.target.value)}
+                  value={exitAccountantKey}
+                  onChange={(e) => setExitAccountantKey(e.target.value as 'MOIN' | 'SAMRAT')}
                 >
-                  <optgroup label={`${t("Accountant Moin's Custody")} (৳${groupedCustody.moinTotal.toLocaleString()})`}>
-                    {groupedCustody.moin.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name} (Balance: ৳{c.cachedBalance?.toFixed(2)})
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label={`${t("Accountant Samrat's Custody")} (৳${groupedCustody.samratTotal.toLocaleString()})`}>
-                    {groupedCustody.samrat.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name} (Balance: ৳{c.cachedBalance?.toFixed(2)})
-                      </option>
-                    ))}
-                  </optgroup>
+                  <option value="MOIN">
+                    {isBn ? 'মঈন উদ্দীন (প্রধান হিসাবরক্ষক)' : 'Moin Uddin (Primary Accountant)'} — (
+                    {isBn ? 'মোট তহবিল: ৳' : 'Total Custody: ৳'}
+                    {groupedCustody.moinTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                  </option>
+                  <option value="SAMRAT">
+                    {isBn ? 'সম্রাট (সহকারী হিসাবরক্ষক)' : 'Samrat (Secondary Accountant)'} — (
+                    {isBn ? 'মোট তহবিল: ৳' : 'Total Custody: ৳'}
+                    {groupedCustody.samratTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                  </option>
                 </select>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  {isBn
+                    ? 'নির্বাচিত পেমেন্ট মাধ্যম অনুসারে অভ্যন্তরীণ কাস্টডি চ্যানেল স্বয়ংক্রিয়ভাবে সমন্বয় করা হবে।'
+                    : 'The internal custody channel will be automatically reconciled based on the selected payment method.'}
+                </p>
               </div>
 
               {/* Authorizer Name */}
@@ -2459,12 +2502,10 @@ export const MembersPage: React.FC = () => {
                     {isBn ? 'ক্লিক করে দ্রুত রেট বসান' : 'Quick select preset rate'}
                   </span>
                 </div>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {[
-                    { rate: '0', label: isBn ? '০% (মওকুফ)' : '0% Waived' },
-                    { rate: '9.9', label: isBn ? '৯.৯% (সাধারণ বিধি)' : '9.9% Rule' },
-                    { rate: '9.99', label: isBn ? '৯.৯৯% (স্ট্যান্ডার্ড)' : '9.99% Std' },
-                    { rate: '33.33', label: isBn ? '৩৩.৩৩% (বায়েজিদ)' : '33.33% Bayzid' },
+                    { rate: '0', label: isBn ? '০% (মওকুফ - সম্পূর্ণ ফেরত)' : '0% (Waived - Full Refund)' },
+                    { rate: '9.99', label: isBn ? '৯.৯৯% (স্ট্যান্ডার্ড নীতি)' : '9.99% (Standard Policy)' },
                   ].map((p) => {
                     const isSelected = Number(editForm.deductionRate) === Number(p.rate);
                     return (
@@ -2472,7 +2513,7 @@ export const MembersPage: React.FC = () => {
                         key={p.rate}
                         type="button"
                         onClick={() => handleEditRateChange(p.rate)}
-                        className={`text-xs py-1.5 px-2 rounded-xl font-bold border transition text-center ${
+                        className={`text-xs py-1.5 px-3 rounded-xl font-bold border transition text-center ${
                           isSelected
                             ? 'bg-rose-600/35 text-rose-200 border-rose-500 shadow-sm shadow-rose-600/20 ring-1 ring-rose-500/50'
                             : 'bg-slate-900/70 text-gray-300 border-white/10 hover:bg-slate-800/80 hover:text-white'
@@ -2510,32 +2551,33 @@ export const MembersPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Custody Account Selector */}
+              {/* Disbursing Accountant Selector */}
               <div>
                 <label className="block text-xs font-bold text-gray-300 mb-1">
-                  {isBn ? 'যে কাস্টডি একাউন্ট থেকে টাকা দেওয়া হয়েছে' : 'Disbursing Custody Account'} *
+                  {isBn ? 'পরিশোধকারী হিসাবরক্ষক (কাস্টডি তহবিল)' : 'Disbursing Accountant (Custody Pool)'} *
                 </label>
                 <select
                   required
                   className="form-select text-xs w-full bg-slate-950 border-gray-700 text-white rounded-lg p-2.5"
-                  value={editForm.custodyAccountId}
-                  onChange={(e) => setEditForm({ ...editForm, custodyAccountId: e.target.value })}
+                  value={editForm.accountantKey}
+                  onChange={(e) => setEditForm({ ...editForm, accountantKey: e.target.value as 'MOIN' | 'SAMRAT' })}
                 >
-                  <optgroup label={`${t("Accountant Moin's Custody")} (৳${groupedCustody.moinTotal.toLocaleString()})`}>
-                    {groupedCustody.moin.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name} (Balance: ৳{c.cachedBalance?.toFixed(2)})
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label={`${t("Accountant Samrat's Custody")} (৳${groupedCustody.samratTotal.toLocaleString()})`}>
-                    {groupedCustody.samrat.map((c) => (
-                      <option key={c._id} value={c._id}>
-                        {c.name} (Balance: ৳{c.cachedBalance?.toFixed(2)})
-                      </option>
-                    ))}
-                  </optgroup>
+                  <option value="MOIN">
+                    {isBn ? 'মঈন উদ্দীন (প্রধান হিসাবরক্ষক)' : 'Moin Uddin (Primary Accountant)'} — (
+                    {isBn ? 'মোট তহবিল: ৳' : 'Total Custody: ৳'}
+                    {groupedCustody.moinTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                  </option>
+                  <option value="SAMRAT">
+                    {isBn ? 'সম্রাট (সহকারী হিসাবরক্ষক)' : 'Samrat (Secondary Accountant)'} — (
+                    {isBn ? 'মোট তহবিল: ৳' : 'Total Custody: ৳'}
+                    {groupedCustody.samratTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                  </option>
                 </select>
+                <p className="text-[11px] text-gray-400 mt-1">
+                  {isBn
+                    ? 'নির্বাচিত পেমেন্ট মাধ্যম অনুসারে অভ্যন্তরীণ কাস্টডি চ্যানেল স্বয়ংক্রিয়ভাবে সমন্বয় করা হবে।'
+                    : 'The internal custody channel will be automatically reconciled based on the selected payment method.'}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2704,28 +2746,31 @@ export const MembersPage: React.FC = () => {
               {isBn ? 'পরিশোধিতব্য নিট রিফান্ড' : 'Net Refund Payout'}: <strong className="text-emerald-400 font-bold">৳ {Number(settlingExit.netAmount || 0).toFixed(2)}</strong>
             </p>
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">{isBn ? 'যে কাস্টডি একাউন্ট থেকে টাকা দেওয়া হবে' : 'Disbursing Custody Account'} *</label>
+              <label className="block text-xs font-bold text-gray-300 mb-1">
+                {isBn ? 'পরিশোধকারী হিসাবরক্ষক (কাস্টডি তহবিল)' : 'Disbursing Accountant (Custody Pool)'} *
+              </label>
               <select
                 required
                 className="form-select text-xs w-full bg-slate-950 border-gray-700 text-white rounded-lg p-2.5"
-                value={settleCustodyId}
-                onChange={(e) => setSettleCustodyId(e.target.value)}
+                value={settleAccountantKey}
+                onChange={(e) => setSettleAccountantKey(e.target.value as 'MOIN' | 'SAMRAT')}
               >
-                <optgroup label={`${t("Accountant Moin's Custody")} (৳${groupedCustody.moinTotal.toLocaleString()})`}>
-                  {groupedCustody.moin.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name} (Balance: ৳{c.cachedBalance?.toFixed(2)})
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label={`${t("Accountant Samrat's Custody")} (৳${groupedCustody.samratTotal.toLocaleString()})`}>
-                  {groupedCustody.samrat.map((c) => (
-                    <option key={c._id} value={c._id}>
-                      {c.name} (Balance: ৳{c.cachedBalance?.toFixed(2)})
-                    </option>
-                  ))}
-                </optgroup>
+                <option value="MOIN">
+                  {isBn ? 'মঈন উদ্দীন (প্রধান হিসাবরক্ষক)' : 'Moin Uddin (Primary Accountant)'} — (
+                  {isBn ? 'মোট তহবিল: ৳' : 'Total Custody: ৳'}
+                  {groupedCustody.moinTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                </option>
+                <option value="SAMRAT">
+                  {isBn ? 'সম্রাট (সহকারী হিসাবরক্ষক)' : 'Samrat (Secondary Accountant)'} — (
+                  {isBn ? 'মোট তহবিল: ৳' : 'Total Custody: ৳'}
+                  {groupedCustody.samratTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})
+                </option>
               </select>
+              <p className="text-[11px] text-gray-400 mt-1">
+                {isBn
+                  ? 'নির্বাচিত পেমেন্ট মাধ্যম অনুসারে অভ্যন্তরীণ কাস্টডি চ্যানেল স্বয়ংক্রিয়ভাবে সমন্বয় করা হবে।'
+                  : 'The internal custody channel will be automatically reconciled based on the selected payment method.'}
+              </p>
             </div>
             <div className="flex justify-end gap-2 pt-3 border-t border-white/10">
               <button type="button" onClick={() => setSettlingExit(null)} className="btn btn-secondary btn-sm">{t('Cancel')}</button>
