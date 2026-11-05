@@ -231,4 +231,40 @@ export class ReceiptController {
       next(error);
     }
   }
+
+  /**
+   * POST /api/payments/receipts/:id/reject
+   * Rejects an unposted receipt with an optional reason.
+   */
+  static async reject(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      const receipt = await ReceiptService.getReceiptById(id);
+      if (!receipt) {
+        return next(createError(`Receipt not found: ${id}`, 404));
+      }
+      if (receipt.status === ReceiptStatus.POSTED) {
+        return next(createError('Cannot reject a receipt that has already been posted.', 400));
+      }
+
+      receipt.status = ReceiptStatus.REJECTED;
+      if (reason) {
+        const prevNotes = receipt.reviewedData?.notes || '';
+        receipt.reviewedData.notes = `${prevNotes} [Rejected: ${reason}]`.trim();
+      }
+      receipt.reviewedBy = (req.user as any)._id;
+      receipt.reviewedAt = new Date();
+      await receipt.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Receipt rejected successfully',
+        data: receipt,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
+

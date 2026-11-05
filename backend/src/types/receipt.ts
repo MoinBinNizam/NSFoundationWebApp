@@ -18,6 +18,7 @@ export enum ReceiptStatus {
   OCR_FAILED = 'OCR_FAILED',
   MATCH_FAILED = 'MATCH_FAILED',
   DUPLICATE_SUSPECTED = 'DUPLICATE_SUSPECTED',
+  REJECTED = 'REJECTED',
 }
 
 export interface ExtractedReceiptData {

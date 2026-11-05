@@ -218,6 +218,7 @@ export const MembersPage: React.FC = () => {
   const [exitEligibleAmount, setExitEligibleAmount] = useState<string>('');
   const [exitWaiveDeduction, setExitWaiveDeduction] = useState<boolean>(false);
   const [exitDeductionRate, setExitDeductionRate] = useState<string>('9.99');
+  const [exitDeductionAmount, setExitDeductionAmount] = useState<string>('');
   const [exitNetAmount, setExitNetAmount] = useState<string>('');
   const [exitPaymentMethod, setExitPaymentMethod] = useState<string>('BKASH');
   const [exitTransactionRef, setExitTransactionRef] = useState<string>('');
@@ -241,9 +242,11 @@ export const MembersPage: React.FC = () => {
   // Document Viewer Lightbox / Modal
   const [previewDocUrl, setPreviewDocUrl] = useState<string | null>(null);
   const [previewDocTitle, setPreviewDocTitle] = useState<string>('');
+  const [previewDocError, setPreviewDocError] = useState<boolean>(false);
 
   // Edit Exit Modal
   const [editingExit, setEditingExit] = useState<ExitRecord | null>(null);
+  const [editReceiptFile, setEditReceiptFile] = useState<File | null>(null);
   const [editForm, setEditForm] = useState({
     eligibleAmount: '',
     deductionRate: '9.99',
@@ -359,24 +362,29 @@ export const MembersPage: React.FC = () => {
     setExitMemberId(memberDbId);
     if (!memberDbId) {
       setExitEligibleAmount('');
+      setExitDeductionAmount('');
       setExitNetAmount('');
       return;
     }
     try {
-      const summary = await apiRequest<{ totalPrincipalPaid?: number; totalShares?: number }>(
-        `/payments/members/${memberDbId}/summary`
-      );
-      const principal = summary.data?.totalPrincipalPaid || 0;
+      const summary = await apiRequest<{
+        member: any;
+        summary: { totalPrincipalPaid?: number; totalPayments?: number };
+      }>(`/payments/member-summary/${memberDbId}`);
+      const principal = summary.data?.summary?.totalPrincipalPaid ?? 0;
       setExitEligibleAmount(String(principal));
       if (exitWaiveDeduction || Number(exitDeductionRate) === 0) {
+        setExitDeductionAmount('0');
         setExitNetAmount(String(principal));
       } else {
         const rate = parseFloat(exitDeductionRate) || 9.99;
         const ded = Math.round((principal * (rate / 100) + Number.EPSILON) * 100) / 100;
+        setExitDeductionAmount(String(ded));
         setExitNetAmount(String(Math.round((principal - ded + Number.EPSILON) * 100) / 100));
       }
     } catch {
       setExitEligibleAmount('0');
+      setExitDeductionAmount('0');
       setExitNetAmount('0');
     }
   };
@@ -386,14 +394,60 @@ export const MembersPage: React.FC = () => {
     const num = parseFloat(val);
     if (!isNaN(num) && num >= 0) {
       if (exitWaiveDeduction || Number(exitDeductionRate) === 0) {
+        setExitDeductionAmount('0');
         setExitNetAmount(String(num));
       } else {
         const rate = parseFloat(exitDeductionRate) || 9.99;
         const ded = Math.round((num * (rate / 100) + Number.EPSILON) * 100) / 100;
+        setExitDeductionAmount(String(ded));
         setExitNetAmount(String(Math.round((num - ded + Number.EPSILON) * 100) / 100));
       }
     } else {
+      setExitDeductionAmount('');
       setExitNetAmount('');
+    }
+  };
+
+  const handleExitRateChange = (rateStr: string) => {
+    const rate = parseFloat(rateStr) || 0;
+    setExitDeductionRate(rateStr);
+    const isWaived = rate === 0;
+    setExitWaiveDeduction(isWaived);
+    if (isWaived && !exitAuthorizerName) {
+      setExitAuthorizerName('Salah Uddin Shuvo (Director)');
+    }
+    const eligible = parseFloat(exitEligibleAmount) || 0;
+    const ded = isWaived ? 0 : Math.round((eligible * (rate / 100) + Number.EPSILON) * 100) / 100;
+    const net = Math.round((eligible - ded + Number.EPSILON) * 100) / 100;
+    setExitDeductionAmount(String(ded));
+    setExitNetAmount(String(net));
+  };
+
+  const handleExitDeductionAmountChange = (dedStr: string) => {
+    setExitDeductionAmount(dedStr);
+    const ded = parseFloat(dedStr) || 0;
+    const eligible = parseFloat(exitEligibleAmount) || 0;
+    const net = Math.max(0, Math.round((eligible - ded + Number.EPSILON) * 100) / 100);
+    const rate = eligible > 0 ? Math.round(((ded / eligible) * 100 + Number.EPSILON) * 100) / 100 : 0;
+    setExitNetAmount(String(net));
+    setExitDeductionRate(String(rate));
+    setExitWaiveDeduction(rate === 0);
+    if (rate === 0 && !exitAuthorizerName) {
+      setExitAuthorizerName('Salah Uddin Shuvo (Director)');
+    }
+  };
+
+  const handleExitNetAmountChange = (netStr: string) => {
+    setExitNetAmount(netStr);
+    const net = parseFloat(netStr) || 0;
+    const eligible = parseFloat(exitEligibleAmount) || 0;
+    const ded = Math.max(0, Math.round((eligible - net + Number.EPSILON) * 100) / 100);
+    const rate = eligible > 0 ? Math.round(((ded / eligible) * 100 + Number.EPSILON) * 100) / 100 : 0;
+    setExitDeductionAmount(String(ded));
+    setExitDeductionRate(String(rate));
+    setExitWaiveDeduction(rate === 0);
+    if (rate === 0 && !exitAuthorizerName) {
+      setExitAuthorizerName('Salah Uddin Shuvo (Director)');
     }
   };
 
@@ -402,6 +456,7 @@ export const MembersPage: React.FC = () => {
     const num = parseFloat(exitEligibleAmount) || 0;
     if (waived) {
       setExitDeductionRate('0');
+      setExitDeductionAmount('0');
       setExitNetAmount(String(num));
       if (!exitAuthorizerName) {
         setExitAuthorizerName('Salah Uddin Shuvo (Director)');
@@ -409,6 +464,7 @@ export const MembersPage: React.FC = () => {
     } else {
       setExitDeductionRate('9.99');
       const ded = Math.round((num * (9.99 / 100) + Number.EPSILON) * 100) / 100;
+      setExitDeductionAmount(String(ded));
       setExitNetAmount(String(Math.round((num - ded + Number.EPSILON) * 100) / 100));
     }
   };
@@ -457,7 +513,8 @@ export const MembersPage: React.FC = () => {
         body: JSON.stringify({
           memberId: exitMemberId,
           eligibleAmount: eligibleNum,
-          deductionRate: exitWaiveDeduction ? 0 : parseFloat(exitDeductionRate) || 9.99,
+          deductionRate: exitWaiveDeduction ? 0 : parseFloat(exitDeductionRate) || 0,
+          deductionAmount: parseFloat(exitDeductionAmount) || 0,
           netAmount: parseFloat(exitNetAmount) || eligibleNum,
           custodyAccountId: exitCustodyId,
           autoSettle: exitAutoSettle,
@@ -479,6 +536,7 @@ export const MembersPage: React.FC = () => {
       setShowExitModal(false);
       setExitReceiptFile(null);
       setExitReceiptNumber('');
+      setExitDeductionAmount('');
       await fetchData();
     } catch (err) {
       setExitError((err as Error).message);
@@ -564,19 +622,30 @@ export const MembersPage: React.FC = () => {
   // Start Edit Exit
   const handleStartEditExit = (exit: ExitRecord) => {
     setEditingExit(exit);
+    setEditReceiptFile(null);
     const inst = exit.installments?.[0];
     const mov = inst?.custodyMovementId && typeof inst.custodyMovementId === 'object' ? inst.custodyMovementId : null;
     const acc = mov?.custodyAccountId && typeof mov.custodyAccountId === 'object' ? mov.custodyAccountId : null;
+    const moinBkash = custodyAccounts.find(
+      (c) => c.name.toLowerCase().includes('moin') && c.name.toLowerCase().includes('bkash')
+    ) || custodyAccounts[0];
+    const targetCustodyId = acc?._id || (exit as any).custodyAccountId || moinBkash?._id || '';
+
+    const eligible = exit.eligibleAmount ?? (Number(exit.netAmount || 0) + Number(exit.deductionAmount || 0));
+    const dedRate = exit.deductionRate ?? 9.99;
+    const dedAmt = exit.deductionAmount ?? (dedRate === 0 ? 0 : Math.round((eligible * (dedRate / 100) + Number.EPSILON) * 100) / 100);
+    const net = exit.netAmount ?? Math.round((eligible - dedAmt + Number.EPSILON) * 100) / 100;
+
     setEditForm({
-      eligibleAmount: String(exit.eligibleAmount ?? (Number(exit.netAmount || 0) + Number(exit.deductionAmount || 0))),
-      deductionRate: String(exit.deductionRate ?? 9.99),
-      deductionAmount: String(exit.deductionAmount || 0),
-      netAmount: String(exit.netAmount || 0),
+      eligibleAmount: String(eligible),
+      deductionRate: String(dedRate),
+      deductionAmount: String(dedAmt),
+      netAmount: String(net),
       paymentMethod: exit.paymentMethod || 'BKASH',
       transactionRef: exit.transactionRef || '',
       authorizerName: exit.authorizerName || '',
       status: exit.status || 'SETTLED',
-      custodyAccountId: acc?._id || (custodyAccounts[0]?._id ?? ''),
+      custodyAccountId: targetCustodyId,
       documentName: exit.documentName || '',
       receiptUrl: exit.receiptUrl || '',
       receiptNumber: exit.receiptNumber || '',
@@ -584,11 +653,90 @@ export const MembersPage: React.FC = () => {
     });
   };
 
+  const handleEditEligibleChange = (val: string) => {
+    const num = parseFloat(val);
+    const rate = parseFloat(editForm.deductionRate) || 0;
+    if (!isNaN(num) && num >= 0) {
+      const ded = rate === 0 ? 0 : Math.round((num * (rate / 100) + Number.EPSILON) * 100) / 100;
+      const net = Math.round((num - ded + Number.EPSILON) * 100) / 100;
+      setEditForm((prev) => ({ ...prev, eligibleAmount: val, deductionAmount: String(ded), netAmount: String(net) }));
+    } else {
+      setEditForm((prev) => ({ ...prev, eligibleAmount: val }));
+    }
+  };
+
+  const handleEditRateChange = (rateStr: string) => {
+    const rate = parseFloat(rateStr) || 0;
+    const eligible = parseFloat(editForm.eligibleAmount) || 0;
+    const ded = rate === 0 ? 0 : Math.round((eligible * (rate / 100) + Number.EPSILON) * 100) / 100;
+    const net = Math.round((eligible - ded + Number.EPSILON) * 100) / 100;
+    setEditForm((prev) => ({
+      ...prev,
+      deductionRate: rateStr,
+      deductionAmount: String(ded),
+      netAmount: String(net),
+      authorizerName: rate === 0 && !prev.authorizerName ? 'Salah Uddin Shuvo (Director)' : prev.authorizerName,
+    }));
+  };
+
+  const handleEditDeductionAmountChange = (dedStr: string) => {
+    const ded = parseFloat(dedStr) || 0;
+    const eligible = parseFloat(editForm.eligibleAmount) || 0;
+    const net = Math.max(0, Math.round((eligible - ded + Number.EPSILON) * 100) / 100);
+    const rate = eligible > 0 ? Math.round(((ded / eligible) * 100 + Number.EPSILON) * 100) / 100 : 0;
+    setEditForm((prev) => ({
+      ...prev,
+      deductionAmount: dedStr,
+      netAmount: String(net),
+      deductionRate: String(rate),
+      authorizerName: rate === 0 && !prev.authorizerName ? 'Salah Uddin Shuvo (Director)' : prev.authorizerName,
+    }));
+  };
+
+  const handleEditNetAmountChange = (netStr: string) => {
+    const net = parseFloat(netStr) || 0;
+    const eligible = parseFloat(editForm.eligibleAmount) || 0;
+    const ded = Math.max(0, Math.round((eligible - net + Number.EPSILON) * 100) / 100);
+    const rate = eligible > 0 ? Math.round(((ded / eligible) * 100 + Number.EPSILON) * 100) / 100 : 0;
+    setEditForm((prev) => ({
+      ...prev,
+      netAmount: netStr,
+      deductionAmount: String(ded),
+      deductionRate: String(rate),
+      authorizerName: rate === 0 && !prev.authorizerName ? 'Salah Uddin Shuvo (Director)' : prev.authorizerName,
+    }));
+  };
+
   const handleSaveEditExit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingExit) return;
     setEditSaving(true);
     try {
+      let documentName = editForm.documentName;
+      let receiptUrl = editForm.receiptUrl;
+      let receiptNumber = editForm.receiptNumber.trim();
+
+      // If a receipt file was chosen in Edit modal, upload it first
+      if (editReceiptFile) {
+        const uploadForm = new FormData();
+        uploadForm.append('file', editReceiptFile);
+        if (receiptNumber) uploadForm.append('receiptNumber', receiptNumber);
+
+        const uploadRes = await fetch(getApiUrl('/governance/exits/upload-receipt'), {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+          },
+          body: uploadForm,
+        });
+
+        const uploadJson = await uploadRes.json();
+        if (!uploadRes.ok) throw new Error(uploadJson.message || 'Failed to upload receipt document.');
+        documentName = uploadJson.data?.documentName || editReceiptFile.name;
+        receiptUrl = uploadJson.data?.receiptUrl || '';
+        receiptNumber = uploadJson.data?.receiptNumber || receiptNumber;
+      }
+
       await apiRequest(`/governance/exits/${editingExit._id}`, {
         method: 'PUT',
         body: JSON.stringify({
@@ -601,14 +749,15 @@ export const MembersPage: React.FC = () => {
           authorizerName: editForm.authorizerName,
           status: editForm.status,
           custodyAccountId: editForm.custodyAccountId || undefined,
-          documentName: editForm.documentName,
-          receiptUrl: editForm.receiptUrl,
-          receiptNumber: editForm.receiptNumber,
+          documentName,
+          receiptUrl,
+          receiptNumber,
           notes: editForm.notes,
         }),
       });
       setExitNotice(t('Exit settlement updated successfully.'));
       setEditingExit(null);
+      setEditReceiptFile(null);
       await fetchData();
     } catch (err) {
       alert((err as Error).message);
@@ -1047,23 +1196,6 @@ export const MembersPage: React.FC = () => {
               </button>
             </>
           )}
-
-          {activeTab === 'EXITS' && canManageGovernance && (
-            <button
-              onClick={() => {
-                setExitMemberId('');
-                setExitEligibleAmount('');
-                setExitNetAmount('');
-                setExitReceiptFile(null);
-                setExitReceiptNumber('');
-                setShowExitModal(true);
-              }}
-              className="btn btn-primary btn-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-rose-600 to-amber-600 shadow-md shadow-rose-600/20"
-            >
-              <Plus size={16} />
-              <span>{isBn ? 'নতুন রিফান্ড ও সেটেলমেন্ট' : 'Propose & Settle Exit'}</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -1443,15 +1575,26 @@ export const MembersPage: React.FC = () => {
                   onClick={() => {
                     setExitMemberId('');
                     setExitEligibleAmount('');
+                    setExitDeductionRate('9.99');
+                    setExitDeductionAmount('');
                     setExitNetAmount('');
+                    setExitWaiveDeduction(false);
                     setExitReceiptFile(null);
                     setExitReceiptNumber('');
+                    setExitPaymentMethod('BKASH');
+                    setExitTransactionRef('');
+                    setExitAuthorizerName('');
+                    setExitNotes('');
+                    const moinBkash = custodyAccounts.find(
+                      (c) => c.name.toLowerCase().includes('moin') && c.name.toLowerCase().includes('bkash')
+                    ) || custodyAccounts[0];
+                    if (moinBkash) setExitCustodyId(moinBkash._id);
                     setShowExitModal(true);
                   }}
                   className="btn btn-primary btn-sm flex items-center gap-1.5 bg-gradient-to-r from-rose-600 to-amber-600 shadow-md shadow-rose-600/20"
                 >
                   <Plus size={16} />
-                  <span>{isBn ? 'নতুন সদস্য রিফান্ড নির্ধারণ' : 'Propose & Settle Exit'}</span>
+                  <span>{isBn ? 'নতুন রিফান্ড ও সেটেলমেন্ট' : 'Propose & Settle Exit'}</span>
                 </button>
               )}
             </div>
@@ -1667,11 +1810,16 @@ export const MembersPage: React.FC = () => {
                                   <button
                                     type="button"
                                     onClick={() => {
-                                      const token = localStorage.getItem('token') || '';
-                                      const rawUrl = e.receiptUrl || `/api/governance/exits/file?key=${encodeURIComponent(e.documentName || '')}`;
-                                      const finalUrl = rawUrl.includes('token=') ? rawUrl : `${rawUrl}${rawUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
-                                      setPreviewDocUrl(finalUrl);
-                                      setPreviewDocTitle(e.documentName || 'Payment Receipt Voucher');
+                                      setPreviewDocError(false);
+                                      if (e.receiptUrl) {
+                                        const token = localStorage.getItem('token') || '';
+                                        const rawUrl = e.receiptUrl;
+                                        const finalUrl = rawUrl.includes('token=') ? rawUrl : `${rawUrl}${rawUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
+                                        setPreviewDocUrl(finalUrl);
+                                        setPreviewDocTitle(e.documentName || `Voucher ${e.receiptNumber || e.memberId?.memberId}`);
+                                      } else {
+                                        setViewingExit(e);
+                                      }
                                     }}
                                     className="btn btn-sm text-xs flex items-center gap-1.5 bg-blue-600/20 hover:bg-blue-600/35 text-blue-300 border border-blue-500/35 px-2.5 py-1 rounded-lg transition shadow-sm font-semibold"
                                     title={isBn ? 'রিসিট ডকুমেন্ট ভিউ করুন' : 'View Receipt Document'}
@@ -1850,6 +1998,44 @@ export const MembersPage: React.FC = () => {
                 />
               </div>
 
+              {/* Deduction Presets */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-gray-300">
+                    {isBn ? 'কর্তন নীতি নির্বাচন' : 'Deduction Policy / Presets'}
+                  </label>
+                  <span className="text-[11px] text-gray-400">
+                    {isBn ? 'ক্লিক করে দ্রুত রেট বসান' : 'Quick select preset rate'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { rate: '0', label: isBn ? '০% (মওকুফ)' : '0% Waived' },
+                    { rate: '9.9', label: isBn ? '৯.৯% (সাধারণ বিধি)' : '9.9% Rule' },
+                    { rate: '9.99', label: isBn ? '৯.৯৯% (স্ট্যান্ডার্ড)' : '9.99% Std' },
+                    { rate: '33.33', label: isBn ? '৩৩.৩৩% (বায়েজিদ)' : '33.33% Bayzid' },
+                  ].map((p) => {
+                    const isSelected = !exitWaiveDeduction
+                      ? Number(exitDeductionRate) === Number(p.rate)
+                      : p.rate === '0';
+                    return (
+                      <button
+                        key={p.rate}
+                        type="button"
+                        onClick={() => handleExitRateChange(p.rate)}
+                        className={`text-xs py-2 px-2 rounded-xl font-bold border transition text-center ${
+                          isSelected
+                            ? 'bg-rose-600/35 text-rose-200 border-rose-500 shadow-sm shadow-rose-600/20 ring-1 ring-rose-500/50'
+                            : 'bg-slate-900/70 text-gray-300 border-white/10 hover:bg-slate-800/80 hover:text-white'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Waive Deduction Checkbox */}
               <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-950/20 flex items-start gap-2.5">
                 <input
@@ -1871,8 +2057,8 @@ export const MembersPage: React.FC = () => {
                 </label>
               </div>
 
-              {/* Deduction Rate & Net Amount */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Deduction Rate, Deduction Amount & Net Amount */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-300 mb-1">{t('Deduction Rate (%)')}</label>
                   <input
@@ -1881,13 +2067,21 @@ export const MembersPage: React.FC = () => {
                     disabled={exitWaiveDeduction}
                     className="form-input text-xs w-full disabled:opacity-50"
                     value={exitDeductionRate}
-                    onChange={(e) => {
-                      setExitDeductionRate(e.target.value);
-                      const rate = parseFloat(e.target.value) || 0;
-                      const eligibleNum = parseFloat(exitEligibleAmount) || 0;
-                      const ded = Math.round((eligibleNum * (rate / 100) + Number.EPSILON) * 100) / 100;
-                      setExitNetAmount(String(Math.round((eligibleNum - ded + Number.EPSILON) * 100) / 100));
-                    }}
+                    onChange={(e) => handleExitRateChange(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-rose-300 mb-1">
+                    {isBn ? 'কর্তনকৃত টাকা' : 'Deduction Amount'} (৳)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    disabled={exitWaiveDeduction}
+                    className="form-input text-xs w-full text-rose-400 font-medium disabled:opacity-50"
+                    placeholder="e.g. 198"
+                    value={exitDeductionAmount}
+                    onChange={(e) => handleExitDeductionAmountChange(e.target.value)}
                   />
                 </div>
                 <div>
@@ -1901,7 +2095,7 @@ export const MembersPage: React.FC = () => {
                     className="form-input text-xs w-full text-emerald-400 font-bold"
                     placeholder="e.g. 1802"
                     value={exitNetAmount}
-                    onChange={(e) => setExitNetAmount(e.target.value)}
+                    onChange={(e) => handleExitNetAmountChange(e.target.value)}
                   />
                 </div>
               </div>
@@ -1979,15 +2173,31 @@ export const MembersPage: React.FC = () => {
 
               {/* Receipt File Upload Directly in Propose Modal */}
               <div className="p-3.5 rounded-xl border border-blue-500/20 bg-blue-950/20 space-y-2">
-                <label className="block text-xs font-bold text-blue-300">
-                  {isBn ? 'পেমেন্ট রিসিট ভাউচার ফাইল আপলোড (ঐচ্ছিক)' : 'Upload Receipt Proof Document (Optional)'}
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-blue-300">
+                    {isBn ? 'পেমেন্ট রিসিট ভাউচার ফাইল আপলোড (ঐচ্ছিক)' : 'Upload Receipt Proof Document (Optional)'}
+                  </label>
+                  <span className="text-[10px] text-gray-400">PDF, PNG, JPG, WebP</span>
+                </div>
                 <input
                   type="file"
                   accept="image/png,image/jpeg,image/webp,application/pdf"
                   className="form-input text-xs w-full cursor-pointer file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white"
                   onChange={(e) => setExitReceiptFile(e.target.files?.[0] || null)}
                 />
+                {exitReceiptFile && (
+                  <div className="flex items-center justify-between text-xs text-blue-200 bg-blue-900/40 p-2 rounded-lg border border-blue-500/30">
+                    <span className="truncate">{exitReceiptFile.name} ({(exitReceiptFile.size / 1024).toFixed(1)} KB)</span>
+                    <button
+                      type="button"
+                      onClick={() => setExitReceiptFile(null)}
+                      className="text-rose-400 hover:text-rose-300 p-1"
+                      title={isBn ? 'ফাইল সরান' : 'Remove File'}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
                 <input
                   type="text"
                   className="form-input text-xs w-full font-mono mt-1"
@@ -2223,7 +2433,7 @@ export const MembersPage: React.FC = () => {
                     required
                     className="form-input text-xs w-full"
                     value={editForm.eligibleAmount}
-                    onChange={(e) => setEditForm({ ...editForm, eligibleAmount: e.target.value })}
+                    onChange={(e) => handleEditEligibleChange(e.target.value)}
                   />
                 </div>
                 <div>
@@ -2234,34 +2444,98 @@ export const MembersPage: React.FC = () => {
                     required
                     className="form-input text-xs w-full"
                     value={editForm.deductionRate}
-                    onChange={(e) => setEditForm({ ...editForm, deductionRate: e.target.value })}
+                    onChange={(e) => handleEditRateChange(e.target.value)}
                   />
+                </div>
+              </div>
+
+              {/* Deduction Presets */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-gray-300">
+                    {isBn ? 'কর্তন নীতি নির্বাচন' : 'Deduction Presets'}
+                  </label>
+                  <span className="text-[11px] text-gray-400">
+                    {isBn ? 'ক্লিক করে দ্রুত রেট বসান' : 'Quick select preset rate'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { rate: '0', label: isBn ? '০% (মওকুফ)' : '0% Waived' },
+                    { rate: '9.9', label: isBn ? '৯.৯% (সাধারণ বিধি)' : '9.9% Rule' },
+                    { rate: '9.99', label: isBn ? '৯.৯৯% (স্ট্যান্ডার্ড)' : '9.99% Std' },
+                    { rate: '33.33', label: isBn ? '৩৩.৩৩% (বায়েজিদ)' : '33.33% Bayzid' },
+                  ].map((p) => {
+                    const isSelected = Number(editForm.deductionRate) === Number(p.rate);
+                    return (
+                      <button
+                        key={p.rate}
+                        type="button"
+                        onClick={() => handleEditRateChange(p.rate)}
+                        className={`text-xs py-1.5 px-2 rounded-xl font-bold border transition text-center ${
+                          isSelected
+                            ? 'bg-rose-600/35 text-rose-200 border-rose-500 shadow-sm shadow-rose-600/20 ring-1 ring-rose-500/50'
+                            : 'bg-slate-900/70 text-gray-300 border-white/10 hover:bg-slate-800/80 hover:text-white'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-300 mb-1">{t('Deduction Amount')} (৳)</label>
+                  <label className="block text-xs font-bold text-rose-300 mb-1">{t('Deduction Amount')} (৳)</label>
                   <input
                     type="number"
                     step="0.01"
                     required
                     className="form-input text-xs w-full text-rose-400 font-medium"
                     value={editForm.deductionAmount}
-                    onChange={(e) => setEditForm({ ...editForm, deductionAmount: e.target.value })}
+                    onChange={(e) => handleEditDeductionAmountChange(e.target.value)}
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-300 mb-1">{t('Net Refund')} (৳)</label>
+                  <label className="block text-xs font-bold text-emerald-300 mb-1">{t('Net Refund')} (৳)</label>
                   <input
                     type="number"
                     step="0.01"
                     required
                     className="form-input text-xs w-full text-emerald-400 font-bold"
                     value={editForm.netAmount}
-                    onChange={(e) => setEditForm({ ...editForm, netAmount: e.target.value })}
+                    onChange={(e) => handleEditNetAmountChange(e.target.value)}
                   />
                 </div>
+              </div>
+
+              {/* Custody Account Selector */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 mb-1">
+                  {isBn ? 'যে কাস্টডি একাউন্ট থেকে টাকা দেওয়া হয়েছে' : 'Disbursing Custody Account'} *
+                </label>
+                <select
+                  required
+                  className="form-select text-xs w-full bg-slate-950 border-gray-700 text-white rounded-lg p-2.5"
+                  value={editForm.custodyAccountId}
+                  onChange={(e) => setEditForm({ ...editForm, custodyAccountId: e.target.value })}
+                >
+                  <optgroup label={`${t("Accountant Moin's Custody")} (৳${groupedCustody.moinTotal.toLocaleString()})`}>
+                    {groupedCustody.moin.map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name} (Balance: ৳{c.cachedBalance?.toFixed(2)})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label={`${t("Accountant Samrat's Custody")} (৳${groupedCustody.samratTotal.toLocaleString()})`}>
+                    {groupedCustody.samrat.map((c) => (
+                      <option key={c._id} value={c._id}>
+                        {c.name} (Balance: ৳{c.cachedBalance?.toFixed(2)})
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2282,7 +2556,7 @@ export const MembersPage: React.FC = () => {
                   <label className="block text-xs font-bold text-gray-300 mb-1">{t('Transaction Ref')}</label>
                   <input
                     type="text"
-                    className="form-input text-xs w-full"
+                    className="form-input text-xs w-full font-mono"
                     value={editForm.transactionRef}
                     onChange={(e) => setEditForm({ ...editForm, transactionRef: e.target.value })}
                   />
@@ -2299,28 +2573,56 @@ export const MembersPage: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-gray-300 mb-1">
-                    {isBn ? 'ডকুমেন্ট ফাইলের নাম' : 'Document Name'}
+              {/* Receipt Document Upload in Edit Modal */}
+              <div className="p-3.5 rounded-xl border border-blue-500/20 bg-blue-950/20 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-blue-300">
+                    {isBn ? 'পেমেন্ট রিসিট ভাউচার ডকুমেন্ট আপলোড / পরিবর্তন' : 'Upload / Replace Receipt Document'}
                   </label>
-                  <input
-                    type="text"
-                    className="form-input text-xs w-full"
-                    value={editForm.documentName}
-                    onChange={(e) => setEditForm({ ...editForm, documentName: e.target.value })}
-                  />
+                  {editForm.documentName && (
+                    <span className="text-[11px] text-gray-400 truncate max-w-[200px]" title={editForm.documentName}>
+                      বর্তমান: {editForm.documentName}
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-300 mb-1">
-                    {isBn ? 'রিসিট ভাউচার নং' : 'Receipt Number'}
-                  </label>
-                  <input
-                    type="text"
-                    className="form-input text-xs w-full font-mono"
-                    value={editForm.receiptNumber}
-                    onChange={(e) => setEditForm({ ...editForm, receiptNumber: e.target.value })}
-                  />
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,application/pdf"
+                  className="form-input text-xs w-full cursor-pointer file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-600 file:text-white"
+                  onChange={(e) => setEditReceiptFile(e.target.files?.[0] || null)}
+                />
+                {editReceiptFile && (
+                  <div className="flex items-center justify-between text-xs text-blue-200 bg-blue-900/40 p-2 rounded-lg border border-blue-500/30">
+                    <span className="truncate">{editReceiptFile.name} ({(editReceiptFile.size / 1024).toFixed(1)} KB)</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditReceiptFile(null)}
+                      className="text-rose-400 hover:text-rose-300 p-1"
+                      title={isBn ? 'ফাইল সরান' : 'Remove File'}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1">
+                  <div>
+                    <label className="block text-[11px] text-gray-400 mb-0.5">{isBn ? 'ডকুমেন্ট ফাইলের নাম' : 'Document Name'}</label>
+                    <input
+                      type="text"
+                      className="form-input text-xs w-full"
+                      value={editForm.documentName}
+                      onChange={(e) => setEditForm({ ...editForm, documentName: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-400 mb-0.5">{isBn ? 'রিসিট ভাউচার নং' : 'Receipt Number'}</label>
+                    <input
+                      type="text"
+                      className="form-input text-xs w-full font-mono"
+                      value={editForm.receiptNumber}
+                      onChange={(e) => setEditForm({ ...editForm, receiptNumber: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -2902,18 +3204,51 @@ export const MembersPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex-1 overflow-auto rounded-xl bg-slate-950/80 border border-white/10 flex items-center justify-center min-h-[420px] p-2">
-              {previewDocUrl.toLowerCase().includes('.pdf') ? (
+            <div className="flex-1 overflow-auto rounded-xl bg-slate-950/80 border border-white/10 flex items-center justify-center min-h-[420px] p-4">
+              {previewDocError ? (
+                <div className="text-center space-y-3 max-w-md p-6 rounded-2xl bg-slate-900/90 border border-amber-500/30">
+                  <div className="w-12 h-12 rounded-full bg-amber-500/15 text-amber-400 mx-auto flex items-center justify-center">
+                    <FileText size={24} />
+                  </div>
+                  <h4 className="text-sm font-bold text-white">
+                    {isBn ? 'রিসিট ডকুমেন্ট ফাইলটি স্টোরেজে পাওয়া যায়নি' : 'Receipt Document Not Found on Server'}
+                  </h4>
+                  <p className="text-xs text-gray-300 leading-relaxed">
+                    {isBn
+                      ? 'এই সেটেলমেন্টের জন্য বাহ্যিক স্লিপ ফাইলটি এখনও আপলোড করা হয়নি অথবা ডিস্ক স্টোরেজে অনুপস্থিত। আপনি অফিসিয়াল ভাউচার দেখতে পারেন।'
+                      : 'The receipt attachment file is missing or not yet uploaded. You can view or print the generated official voucher.'}
+                  </p>
+                  <div className="flex justify-center gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = exits.find(
+                          (ex) => ex.documentName === previewDocTitle || ex.receiptUrl?.includes(previewDocUrl.split('?')[0])
+                        );
+                        setPreviewDocUrl(null);
+                        setPreviewDocError(false);
+                        if (target) setViewingExit(target);
+                      }}
+                      className="btn btn-primary btn-sm text-xs flex items-center gap-1.5"
+                    >
+                      <Eye size={14} />
+                      <span>{isBn ? 'অফিসিয়াল ভাউচার দেখুন' : 'View Official Voucher'}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : previewDocUrl.toLowerCase().includes('.pdf') ? (
                 <iframe
                   src={previewDocUrl}
                   title="PDF Preview"
                   className="w-full h-[65vh] rounded-lg border-0"
+                  onError={() => setPreviewDocError(true)}
                 />
               ) : (
                 <img
                   src={previewDocUrl}
                   alt="Receipt Document Preview"
                   className="max-h-[68vh] max-w-full object-contain rounded-lg shadow-lg"
+                  onError={() => setPreviewDocError(true)}
                 />
               )}
             </div>

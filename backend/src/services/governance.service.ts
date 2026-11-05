@@ -138,6 +138,7 @@ export class GovernanceService {
       custodyAccountId?: string;
       autoSettle?: boolean;
       deductionRate?: number;
+      deductionAmount?: number;
       netAmount?: number;
       paymentMethod?: string;
       transactionRef?: string;
@@ -168,7 +169,10 @@ export class GovernanceService {
     let netAmount: number;
     let deductionAmount: number;
 
-    if (options?.netAmount !== undefined && Number.isFinite(options.netAmount) && options.netAmount >= 0) {
+    if (options?.deductionAmount !== undefined && Number.isFinite(options.deductionAmount) && options.deductionAmount >= 0) {
+      deductionAmount = round(options.deductionAmount);
+      netAmount = options?.netAmount !== undefined ? round(options.netAmount) : round(Math.max(0, eligibleAmount - deductionAmount));
+    } else if (options?.netAmount !== undefined && Number.isFinite(options.netAmount) && options.netAmount >= 0) {
       netAmount = round(options.netAmount);
       deductionAmount = round(Math.max(0, eligibleAmount - netAmount));
     } else {

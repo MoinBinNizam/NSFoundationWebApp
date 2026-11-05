@@ -307,7 +307,7 @@ export async function resetAndSeedDatabase(): Promise<void> {
   });
 
   await CustodyAccount.create({
-    name: 'bKash Society Merchant/Agent',
+    name: 'Moin Uddin Personal bKash',
     accountType: AccountType.ACCOUNTANT_CUSTODY,
     channel: CustodyChannel.BKASH,
     accountNumber: 'BKASH-01747969042',

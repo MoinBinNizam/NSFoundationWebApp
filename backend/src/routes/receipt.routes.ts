@@ -64,5 +64,6 @@ router.post('/:id/link-sender-phone', ReceiptController.linkSenderPhone);
 // Duplicate override & Final Posting
 router.post('/:id/duplicate-override', ReceiptController.overrideDuplicate);
 router.post('/:id/post', ReceiptController.postPayment);
+router.post('/:id/reject', ReceiptController.reject);
 
 export default router;

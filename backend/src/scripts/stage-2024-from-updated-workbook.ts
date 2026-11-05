@@ -91,7 +91,7 @@ export async function stage2024FromUpdatedWorkbook() {
   let moinBkashCustody = await CustodyAccount.findOne({ channel: 'BKASH', $or: [{ holderId: moinUser._id }, { name: /moin|merchant|bkash/i }] });
   if (!moinBkashCustody) {
     moinBkashCustody = await CustodyAccount.create({
-      name: 'Moin Personal/Society bKash',
+      name: 'Moin Uddin Personal bKash',
       channel: CustodyChannel.BKASH,
       accountType: AccountType.ACCOUNTANT_CUSTODY,
       holderId: moinUser._id,
