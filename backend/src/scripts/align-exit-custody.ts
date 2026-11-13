@@ -15,7 +15,6 @@ async function alignExitCustody() {
 
   // 1. Rename 'bKash Society Merchant/Agent' to 'Moin Uddin Personal bKash'
   const moinBkashId = new mongoose.Types.ObjectId('6abb8e12bec2a63bd3a92574');
-  const samratBkashId = new mongoose.Types.ObjectId('6ac504fcfc1479e4fad081ee');
 
   const renameRes = await custodyCol.updateOne(
     { _id: moinBkashId },

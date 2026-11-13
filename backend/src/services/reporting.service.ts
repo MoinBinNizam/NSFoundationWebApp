@@ -27,10 +27,10 @@ const dates = (query: Record<string, unknown>, field: string) => {
   if (query.endDate) { const end = new Date(String(query.endDate)); end.setHours(23, 59, 59, 999); date.$lte = end; }
   return Object.keys(date).length ? { [field]: date } : {};
 };
-const currentMonth = () => '2025-04';
+const currentMonth = () => new Date().toISOString().slice(0, 7);
 const getLatestSystemMonth = async () => {
   const latestPayment = await Payment.findOne({ status: { $ne: PaymentStatus.CANCELLED } }).sort({ paymentDate: -1 }).select('paymentDate').lean();
-  return latestPayment ? new Date(latestPayment.paymentDate).toISOString().slice(0, 7) : '2025-04';
+  return latestPayment ? new Date(latestPayment.paymentDate).toISOString().slice(0, 7) : currentMonth();
 };
 const monthRange = (query: Record<string, unknown>, latestMonth: string) => {
   const end = query.endDate ? new Date(String(query.endDate)) : (() => {

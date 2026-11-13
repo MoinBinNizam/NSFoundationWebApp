@@ -471,7 +471,7 @@ export const DashboardPage: React.FC = () => {
 
                 <div className="flex items-center gap-2 self-start sm:self-auto">
                   <span className="text-[11px] font-bold text-gray-300 bg-white/5 border border-white/10 px-3 py-1 rounded-lg">
-                    {t('Accounting Year')}: <b className="text-blue-400">{reportingYear === 'ALL' ? '2024–2025' : reportingYear}</b>
+                    {t('Accounting Year')}: <b className="text-blue-400">{reportingYear === 'ALL' ? `2024–${new Date().getFullYear()}` : reportingYear}</b>
                   </span>
                 </div>
               </div>
@@ -613,12 +613,12 @@ export const DashboardPage: React.FC = () => {
                 <div className="flex items-center gap-6 flex-wrap">
                   <div>
                     <span className="text-gray-400 text-[11px] block">{t('Total Active Shares')}:</span>
-                    <b className="text-white font-extrabold text-sm">{dashboard?.shareMetrics?.totalActiveShares || 39} {t('Shares')}</b>
+                    <b className="text-white font-extrabold text-sm">{dashboard?.shareMetrics?.totalActiveShares ?? 0} {t('Shares')}</b>
                   </div>
                   <div className="h-6 w-px bg-white/10 hidden sm:block" />
                   <div>
                     <span className="text-gray-400 text-[11px] block">{t('Expected Monthly Capital')}:</span>
-                    <b className="text-blue-300 font-extrabold text-sm">{money(dashboard?.shareMetrics?.monthlyShareTarget || 19500)}</b>
+                    <b className="text-blue-300 font-extrabold text-sm">{money(dashboard?.shareMetrics?.monthlyShareTarget ?? 0)}</b>
                   </div>
                   <div className="h-6 w-px bg-white/10 hidden sm:block" />
                   <div>
