@@ -79,22 +79,40 @@ export async function stage2024FromUpdatedWorkbook() {
   console.log('Previous payments, ledgers, expenses, investments, returns, movements, and settlements wiped.');
 
   // ─── 1. SETUP / VERIFY USERS & CUSTODY ACCOUNTS ─────────────────────────────
-  let moinUser = await User.findOne({ email: /moin/i });
-  if (!moinUser) moinUser = await User.findOne({ role: { $in: ['ADMIN', 'SUPER_ADMIN', 'ACCOUNTANT'] } });
-  let samratUser = (await User.findOne({ email: /samrat/i })) || moinUser;
+  let moinUser = await User.findOne({
+    $or: [{ name: /moin/i }, { email: /admin@nsfoundation\.org/i }, { role: 'SUPER_ADMIN' }],
+  });
+  let samratUser = await User.findOne({
+    $or: [{ name: /samrat/i }, { email: /assistant@nsfoundation\.org/i }, { role: 'ACCOUNTANT' }],
+  });
 
   if (!moinUser) {
     throw new Error('Default admin/accountant user (Moin) not found in system.');
   }
+  if (!samratUser) {
+    samratUser = moinUser;
+  }
 
   // Ensure standard custody accounts exist
-  let moinBkashCustody = await CustodyAccount.findOne({ channel: 'BKASH', $or: [{ holderId: moinUser._id }, { name: /moin|merchant|bkash/i }] });
+  let moinBkashCustody = await CustodyAccount.findOne({ channel: 'BKASH', $or: [{ holderId: moinUser._id }, { name: /moin/i }] });
   if (!moinBkashCustody) {
     moinBkashCustody = await CustodyAccount.create({
       name: 'Moin Uddin Personal bKash',
       channel: CustodyChannel.BKASH,
       accountType: AccountType.ACCOUNTANT_CUSTODY,
       holderId: moinUser._id,
+      cachedBalance: 0,
+      isActive: true,
+    });
+  }
+
+  let samratBkashCustody = await CustodyAccount.findOne({ channel: 'BKASH', $or: [{ holderId: samratUser._id }, { name: /samrat.*bkash/i }] });
+  if (!samratBkashCustody) {
+    samratBkashCustody = await CustodyAccount.create({
+      name: 'Samrat Personal bKash',
+      channel: CustodyChannel.BKASH,
+      accountType: AccountType.ACCOUNTANT_CUSTODY,
+      holderId: samratUser._id,
       cachedBalance: 0,
       isActive: true,
     });
@@ -124,10 +142,22 @@ export async function stage2024FromUpdatedWorkbook() {
     });
   }
 
-  let samratCashCustody = await CustodyAccount.findOne({ channel: 'CASH' });
+  let moinCashCustody = await CustodyAccount.findOne({ channel: 'CASH', $or: [{ holderId: moinUser._id }, { name: /^Physical Petty Cash/i }] });
+  if (!moinCashCustody) {
+    moinCashCustody = await CustodyAccount.create({
+      name: 'Physical Petty Cash',
+      channel: CustodyChannel.CASH,
+      accountType: AccountType.ACCOUNTANT_CUSTODY,
+      holderId: moinUser._id,
+      cachedBalance: 0,
+      isActive: true,
+    });
+  }
+
+  let samratCashCustody = await CustodyAccount.findOne({ channel: 'CASH', $or: [{ holderId: samratUser._id }, { name: /samrat.*cash/i }] });
   if (!samratCashCustody) {
     samratCashCustody = await CustodyAccount.create({
-      name: 'Physical Petty Cash',
+      name: 'Samrat Physical Petty Cash',
       channel: CustodyChannel.CASH,
       accountType: AccountType.ACCOUNTANT_CUSTODY,
       holderId: samratUser?._id || moinUser._id,
@@ -305,8 +335,10 @@ export async function stage2024FromUpdatedWorkbook() {
       const penaltyCol = Number(r[8] || 0);
       const comment = String(r[9] || '').trim();
 
-      const receiverUser = (/samrat/i.test(receiverStr) ? samratUser : moinUser)!;
-      let custodyAcc = moinBkashCustody;
+      const isSamratReceiver = /samrat/i.test(receiverStr);
+      const receiverUser = isSamratReceiver ? samratUser : moinUser;
+
+      let custodyAcc = isSamratReceiver ? samratBkashCustody : moinBkashCustody;
       let method = PaymentMethod.BKASH;
 
       if (gatewayStr.includes('BANK')) {
@@ -317,9 +349,18 @@ export async function stage2024FromUpdatedWorkbook() {
         custodyAcc = samratNagadCustody;
       } else if (gatewayStr.includes('CASH')) {
         method = PaymentMethod.CASH;
-        custodyAcc = samratCashCustody;
-      } else if (/samrat/i.test(receiverStr)) {
-        custodyAcc = samratNagadCustody;
+        custodyAcc = isSamratReceiver ? samratCashCustody : moinCashCustody;
+      } else if (gatewayStr.includes('SELF')) {
+        if (isSamratReceiver) {
+          method = PaymentMethod.NAGAD;
+          custodyAcc = samratNagadCustody;
+        } else {
+          method = PaymentMethod.BKASH;
+          custodyAcc = moinBkashCustody;
+        }
+      } else if (gatewayStr.includes('BKASH')) {
+        method = PaymentMethod.BKASH;
+        custodyAcc = isSamratReceiver ? samratBkashCustody : moinBkashCustody;
       }
 
       // Extract penalty & principal paid

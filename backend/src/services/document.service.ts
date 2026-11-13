@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { Types } from 'mongoose';
 import PDFDocument from 'pdfkit';
 import {
@@ -16,6 +18,65 @@ import {
 } from '../models/index.js';
 import { IUser, UserRole, PaymentStatus } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
+import { getOrganizationLogo } from './settings.service.js';
+
+async function getLogoBuffer(): Promise<Buffer | null> {
+  try {
+    const logoDataUrl = await getOrganizationLogo();
+    if (logoDataUrl && logoDataUrl.startsWith('data:image/')) {
+      const parts = logoDataUrl.split(',');
+      if (parts[1]) {
+        return Buffer.from(parts[1], 'base64');
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  const searchPaths = [
+    path.resolve(__dirname, '../../assets/logo.png'),
+    path.resolve(process.cwd(), 'assets/logo.png'),
+    path.resolve(process.cwd(), '../frontend/public/pwa-192x192.png'),
+    path.resolve(process.cwd(), '../frontend/public/apple-touch-icon.png'),
+    path.resolve(process.cwd(), '../frontend/public/favicon.png'),
+  ];
+  for (const p of searchPaths) {
+    try {
+      if (fs.existsSync(p)) {
+        return fs.readFileSync(p);
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+}
+
+function drawHeaderBanner(
+  doc: PDFKit.PDFDocument,
+  logoBuffer: Buffer | null,
+  bgColor: string,
+  title: string,
+  subtitle: string,
+  meta?: string
+) {
+  doc.rect(40, 40, 515, 65).fill(bgColor);
+  let textX = 55;
+  if (logoBuffer) {
+    try {
+      doc.roundedRect(48, 48, 49, 49, 6).fill('#ffffff');
+      doc.image(logoBuffer, 50, 50, { width: 45, height: 45, fit: [45, 45], align: 'center', valign: 'center' });
+      textX = 108;
+    } catch {
+      textX = 55;
+    }
+  }
+  doc.fontSize(15).fillColor('#ffffff').text(title, textX, 49);
+  doc.fontSize(9.5).fillColor('#cbd5e1').text(subtitle, textX, 68);
+  if (meta) {
+    doc.fontSize(8).fillColor('#94a3b8').text(meta, textX, 83);
+  }
+}
 
 const money = (value: number) => `BDT ${Number(value || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -81,11 +142,15 @@ export class DocumentService {
     }).lean();
     if (!member) throw createError('Member not found.', 404);
 
-    const [shares, ledgers, payments, allocations] = await Promise.all([
+    const [shares, ledgers, payments, allocations, logoBuffer] = await Promise.all([
       ShareHistory.find({ memberId: member._id }).sort({ effectiveMonth: 1 }).lean(),
       MonthlyLedger.find({ memberId: member._id }).sort({ month: 1 }).lean(),
-      Payment.find({ memberId: member._id, status: { $ne: PaymentStatus.CANCELLED } }).sort({ paymentDate: -1 }).lean(),
+      Payment.find({ memberId: member._id, status: { $ne: PaymentStatus.CANCELLED } })
+        .populate('receiverId', 'name email accountantType')
+        .sort({ paymentDate: -1 })
+        .lean(),
       PaymentAllocation.find({ memberId: member._id }).sort({ targetMonth: 1 }).lean(),
+      getLogoBuffer(),
     ]);
 
     const paid = payments.reduce((sum, item) => sum + item.totalAmount, 0);
@@ -101,10 +166,15 @@ export class DocumentService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      // Header Banner
-      doc.rect(40, 40, 515, 60).fill('#0f172a');
-      doc.fontSize(16).fillColor('#ffffff').text('NS FOUNDATION COOPERATIVE SOCIETY', 55, 52);
-      doc.fontSize(10).fillColor('#94a3b8').text('Official Member Financial Statement & Ledger Records', 55, 74);
+      // Header Banner with Logo
+      drawHeaderBanner(
+        doc,
+        logoBuffer,
+        '#0f172a',
+        'NS FOUNDATION COOPERATIVE SOCIETY',
+        'Official Member Financial Statement & Ledger Records',
+        `Member Record: ${member.name} (${member.memberId})`
+      );
 
       // Member Bio Grid
       let y = 115;
@@ -139,14 +209,15 @@ export class DocumentService {
       doc.fontSize(12).fillColor('#0f172a').text('Payment & Contribution History', 40, y);
       y += 18;
 
-      // Table Header
+      // Table Header with Received By Accountant Column
       doc.rect(40, y, 515, 22).fill('#e2e8f0');
-      doc.fontSize(9).fillColor('#1e293b')
-        .text('Date', 48, y + 6)
-        .text('Receipt #', 130, y + 6)
-        .text('Method', 280, y + 6)
-        .text('Amount', 380, y + 6)
-        .text('Status', 480, y + 6);
+      doc.fontSize(8.5).fillColor('#1e293b')
+        .text('Date', 48, y + 6, { width: 55 })
+        .text('Receipt #', 106, y + 6, { width: 95 })
+        .text('Method', 210, y + 6, { width: 45 })
+        .text('Received By', 262, y + 6, { width: 115 })
+        .text('Amount', 385, y + 6, { width: 85 })
+        .text('Status', 480, y + 6, { width: 65 });
       y += 22;
 
       const displayPayments = payments.slice(0, 20);
@@ -155,22 +226,34 @@ export class DocumentService {
         doc.fontSize(9).fillColor('#64748b').text('No payment records recorded yet.', 55, y + 8);
         y += 25;
       } else {
-        displayPayments.forEach((p, idx) => {
+        displayPayments.forEach((p: any, idx: number) => {
           doc.rect(40, y, 515, 20).fill(idx % 2 === 0 ? '#ffffff' : '#f8fafc').stroke('#f1f5f9');
           const pDate = new Date(p.paymentDate).toISOString().slice(0, 10);
+          const accountantName = p.receiverId?.name || (typeof p.receiverId === 'string' ? p.receiverId : 'Accountant');
+          const methodDisplay = p.paymentMethod === 'BANK_TRANSFER' ? 'BANK' : (p.paymentMethod || 'CASH');
           doc.fontSize(8).fillColor('#334155')
-            .text(pDate, 48, y + 5)
-            .text(p.receiptNumber || '-', 130, y + 5)
-            .text(p.paymentMethod || 'CASH', 280, y + 5)
-            .text(money(p.totalAmount), 380, y + 5)
-            .text(p.status || 'PAID', 480, y + 5);
+            .text(pDate, 48, y + 5, { width: 55, lineBreak: false })
+            .text(p.receiptNumber || '-', 106, y + 5, { width: 95, lineBreak: false, ellipsis: true })
+            .text(methodDisplay, 210, y + 5, { width: 45, lineBreak: false })
+            .text(accountantName, 262, y + 5, { width: 115, lineBreak: false, ellipsis: true })
+            .text(money(p.totalAmount), 385, y + 5, { width: 85, lineBreak: false })
+            .text(p.status || 'PAID', 480, y + 5, { width: 65, lineBreak: false });
           y += 20;
         });
       }
 
       // Footer & Certification
-      doc.moveDown();
-      doc.fontSize(8).fillColor('#64748b').text(`Generated from authoritative NS Foundation database records (${allocationsCount} verified allocation records). Pending transferred-share entitlement is intentionally excluded.`, 40, 780);
+      const footerY = Math.max(y + 20, 730);
+      doc.strokeColor('#cbd5e1').lineWidth(0.75).moveTo(40, footerY).lineTo(555, footerY).stroke();
+      doc.fontSize(8).fillColor('#475569')
+        .text('Receiving Accountant / Prepared By: _____________________', 46, footerY + 12)
+        .text('General Secretary / Director: _____________________', 330, footerY + 12);
+
+      doc.fontSize(7.5).fillColor('#94a3b8').text(
+        `Generated from authoritative NS Foundation database records (${allocationsCount} verified allocation records). Certified official member ledger projection.`,
+        40,
+        780
+      );
       doc.end();
     });
   }
@@ -281,7 +364,10 @@ export class DocumentService {
    * Generates Comprehensive Annual Financial Report PDF
    */
   static async annualReport(year: number, user: IUser): Promise<Buffer> {
-    const data = await this.annualReportData(year, user);
+    const [data, logoBuffer] = await Promise.all([
+      this.annualReportData(year, user),
+      getLogoBuffer(),
+    ]);
 
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ margin: 40, size: 'A4' });
@@ -290,11 +376,15 @@ export class DocumentService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      // Top Banner
-      doc.rect(40, 40, 515, 65).fill('#1e1b4b');
-      doc.fontSize(16).fillColor('#ffffff').text('NS FOUNDATION COOPERATIVE SOCIETY', 55, 52);
-      doc.fontSize(11).fillColor('#a5b4fc').text(`ANNUAL FINANCIAL & OPERATIONAL STATEMENT — ${year}`, 55, 73);
-      doc.fontSize(9).fillColor('#cbd5e1').text(`Audit Status: ${data.status} | Total Active Members: ${data.members}`, 55, 88);
+      // Top Banner with Logo
+      drawHeaderBanner(
+        doc,
+        logoBuffer,
+        '#1e1b4b',
+        'NS FOUNDATION COOPERATIVE SOCIETY',
+        `ANNUAL FINANCIAL & OPERATIONAL STATEMENT - ${year}`,
+        `Audit Status: ${data.status} | Total Active Members: ${data.members}`
+      );
 
       // 4 Executive Summary Cards
       let y = 120;
@@ -325,15 +415,15 @@ export class DocumentService {
       y += 22;
 
       const accountLines = [
-        { label: 'Gross Member Collections (মোট সংগৃহীত চাঁদা)', amount: data.collections, positive: true },
-        { label: '  • Principal Member Capital (মূল সঞ্চয় তহবিল)', amount: data.principal, positive: true },
-        { label: '  • Late Penalties Collected (বিলম্ব জরিমানা)', amount: data.penalties, positive: true },
-        { label: '  • Cash-out Charges Collected (ক্যাশ আউট চার্জ)', amount: data.cashoutCharges, positive: true },
-        { label: '  • Member Excess Advances (অগ্রিম চাঁদা)', amount: data.advances, positive: true },
-        { label: 'Portfolio Returns (বিনিয়োগ মূলধন ফেরত)', amount: data.investmentReturns, positive: true },
-        { label: 'Realized Investment Profit (বিনিয়োগ নিট মুনাফা)', amount: data.realizedProfit, positive: true },
-        { label: 'Operating Expenditures (প্রাতিষ্ঠানিক পরিচালন ব্যয়)', amount: data.expenses, positive: false },
-        { label: 'Outstanding Liabilities / Unsettled Dues (বকেয়া দাবি)', amount: data.outstandingDues, positive: false },
+        { label: 'Gross Member Collections', amount: data.collections, positive: true },
+        { label: '  - Principal Member Capital', amount: data.principal, positive: true },
+        { label: '  - Late Penalties Collected', amount: data.penalties, positive: true },
+        { label: '  - Cash-out Charges Collected', amount: data.cashoutCharges, positive: true },
+        { label: '  - Member Excess Advances', amount: data.advances, positive: true },
+        { label: 'Portfolio Returns & Capital Recovery', amount: data.investmentReturns, positive: true },
+        { label: 'Realized Net Investment Profit', amount: data.realizedProfit, positive: true },
+        { label: 'Total Operating Expenditures', amount: data.expenses, positive: false },
+        { label: 'Outstanding Liabilities / Unsettled Dues', amount: data.outstandingDues, positive: false },
       ];
 
       accountLines.forEach((item, idx) => {
@@ -378,7 +468,7 @@ export class DocumentService {
         .text('Director / Chairman Signature: _____________________', 320, y);
 
       doc.fontSize(7.5).fillColor('#94a3b8')
-        .text(`Certified Official Record · Printed on ${new Date().toISOString()} · NS Foundation Cooperative Society`, 40, 790);
+        .text(`Certified Official Record | Printed on ${new Date().toISOString().slice(0, 10)} | NS Foundation Cooperative Society`, 40, 790);
 
       doc.end();
     });
@@ -438,7 +528,10 @@ export class DocumentService {
    * Generates Comprehensive Audit Pack PDF
    */
   static async auditPack(year: number, user: IUser): Promise<Buffer> {
-    const data = await this.auditPackData(year, user);
+    const [data, logoBuffer] = await Promise.all([
+      this.auditPackData(year, user),
+      getLogoBuffer(),
+    ]);
 
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ margin: 40, size: 'A4' });
@@ -447,11 +540,15 @@ export class DocumentService {
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
 
-      // Top Security Banner
-      doc.rect(40, 40, 515, 65).fill('#881337');
-      doc.fontSize(16).fillColor('#ffffff').text('NS FOUNDATION COOPERATIVE SOCIETY', 55, 52);
-      doc.fontSize(11).fillColor('#fecdd3').text(`SUPER ADMIN AUDIT PACK & COMPLIANCE DOSSIER — ${year}`, 55, 73);
-      doc.fontSize(9).fillColor('#ffe4e6').text('Security Classification: STRICTLY CONFIDENTIAL // SUPER_ADMIN ONLY', 55, 88);
+      // Top Security Banner with Logo
+      drawHeaderBanner(
+        doc,
+        logoBuffer,
+        '#881337',
+        'NS FOUNDATION COOPERATIVE SOCIETY',
+        `SUPER ADMIN AUDIT PACK & COMPLIANCE DOSSIER - ${year}`,
+        'Security Classification: STRICTLY CONFIDENTIAL // SUPER_ADMIN ONLY'
+      );
 
       // Audit Metric Cards
       let y = 120;
@@ -510,7 +607,7 @@ export class DocumentService {
         .text('Compliance Verification: PASSED', 380, y);
 
       doc.fontSize(7.5).fillColor('#94a3b8')
-        .text(`Security Hash: ${Buffer.from(`AUDIT-${year}-${data.totalEvents}`).toString('base64')} · Generated: ${new Date().toISOString()}`, 40, 790);
+        .text(`Security Hash: ${Buffer.from(`AUDIT-${year}-${data.totalEvents}`).toString('base64')} | Generated: ${new Date().toISOString().slice(0, 10)}`, 40, 790);
 
       doc.end();
     });

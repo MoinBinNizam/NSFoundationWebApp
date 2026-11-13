@@ -25,6 +25,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
+import { BrandLogo } from '../components/BrandLogo';
 import { ModuleGuide } from '../components/ModuleGuide';
 import { apiRequest, getApiUrl, getAuthToken } from '../services/api';
 import {
@@ -938,9 +939,7 @@ export const DocumentsPage: React.FC = () => {
           <div className="glass-card p-6 border border-violet-500/25 bg-gradient-to-br from-slate-900/90 via-violet-950/20 to-slate-900/90 space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
               <div className="flex items-center gap-3.5">
-                <div className="p-3.5 rounded-2xl bg-violet-500/10 border border-violet-500/30 text-violet-400">
-                  <FileText size={26} />
-                </div>
+                <BrandLogo size="lg" className="rounded-2xl shadow-lg ring-2 ring-violet-500/30 shrink-0" />
                 <div>
                   <h3 className="text-xl font-black text-white flex items-center gap-2">
                     <span>{t('Annual Society Financial Statement') || 'বাৎসরিক আর্থিক ও নিরীক্ষা প্রতিবেদন'}</span>
@@ -1284,9 +1283,7 @@ export const DocumentsPage: React.FC = () => {
           <div className="glass-card p-6 border border-rose-500/30 bg-gradient-to-br from-slate-900/90 via-rose-950/20 to-slate-900/90 space-y-4">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-4">
               <div className="flex items-center gap-3.5">
-                <div className="p-3.5 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400">
-                  <ShieldCheck size={28} />
-                </div>
+                <BrandLogo size="lg" className="rounded-2xl shadow-lg ring-2 ring-rose-500/30 shrink-0" />
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-xl font-black text-white">
