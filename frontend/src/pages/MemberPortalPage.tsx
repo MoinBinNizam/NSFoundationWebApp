@@ -19,7 +19,7 @@ import {
   Paperclip,
   XCircle,
 } from 'lucide-react';
-import { apiRequest, getApiUrl } from '../services/api';
+import { apiRequest, getApiUrl, getAuthToken } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
@@ -359,7 +359,7 @@ export const MemberPortalPage: React.FC = () => {
 
   const handleViewSlip = async (receiptId: string, filename: string, mimeType: string) => {
     try {
-      const token = localStorage.getItem('token') || '';
+      const token = getAuthToken() || '';
       const res = await fetch(getApiUrl(`/member-portal/my-deposits/${receiptId}/slip`), {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -410,8 +410,9 @@ export const MemberPortalPage: React.FC = () => {
   };
 
   const download = async (path: string, name: string) => {
+    const token = getAuthToken() || '';
     const response = await fetch(getApiUrl(`/documents${path}`), {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+      headers: { Authorization: `Bearer ${token}` },
     });
     if (!response.ok) {
       setError('This document is not available to your account.');

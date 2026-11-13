@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { apiRequest, getApiUrl } from '../services/api';
+import { apiRequest, getApiUrl, getAuthToken } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { groupCustodyAccounts } from '../utils/custodyUtils';
@@ -341,7 +341,7 @@ export const DistributionPage: React.FC = () => {
 
   // Export CSV
   const handleExportCsv = (batchId: string, batchNumber: string) => {
-    const token = localStorage.getItem('token') || '';
+    const token = getAuthToken() || '';
     const link = document.createElement('a');
     link.href = `/api/distributions/batches/${batchId}/export`;
     link.setAttribute('download', `ns-foundation-distribution-${batchNumber}.csv`);

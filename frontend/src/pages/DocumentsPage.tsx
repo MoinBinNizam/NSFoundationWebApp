@@ -26,7 +26,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
 import { ModuleGuide } from '../components/ModuleGuide';
-import { apiRequest, getApiUrl } from '../services/api';
+import { apiRequest, getApiUrl, getAuthToken } from '../services/api';
 import {
   downloadMemberReportImage,
   downloadAnnualReportImage,
@@ -294,7 +294,10 @@ export const DocumentsPage: React.FC = () => {
       setIsDownloadingPdf(true);
       setError('');
       setSuccessNotice('');
-      const token = localStorage.getItem('token') || '';
+      const token = getAuthToken() || '';
+      if (!token) {
+        throw new Error(t('Authentication session expired. Please log in again.'));
+      }
       const response = await fetch(getApiUrl(`/documents${path}`), {
         headers: { Authorization: `Bearer ${token}` },
       });

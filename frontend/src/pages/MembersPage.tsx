@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { apiRequest, getApiUrl } from '../services/api';
+import { apiRequest, getApiUrl, getAuthToken } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
@@ -528,7 +528,7 @@ export const MembersPage: React.FC = () => {
         const uploadRes = await fetch(getApiUrl('/governance/exits/upload-receipt'), {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+            Authorization: `Bearer ${getAuthToken() || ''}`,
           },
           body: uploadForm,
         });
@@ -601,7 +601,7 @@ export const MembersPage: React.FC = () => {
       const uploadRes = await fetch(getApiUrl('/governance/exits/upload-receipt'), {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+          Authorization: `Bearer ${getAuthToken() || ''}`,
         },
         body: uploadForm,
       });
@@ -761,7 +761,7 @@ export const MembersPage: React.FC = () => {
         const uploadRes = await fetch(getApiUrl('/governance/exits/upload-receipt'), {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
+            Authorization: `Bearer ${getAuthToken() || ''}`,
           },
           body: uploadForm,
         });
@@ -987,7 +987,7 @@ export const MembersPage: React.FC = () => {
     try {
       const response = await fetch(getApiUrl('/members/import/preview'), {
         method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        headers: { Authorization: `Bearer ${getAuthToken() || ''}` },
         body: form,
       });
       const body = await response.json();
@@ -1856,7 +1856,7 @@ export const MembersPage: React.FC = () => {
                                     onClick={() => {
                                       setPreviewDocError(false);
                                       if (e.receiptUrl) {
-                                        const token = localStorage.getItem('token') || '';
+                                        const token = getAuthToken() || '';
                                         const rawUrl = e.receiptUrl;
                                         const finalUrl = rawUrl.includes('token=') ? rawUrl : `${rawUrl}${rawUrl.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}`;
                                         setPreviewDocUrl(finalUrl);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { apiRequest, getApiUrl } from '../services/api';
+import { apiRequest, getApiUrl, getAuthToken } from '../services/api';
 import { usePreferences } from '../context/PreferencesContext';
 import {
   Upload,
@@ -293,7 +293,7 @@ export const ReceiptOcrManager: React.FC<ReceiptOcrManagerProps> = ({
     setLoadingFile(true);
     setFileBlobUrl(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = getAuthToken();
       const response = await fetch(getApiUrl(`/payments/receipts/${receipt.receiptId}/file`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

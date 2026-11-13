@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { apiRequest } from '../services/api';
+import { apiRequest, getAuthToken } from '../services/api';
 
 interface LogoContextType {
   logo: string | null;
@@ -25,7 +25,7 @@ export const LogoProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         // Move the accountant's previously browser-only upload into the shared record on first load.
         const legacyLogo = localStorage.getItem(LEGACY_LOGO_STORAGE_KEY);
-        if (legacyLogo && localStorage.getItem('token')) {
+        if (legacyLogo && getAuthToken()) {
           try {
             const saved = await apiRequest<{ logo: string | null }>('/settings/organization-logo', {
               method: 'PUT', body: JSON.stringify({ logo: legacyLogo }),
