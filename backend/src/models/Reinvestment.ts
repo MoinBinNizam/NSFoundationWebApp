@@ -6,7 +6,8 @@ const reinvestmentSchema = new Schema<IReinvestment>(
     sourceProjectId: {
       type: Schema.Types.ObjectId,
       ref: 'InvestmentProject',
-      required: [true, 'Source investment project is required'],
+      required: false,
+      default: null,
       index: true,
     },
     destinationProjectId: {

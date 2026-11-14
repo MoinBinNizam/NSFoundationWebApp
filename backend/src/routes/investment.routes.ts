@@ -14,10 +14,23 @@ router.use(authenticate, requireModuleAccess('INVESTMENTS', 'view'), requireInve
 
 // Public / Read routes
 router.get('/stats', InvestmentController.getStats);
+router.get('/organizations', InvestmentController.getOrganizations);
 router.get('/projects', InvestmentController.listProjects);
 router.get('/projects/:id', InvestmentController.getProjectDetails);
 
 // Investment access is restricted to administrators/primary accountant (Moin).
+router.post(
+  '/sync-from-excel',
+  requireModuleAccess('INVESTMENTS', 'edit'),
+  InvestmentController.syncFromExcel
+);
+
+router.post(
+  '/withdrawal-request',
+  requireModuleAccess('INVESTMENTS', 'edit'),
+  InvestmentController.requestWithdrawal
+);
+
 router.post(
   '/projects',
   requireModuleAccess('INVESTMENTS', 'edit'),
@@ -36,6 +49,13 @@ router.post(
   requireModuleAccess('INVESTMENTS', 'edit'),
   financialIdempotency('INVESTMENT_RETURN'),
   InvestmentController.recordReturn
+);
+
+router.post(
+  '/projects/:id/installments',
+  requireModuleAccess('INVESTMENTS', 'edit'),
+  financialIdempotency('INVESTMENT_INSTALLMENT'),
+  InvestmentController.recordInstallment
 );
 
 router.post(

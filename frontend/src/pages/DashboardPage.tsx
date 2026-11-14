@@ -65,6 +65,11 @@ export interface ActiveProjectItem {
   maturityDate: string | null;
   startDate: string | null;
   expectedAnnualRoiPercent: number;
+  status?: string;
+  withdrawalRequestedAmount?: number;
+  totalReturned?: number;
+  remainingDue?: number;
+  installmentCount?: number;
 }
 
 export interface CustodyChannelSummary {
@@ -918,6 +923,16 @@ export const DashboardPage: React.FC = () => {
                                 <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
                                   {project.projectId}
                                 </span>
+                                {project.status === 'WITHDRAWAL_REQUESTED' && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    {t('Full Withdrawal Requested')}: {money(project.withdrawalRequestedAmount || 256490)}
+                                  </span>
+                                )}
+                                {Boolean(project.installmentCount && project.installmentCount > 0) && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                    🍽️ {project.installmentCount} {t('Batches Returned')} ({money(project.totalReturned || 0)})
+                                  </span>
+                                )}
                               </div>
                               <p className="text-[11px] text-gray-400 mt-0.5 truncate">
                                 {t('Partner Entity')}: <span className="text-gray-300 font-medium">{project.partner}</span> · {project.category}
@@ -956,8 +971,11 @@ export const DashboardPage: React.FC = () => {
                             </div>
                           </div>
 
-                          <div className="flex items-center justify-between text-[11px] pt-1 border-t border-white/5 text-gray-400">
+                          <div className="flex items-center justify-between text-[11px] pt-1 border-t border-white/5 text-gray-400 flex-wrap gap-2">
                             <span>{t('Funded')}: <b className="text-white">{money(project.totalFunded)}</b></span>
+                            {project.remainingDue !== undefined && project.remainingDue > 0 && (
+                              <span>{t('Remaining Due')}: <b className="text-amber-300 font-bold">{money(project.remainingDue)}</b></span>
+                            )}
                             <span>{t('Expected ROI')}: <b className="text-cyan-400">{project.expectedAnnualRoiPercent}%</b></span>
                           </div>
                         </div>

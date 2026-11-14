@@ -56,6 +56,27 @@ const investmentProjectSchema = new Schema<IInvestmentProject>(
       default: 0,
       min: [0, 'Total funded cannot be negative'],
     },
+    walletReinvestedAmount: {
+      type: Number,
+      default: 0,
+      min: [0, 'Wallet reinvested amount cannot be negative'],
+    },
+    accountantFundedAmount: {
+      type: Number,
+      default: 0,
+      min: [0, 'Accountant funded amount cannot be negative'],
+    },
+    withdrawalRequestedAmount: {
+      type: Number,
+      min: [0, 'Withdrawal requested amount cannot be negative'],
+    },
+    withdrawalRequestedDate: {
+      type: Date,
+    },
+    withdrawalNotes: {
+      type: String,
+      trim: true,
+    },
     status: {
       type: String,
       enum: Object.values(ProjectStatus),

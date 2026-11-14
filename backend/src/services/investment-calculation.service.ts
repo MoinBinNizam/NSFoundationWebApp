@@ -68,6 +68,7 @@ export function calculateSegmentedProfitFromData(input: {
   startDate: Date | string;
   maturityDate?: Date | string | null;
   expectedAnnualRoiPercent: number;
+  currentStatus?: ProjectStatus;
   returns: Array<{
     maturityDate: Date | string;
     principalReturned: number;
@@ -178,18 +179,24 @@ export function calculateSegmentedProfitFromData(input: {
 
   // Derived financial status
   let derivedStatus = ProjectStatus.ACTIVE;
-  if (originalPrincipal === 0) {
+  if (input.currentStatus === ProjectStatus.WITHDRAWAL_REQUESTED && outstandingPrincipal > 0) {
+    derivedStatus = ProjectStatus.WITHDRAWAL_REQUESTED;
+  } else if (input.currentStatus === ProjectStatus.CLOSED) {
+    derivedStatus = ProjectStatus.CLOSED;
+  } else if (input.currentStatus === ProjectStatus.DEFAULTED) {
+    derivedStatus = ProjectStatus.DEFAULTED;
+  } else if (originalPrincipal === 0) {
     derivedStatus = ProjectStatus.PROPOSED;
   } else if (outstandingPrincipal === 0) {
-    derivedStatus = ProjectStatus.FULLY_SETTLED;
+    derivedStatus = input.currentStatus === ProjectStatus.MATURED ? ProjectStatus.MATURED : ProjectStatus.FULLY_SETTLED;
   } else if (isOverdue) {
     derivedStatus = totalPrincipalReturnedAll > 0
       ? ProjectStatus.OVERDUE_PRINCIPAL
-      : ProjectStatus.DURATION_COMPLETED;
+      : (input.currentStatus === ProjectStatus.MATURED ? ProjectStatus.MATURED : ProjectStatus.DURATION_COMPLETED);
   } else if (totalPrincipalReturnedAll > 0) {
     derivedStatus = ProjectStatus.PRINCIPAL_PARTIALLY_RETURNED;
   } else {
-    derivedStatus = ProjectStatus.ACTIVE;
+    derivedStatus = input.currentStatus || ProjectStatus.ACTIVE;
   }
 
   return {
@@ -235,6 +242,7 @@ export class InvestmentCalculationService {
       startDate: project.startDate,
       maturityDate: project.maturityDate,
       expectedAnnualRoiPercent: roi,
+      currentStatus: project.status,
       returns: returns.map((r) => ({
         maturityDate: r.maturityDate,
         principalReturned: r.principalReturned,

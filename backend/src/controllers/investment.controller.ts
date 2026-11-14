@@ -249,10 +249,10 @@ export class InvestmentController {
         notes,
       } = req.body;
 
-      if (!sourceProjectId || !destinationProjectId || !walletAccountId || !reinvestedAmount) {
+      if (!destinationProjectId || !walletAccountId || !reinvestedAmount) {
         return next(
           createError(
-            'sourceProjectId, destinationProjectId, walletAccountId, and reinvestedAmount are required',
+            'destinationProjectId, walletAccountId, and reinvestedAmount are required',
             400
           )
         );
@@ -308,6 +308,152 @@ export class InvestmentController {
         success: true,
         message: `Project status updated to ${status}`,
         data: project,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/investments/projects/:id/installments
+   * Record random installment return with sender, receiver, custody account deposit
+   */
+  static async recordInstallment(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const {
+        installmentNumber,
+        batchTitle,
+        date,
+        amount,
+        principalReturned,
+        actualProfit,
+        actualLoss,
+        paymentMethod,
+        senderName,
+        receiverId,
+        destinationCustodyAccountId,
+        notes,
+        transactionRef,
+        idempotencyKey,
+      } = req.body;
+
+      if (!amount || Number(amount) <= 0) {
+        return next(createError('Installment amount must be greater than 0', 400));
+      }
+
+      if (!req.user) {
+        return next(createError('Authentication required', 401));
+      }
+
+      const key = (idempotencyKey ||
+        req.headers['idempotency-key'] ||
+        req.headers['x-idempotency-key']) as string | undefined;
+
+      const result = await InvestmentService.recordInstallmentReturn(
+        {
+          projectId: id,
+          installmentNumber: installmentNumber ? Number(installmentNumber) : undefined,
+          batchTitle,
+          date,
+          amount: Number(amount),
+          principalReturned: principalReturned !== undefined ? Number(principalReturned) : undefined,
+          actualProfit: actualProfit !== undefined ? Number(actualProfit) : undefined,
+          actualLoss: actualLoss !== undefined ? Number(actualLoss) : undefined,
+          paymentMethod,
+          senderName,
+          receiverId,
+          destinationCustodyAccountId,
+          notes,
+          transactionRef,
+          idempotencyKey: key,
+        },
+        req.user
+      );
+
+      res.status(200).json({
+        success: true,
+        message: `Successfully recorded ${result.batchTitle} of ৳${result.amount.toLocaleString()}. Remaining due: ৳${result.remainingDueAfter.toLocaleString()}`,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/investments/withdrawal-request
+   * Full or partial withdrawal request for an org or project (e.g. Zayn Farm ৳256,490)
+   */
+  static async requestWithdrawal(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const { projectId, orgName, amount, date, notes } = req.body;
+
+      if (!amount || Number(amount) <= 0) {
+        return next(createError('Withdrawal amount must be greater than 0', 400));
+      }
+
+      if (!projectId && !orgName) {
+        return next(createError('Either projectId or orgName must be provided', 400));
+      }
+
+      if (!req.user) {
+        return next(createError('Authentication required', 401));
+      }
+
+      const result = await InvestmentService.requestWithdrawal(
+        {
+          projectId,
+          orgName,
+          amount: Number(amount),
+          date,
+          notes,
+        },
+        req.user
+      );
+
+      res.status(200).json({
+        success: true,
+        message: `Withdrawal request of ৳${Number(amount).toLocaleString()} recorded successfully`,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * GET /api/investments/organizations
+   * Distinct partner organizations with aggregated metrics
+   */
+  static async getOrganizations(_req: Request, res: Response, next: NextFunction) {
+    try {
+      const organizations = await InvestmentService.getOrganizations();
+      res.status(200).json({
+        success: true,
+        data: organizations,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * POST /api/investments/sync-from-excel
+   * Synchronize all 20 authoritative historical projects, Hungry Birds installments, and Zayn Farm withdrawal
+   */
+  static async syncFromExcel(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) {
+        return next(createError('Authentication required', 401));
+      }
+
+      const dryRun = Boolean(req.body.dryRun);
+      const result = await InvestmentService.syncAuthoritativeInvestments(dryRun, req.user);
+
+      res.status(200).json({
+        success: true,
+        data: result,
       });
     } catch (error) {
       next(error);

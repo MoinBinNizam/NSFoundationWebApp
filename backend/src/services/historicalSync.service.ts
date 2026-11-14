@@ -6,7 +6,6 @@ import {
   CustodyAccount,
   CustodyMovement,
   Expense,
-  InvestmentFunding,
   InvestmentProject,
   InvestmentReturn,
   Member,
@@ -24,10 +23,9 @@ import {
   MovementType,
   PaymentMethod,
   PaymentStatus,
-  ProjectStatus,
-  ReturnDestinationType,
 } from '../types/models.js';
 import { PaymentService } from './payment.service.js';
+import { InvestmentService } from './investment.service.js';
 
 function getDocsPath(subPath: string): string {
   const p1 = path.resolve(process.cwd(), '..', 'docs', subPath);
@@ -111,12 +109,12 @@ export class HistoricalSyncService {
         expectedAmount: 3760,
       },
       investments: {
-        status: projectsList.length >= 11 ? 'SYNCED' : projectsList.length > 0 ? 'PARTIAL' : 'PENDING',
+        status: projectsList.length >= 20 ? 'SYNCED' : projectsList.length > 0 ? 'PARTIAL' : 'PENDING',
         projectsCount: projectsList.length,
         totalFunded,
         totalRealizedProfit,
-        expectedProjects: 11,
-        expectedFunded: 243460,
+        expectedProjects: 20,
+        expectedFunded: 1312363,
       },
       custody: custodyAccounts.map((a) => ({
         id: a._id,
@@ -718,167 +716,10 @@ export class HistoricalSyncService {
 
   /**
    * Action 4: Synchronize Historical Investments & Project Returns
+   * Reads authoritative docs/updated-payments-files/NS Foundation Investments.xlsx
    */
   static async syncInvestments(dryRun = false, actor: any) {
-    const manifestPath = getDocsPath('import-historical-evidence/normalized-manifests/investments-staging/staging-manifest.json');
-    if (!fs.existsSync(manifestPath)) {
-      throw new Error(`Investment manifest not found at ${manifestPath}`);
-    }
-
-    const { moinUser, samratUser, moinBkashCustody, samratNagadCustody } = await this.ensureCoreActorsAndCustody();
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-
-    // Partner Wallets
-    const getOrCreateWallet = async (name: string, entity: string) => {
-      let wallet = await CustodyAccount.findOne({ name });
-      if (!wallet && !dryRun) {
-        wallet = await CustodyAccount.create({
-          name,
-          accountType: AccountType.EXTERNAL_WALLET,
-          channel: CustodyChannel.WALLET,
-          accountNumber: `HIST-WALLET-${entity.toUpperCase().replace(/[^A-Z0-9]/g, '')}`,
-          isActive: true,
-          cachedBalance: 0,
-          notes: `Authoritative historical partner wallet for ${entity}`,
-        });
-      }
-      return wallet;
-    };
-
-    const growUpWallet = await getOrCreateWallet('GrowUp Partner Wallet', 'GrowUp');
-    const zaynWallet = await getOrCreateWallet('Zayn Farm Partner Wallet', 'Zayn Farm');
-    const hungryBirdsWallet = await getOrCreateWallet('Hungry Birds Barisal Partner Wallet', 'Hungry Birds Barisal');
-
-    const walletFor = (entity: string) => {
-      const e = (entity || '').toLowerCase();
-      if (e.includes('zayn')) return zaynWallet;
-      if (e.includes('hungry')) return hungryBirdsWallet;
-      return growUpWallet;
-    };
-
-    let projectsCount = 0;
-    let totalFunded = 0;
-    let totalProfit = 0;
-
-    for (const p of manifest.projects || []) {
-      projectsCount++;
-      totalFunded += p.totalFunded;
-
-      if (!dryRun) {
-        let projectDoc = await InvestmentProject.findOne({ invoiceNo: p.invoiceNo });
-        if (!projectDoc) {
-          projectDoc = await InvestmentProject.create({
-            projectId: p.projectId,
-            name: p.name,
-            invoiceNo: p.invoiceNo,
-            invoiceTo: p.invoiceTo,
-            category: p.category,
-            externalEntity: p.externalEntity,
-            startDate: new Date(p.startDate),
-            maturityDate: new Date(p.maturityDate),
-            targetPrincipal: p.targetPrincipal,
-            totalFunded: p.totalFunded,
-            expectedROI: p.expectedROI,
-            status: p.status === 'MATURED' ? ProjectStatus.MATURED : ProjectStatus.ACTIVE,
-            createdBy: moinUser._id,
-          });
-        }
-
-        // Fundings
-        for (const f of p.fundings || []) {
-          const isSamrat = f.source === 'SAMRAT_CUSTODY';
-          const custodyAcc = isSamrat ? samratNagadCustody : moinBkashCustody;
-          const userActor = isSamrat ? samratUser : moinUser;
-
-          let fDoc = await InvestmentFunding.findOne({ projectId: projectDoc._id, amount: f.amount });
-          if (!fDoc) {
-            fDoc = await InvestmentFunding.create({
-              projectId: projectDoc._id,
-              custodyAccountId: custodyAcc._id,
-              amount: f.amount,
-              fundedBy: userActor._id,
-              notes: f.notes,
-            });
-          }
-
-          let mov = await CustodyMovement.findOne({ sourceRefId: projectDoc._id, amount: f.amount, movementType: MovementType.OUT });
-          if (!mov) {
-            await CustodyMovement.create({
-              custodyAccountId: custodyAcc._id,
-              movementType: MovementType.OUT,
-              amount: f.amount,
-              sourceType: MovementSourceType.INVESTMENT_FUNDING,
-              sourceRefId: projectDoc._id,
-              sourceRefType: 'InvestmentProject',
-              date: new Date(p.startDate),
-              performedBy: userActor._id,
-              description: `Capital disbursement for ${p.name} (${p.invoiceNo}) paid by ${isSamrat ? 'Samrat' : 'Moin'}`,
-            });
-          }
-        }
-
-        // Returns
-        for (const r of p.returns || []) {
-          totalProfit += r.actualProfit;
-          const targetWallet = walletFor(p.externalEntity);
-
-          let rDoc = await InvestmentReturn.findOne({ projectId: projectDoc._id });
-          if (!rDoc) {
-            rDoc = await InvestmentReturn.create({
-              projectId: projectDoc._id,
-              maturityDate: new Date(r.maturityDate),
-              principalReturned: r.principalReturned,
-              actualProfit: r.actualProfit,
-              actualLoss: r.actualLoss,
-              totalReturn: r.totalReturn,
-              destinationType: ReturnDestinationType.EXTERNAL_WALLET,
-              destinationAccountId: targetWallet?._id,
-              recordedBy: moinUser._id,
-              notes: r.notes,
-            });
-          }
-
-          if (targetWallet) {
-            let inMov = await CustodyMovement.findOne({ sourceRefId: rDoc._id, movementType: MovementType.IN });
-            if (!inMov) {
-              await CustodyMovement.create({
-                custodyAccountId: targetWallet._id,
-                movementType: MovementType.IN,
-                amount: r.totalReturn,
-                sourceType: MovementSourceType.INVESTMENT_RETURN,
-                sourceRefId: rDoc._id,
-                sourceRefType: 'InvestmentReturn',
-                date: new Date(r.maturityDate),
-                performedBy: moinUser._id,
-                description: `Matured return inflow for ${p.name} into ${targetWallet.name}`,
-              });
-            }
-          }
-        }
-      }
-    }
-
-    if (!dryRun) {
-      await this.rebalanceAllCustody();
-      await AuditLog.create({
-        performedBy: actor._id,
-        action: 'SYNC_HISTORICAL_INVESTMENTS',
-        entityName: 'HistoricalMigration',
-        reason: 'Synchronized 11 historical investment projects, fundings, and partner wallet returns.',
-        afterState: { projectsCount, totalFunded, totalProfit },
-      });
-    }
-
-    return {
-      dryRun,
-      projectsCount,
-      totalFunded,
-      totalProfit,
-      status: 'SUCCESS',
-      message: dryRun
-        ? `Preview: Found ${projectsCount} historical projects (৳${totalFunded.toLocaleString()} capital funded, ৳${totalProfit.toLocaleString()} profit). Ready to sync.`
-        : `Successfully synchronized ${projectsCount} investment projects and associated partner wallet returns.`,
-    };
+    return InvestmentService.syncAuthoritativeInvestments(dryRun, actor);
   }
 }
 

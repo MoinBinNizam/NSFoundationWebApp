@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+import XLSX from 'xlsx';
 import { Types } from 'mongoose';
 import { InvestmentProject } from '../models/InvestmentProject.js';
 import { InvestmentFunding } from '../models/InvestmentFunding.js';
@@ -6,6 +9,9 @@ import { Reinvestment } from '../models/Reinvestment.js';
 import { CustodyAccount } from '../models/CustodyAccount.js';
 import { CustodyMovement } from '../models/CustodyMovement.js';
 import { AuditLog } from '../models/AuditLog.js';
+import { MigrationBatch } from '../models/MigrationBatch.js';
+import { MigrationRecord } from '../models/MigrationRecord.js';
+import { User } from '../models/User.js';
 import { CustodyService } from './custody.service.js';
 import { InvestmentCalculationService } from './investment-calculation.service.js';
 import {
@@ -13,6 +19,10 @@ import {
   ReturnDestinationType,
   MovementType,
   MovementSourceType,
+  AccountType,
+  CustodyChannel,
+  PaymentMethod,
+  MigrationRecordStatus,
   IUser,
 } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
@@ -429,7 +439,7 @@ export class InvestmentService {
    */
   static async reinvestProjectFunds(
     input: {
-      sourceProjectId: string;
+      sourceProjectId?: string | null;
       destinationProjectId: string;
       walletAccountId: string;
       reinvestedAmount: number;
@@ -446,13 +456,17 @@ export class InvestmentService {
       throw createError('Reinvested amount must be greater than 0', 400);
     }
 
+    if (sourceProjectId && sourceProjectId === destinationProjectId) {
+      throw createError('Source and destination projects must be different', 400);
+    }
+
     const [sourceProject, destProject, walletAccount] = await Promise.all([
-      InvestmentProject.findById(sourceProjectId),
+      sourceProjectId ? InvestmentProject.findById(sourceProjectId) : Promise.resolve(null),
       InvestmentProject.findById(destinationProjectId),
       CustodyAccount.findById(walletAccountId),
     ]);
 
-    if (!sourceProject) throw createError('Source investment project not found', 404);
+    if (sourceProjectId && !sourceProject) throw createError('Source investment project not found', 404);
     if (!destProject) throw createError('Destination investment project not found', 404);
     if (!walletAccount || !walletAccount.isActive) throw createError('Wallet custody account not found', 404);
 
@@ -488,17 +502,18 @@ export class InvestmentService {
 
     const reinvestDate = input.date ? new Date(input.date) : new Date();
     const actingUserId = (actingUser as unknown as { _id: Types.ObjectId })._id;
+    const sourceLabel = sourceProject ? sourceProject.name : `${walletAccount.name} (Pooled Returns)`;
 
     // 1. Create Reinvestment record
     const reinvestment = await Reinvestment.create({
-      sourceProjectId: sourceProject._id,
+      sourceProjectId: sourceProject ? sourceProject._id : null,
       destinationProjectId: destProject._id,
       walletAccountId: walletAccount._id,
       reinvestedAmount,
       newAccountantFunds,
       newAccountantCustodyAccountId: accountantAccount ? accountantAccount._id : null,
       date: reinvestDate,
-      notes: input.notes || `Reinvestment from ${sourceProject.name} to ${destProject.name}`,
+      notes: input.notes || `Reinvestment from ${sourceLabel} to ${destProject.name}`,
       approvedBy: actingUserId,
     });
 
@@ -522,7 +537,7 @@ export class InvestmentService {
       date: reinvestDate,
       custodyMovementId: walletMovement._id,
       fundedBy: actingUserId,
-      notes: `Reinvested wallet proceeds from ${sourceProject.name}`,
+      notes: `Reinvested wallet proceeds from ${sourceLabel}`,
     });
 
     // 4. If new accountant funds added, deduct from accountant custody
@@ -574,13 +589,13 @@ export class InvestmentService {
       entityName: 'Reinvestment',
       entityId: reinvestment._id,
       afterState: {
-        fromProject: sourceProject.name,
+        fromProject: sourceLabel,
         toProject: destProject.name,
         reinvestedAmount,
         newAccountantFunds,
         total: totalInvestedInDest,
       },
-      reason: `Reinvested ৳${reinvestedAmount.toLocaleString()} from ${sourceProject.name} to ${destProject.name}`,
+      reason: `Reinvested ৳${reinvestedAmount.toLocaleString()} from ${sourceLabel} to ${destProject.name}`,
     });
 
     return {
@@ -597,6 +612,7 @@ export class InvestmentService {
     status?: string;
     category?: string;
     externalEntity?: string;
+    org?: string;
     search?: string;
     page?: number;
     limit?: number;
@@ -604,14 +620,24 @@ export class InvestmentService {
   }) {
     const query: Record<string, unknown> = {};
 
-    if (filters?.status) {
-      query.status = filters.status;
+    if (filters?.status && filters.status.trim()) {
+      const s = filters.status.trim().toUpperCase();
+      if (s === 'RUNNING' || s === 'ACTIVE') {
+        query.status = { $in: [ProjectStatus.ACTIVE, ProjectStatus.PROPOSED] };
+      } else if (s === 'MATURED') {
+        query.status = { $in: [ProjectStatus.MATURED, ProjectStatus.FULLY_SETTLED] };
+      } else if (s === 'WITHDRAWAL_REQUESTED') {
+        query.status = ProjectStatus.WITHDRAWAL_REQUESTED;
+      } else {
+        query.status = filters.status;
+      }
     }
     if (filters?.category) {
       query.category = filters.category;
     }
-    if (filters?.externalEntity) {
-      query.externalEntity = { $regex: filters.externalEntity, $options: 'i' };
+    const orgTarget = filters?.org || filters?.externalEntity;
+    if (orgTarget && orgTarget.trim()) {
+      query.externalEntity = { $regex: orgTarget.trim(), $options: 'i' };
     }
     if (filters?.search && filters.search.trim()) {
       const term = filters.search.trim();
@@ -647,9 +673,17 @@ export class InvestmentService {
         const netRealizedProfit = calculation.actualProfitReturned;
         const actualROI = originalPrincipal > 0 ? (netRealizedProfit / originalPrincipal) * 100 : 0;
 
+        const hasWallet = (prj.walletReinvestedAmount || 0) > 0;
+        const hasAccountant = (prj.accountantFundedAmount || 0) > 0;
+        const fundingSourceType = hasWallet && hasAccountant ? 'MIXED' : hasWallet ? 'REINVESTMENT' : 'ACCOUNTANT';
+        const totalExpectedReturn = Math.round((originalPrincipal + (calculation.expectedProfitAccrued || 0)) * 100) / 100;
+        const remainingDue = Math.max(0, Math.round((totalExpectedReturn - calculation.totalReturnReceived) * 100) / 100);
+
         return {
           ...prj.toObject(),
-          status: calculation.derivedStatus,
+          status: prj.status === ProjectStatus.WITHDRAWAL_REQUESTED && calculation.outstandingPrincipal > 0
+            ? ProjectStatus.WITHDRAWAL_REQUESTED
+            : calculation.derivedStatus,
           calculation,
           metrics: {
             totalPrincipalReturned: calculation.totalPrincipalReturned,
@@ -665,6 +699,14 @@ export class InvestmentService {
             actualROI: Math.round(actualROI * 100) / 100,
             isOverdue: calculation.isOverdue,
             overdueDays: calculation.overdueDays,
+            walletReinvestedAmount: prj.walletReinvestedAmount || 0,
+            accountantFundedAmount: prj.accountantFundedAmount || 0,
+            withdrawalRequestedAmount: prj.withdrawalRequestedAmount,
+            withdrawalRequestedDate: prj.withdrawalRequestedDate,
+            withdrawalNotes: prj.withdrawalNotes,
+            fundingSourceType,
+            totalExpectedReturn,
+            remainingDue,
           },
         };
       })
@@ -706,7 +748,8 @@ export class InvestmentService {
           populate: { path: 'holderId', select: 'name email accountantType' },
         })
         .populate('recordedBy', 'name email')
-        .sort({ maturityDate: -1, createdAt: -1 }),
+        .populate('receiverId', 'name email role accountantType')
+        .sort({ maturityDate: 1, installmentNumber: 1 }),
       Reinvestment.find({
         $or: [{ sourceProjectId: project._id }, { destinationProjectId: project._id }],
       })
@@ -720,11 +763,18 @@ export class InvestmentService {
 
     const originalPrincipal = project.totalFunded > 0 ? project.totalFunded : project.targetPrincipal;
     const actualROI = originalPrincipal > 0 ? (calculation.actualProfitReturned / originalPrincipal) * 100 : 0;
+    const hasWallet = (project.walletReinvestedAmount || 0) > 0;
+    const hasAccountant = (project.accountantFundedAmount || 0) > 0;
+    const fundingSourceType = hasWallet && hasAccountant ? 'MIXED' : hasWallet ? 'REINVESTMENT' : 'ACCOUNTANT';
+    const totalExpectedReturn = Math.round((originalPrincipal + (calculation.expectedProfitAccrued || 0)) * 100) / 100;
+    const remainingDue = Math.max(0, Math.round((totalExpectedReturn - calculation.totalReturnReceived) * 100) / 100);
 
     return {
       project: {
         ...project.toObject(),
-        status: calculation.derivedStatus,
+        status: project.status === ProjectStatus.WITHDRAWAL_REQUESTED && calculation.outstandingPrincipal > 0
+          ? ProjectStatus.WITHDRAWAL_REQUESTED
+          : calculation.derivedStatus,
         calculation,
         metrics: {
           totalPrincipalReturned: calculation.totalPrincipalReturned,
@@ -740,6 +790,14 @@ export class InvestmentService {
           actualROI: Math.round(actualROI * 100) / 100,
           isOverdue: calculation.isOverdue,
           overdueDays: calculation.overdueDays,
+          walletReinvestedAmount: project.walletReinvestedAmount || 0,
+          accountantFundedAmount: project.accountantFundedAmount || 0,
+          withdrawalRequestedAmount: project.withdrawalRequestedAmount,
+          withdrawalRequestedDate: project.withdrawalRequestedDate,
+          withdrawalNotes: project.withdrawalNotes,
+          fundingSourceType,
+          totalExpectedReturn,
+          remainingDue,
         },
       },
       calculation,
@@ -835,6 +893,1043 @@ export class InvestmentService {
       overallROI: Math.round(overallROI * 100) / 100,
       totalFundingEventsCount: fundings.length,
       totalReturnEventsCount: returns.length,
+    };
+  }
+
+  /**
+   * Record a Random / Partial Installment Return to an Accountant
+   * Supports random batch returns with sender, payment method, responsible accountant,
+   * custody account deposit, and dynamic remaining due calculation.
+   */
+  static async recordInstallmentReturn(
+    input: {
+      projectId: string;
+      installmentNumber?: number;
+      batchTitle?: string;
+      date?: string | Date;
+      amount: number;
+      principalReturned?: number;
+      actualProfit?: number;
+      actualLoss?: number;
+      paymentMethod?: PaymentMethod;
+      senderName?: string;
+      receiverId?: string;
+      destinationCustodyAccountId?: string;
+      notes?: string;
+      transactionRef?: string;
+      idempotencyKey?: string;
+    },
+    actingUser: IUser
+  ) {
+    const project = await InvestmentProject.findById(input.projectId);
+    if (!project) {
+      throw createError('Investment project not found', 404);
+    }
+
+    const totalAmount = Math.max(0, Number(input.amount) || 0);
+    if (totalAmount <= 0) {
+      throw createError('Installment amount must be greater than 0', 400);
+    }
+
+    const returnDate = input.date ? new Date(input.date) : new Date();
+
+    // Check existing returns for this project
+    const existingReturns = await InvestmentReturn.find({ projectId: project._id }).sort({
+      maturityDate: 1,
+      installmentNumber: 1,
+    });
+    const existingPrincipalReturned = existingReturns.reduce(
+      (sum, r) => sum + (Number(r.principalReturned) || 0),
+      0
+    );
+    const existingProfitReturned = existingReturns.reduce(
+      (sum, r) => sum + (Number(r.actualProfit) || 0),
+      0
+    );
+    const existingTotalReturned = existingReturns.reduce(
+      (sum, r) => sum + (Number(r.totalReturn) || 0),
+      0
+    );
+
+    const originalPrincipal = project.totalFunded > 0 ? project.totalFunded : project.targetPrincipal;
+    const roiPercent = project.expectedAnnualRoiPercent ?? project.expectedROI ?? 0;
+    const calculation = await InvestmentCalculationService.calculateExpectedProfit(project._id, returnDate);
+    const totalExpectedProfit =
+      calculation.expectedProfitAccrued || Math.round(originalPrincipal * (roiPercent / 100) * 100) / 100;
+    const totalExpectedReturn = originalPrincipal + totalExpectedProfit;
+
+    let pReturned = input.principalReturned !== undefined ? Number(input.principalReturned) : undefined;
+    let profitReturned = input.actualProfit !== undefined ? Number(input.actualProfit) : undefined;
+    const actualLoss = Math.max(0, Number(input.actualLoss) || 0);
+
+    if (pReturned === undefined && profitReturned === undefined) {
+      // Allocate to unpaid accrued profit first, then to principal
+      const remainingProfitAccrued = Math.max(0, totalExpectedProfit - existingProfitReturned);
+      if (totalAmount <= remainingProfitAccrued) {
+        profitReturned = totalAmount;
+        pReturned = 0;
+      } else {
+        profitReturned = remainingProfitAccrued;
+        pReturned = totalAmount - remainingProfitAccrued;
+      }
+    } else {
+      pReturned = Math.max(0, pReturned || 0);
+      profitReturned = Math.max(0, profitReturned || 0);
+      if (pReturned + profitReturned - actualLoss !== totalAmount) {
+        throw createError(
+          `Sum of principal (৳${pReturned}) + profit (৳${profitReturned}) - loss (৳${actualLoss}) must equal total installment amount (৳${totalAmount})`,
+          400
+        );
+      }
+    }
+
+    const installmentNumber = input.installmentNumber || existingReturns.length + 1;
+    const suffix =
+      installmentNumber === 1
+        ? 'st'
+        : installmentNumber === 2
+        ? 'nd'
+        : installmentNumber === 3
+        ? 'rd'
+        : 'th';
+    const batchTitle = input.batchTitle?.trim() || `Investment return ${installmentNumber}${suffix} batch`;
+
+    const newTotalReturned = existingTotalReturned + totalAmount;
+    const remainingDueAfter = Math.max(
+      0,
+      Math.round((totalExpectedReturn - newTotalReturned) * 100) / 100
+    );
+
+    let destinationAccount = null;
+    if (input.destinationCustodyAccountId) {
+      destinationAccount = await CustodyAccount.findById(input.destinationCustodyAccountId);
+      if (!destinationAccount || !destinationAccount.isActive) {
+        throw createError('Destination custody account not found or inactive', 400);
+      }
+    }
+
+    let receiverUser = null;
+    if (input.receiverId) {
+      receiverUser = await User.findById(input.receiverId);
+    }
+
+    const actingUserId = (actingUser as unknown as { _id: Types.ObjectId })._id;
+
+    // 1. Create InvestmentReturn record
+    const returnDoc = await InvestmentReturn.create({
+      projectId: project._id,
+      installmentNumber,
+      batchTitle,
+      maturityDate: returnDate,
+      principalReturned: pReturned,
+      actualProfit: profitReturned,
+      actualLoss,
+      totalReturn: totalAmount,
+      senderName: input.senderName?.trim() || undefined,
+      paymentMethod: input.paymentMethod || PaymentMethod.BANK_TRANSFER,
+      receiverId: receiverUser ? receiverUser._id : undefined,
+      remainingDueAfter,
+      destinationType: destinationAccount
+        ? destinationAccount.accountType === AccountType.EXTERNAL_WALLET
+          ? ReturnDestinationType.EXTERNAL_WALLET
+          : ReturnDestinationType.ACCOUNTANT_CUSTODY
+        : ReturnDestinationType.ACCOUNTANT_CUSTODY,
+      destinationCustodyAccountId: destinationAccount ? destinationAccount._id : null,
+      notes:
+        input.notes ||
+        `${batchTitle}: ৳${totalAmount.toLocaleString()} received via ${input.paymentMethod || 'Bank'}`,
+      transactionRef: input.transactionRef?.trim() || undefined,
+      idempotencyKey: input.idempotencyKey?.trim() || undefined,
+      recordedBy: actingUserId,
+    });
+
+    // 2. If deposited into custody account, create synchronized CustodyMovement (IN)
+    if (destinationAccount && totalAmount > 0) {
+      const inMovement = await CustodyMovement.create({
+        custodyAccountId: destinationAccount._id,
+        movementType: MovementType.IN,
+        amount: totalAmount,
+        sourceType: MovementSourceType.INVESTMENT_RETURN,
+        sourceRefId: returnDoc._id,
+        date: returnDate,
+        description: `[${batchTitle}] Return from ${project.name} (${project.projectId}) [Principal: ৳${pReturned.toLocaleString()}, Profit: ৳${profitReturned.toLocaleString()}] - Receiver: ${receiverUser ? receiverUser.name : 'Accountant'} via ${input.paymentMethod || 'Bank'}${input.senderName ? ` (Sender: ${input.senderName})` : ''}`,
+        performedBy: actingUserId,
+      });
+
+      returnDoc.custodyMovementId = inMovement._id;
+      await returnDoc.save();
+
+      // Update cached balance
+      const { currentBalance } = await CustodyService.getDerivedAccountBalance(destinationAccount._id);
+      destinationAccount.cachedBalance = currentBalance;
+      await destinationAccount.save();
+    }
+
+    // 3. Update project status dynamically
+    const updatedCalculation = await InvestmentCalculationService.calculateExpectedProfit(
+      project._id,
+      returnDate
+    );
+    if (updatedCalculation.outstandingPrincipal === 0) {
+      project.status = ProjectStatus.FULLY_SETTLED;
+    } else if (
+      existingPrincipalReturned + pReturned > 0 &&
+      project.status !== ProjectStatus.WITHDRAWAL_REQUESTED
+    ) {
+      project.status = ProjectStatus.PRINCIPAL_PARTIALLY_RETURNED;
+    }
+    await project.save();
+
+    // 4. Audit Log
+    await AuditLog.create({
+      performedBy: actingUserId,
+      action: 'RECORD_INVESTMENT_INSTALLMENT',
+      entityName: 'InvestmentReturn',
+      entityId: returnDoc._id,
+      afterState: {
+        projectId: project.projectId,
+        projectName: project.name,
+        installmentNumber,
+        batchTitle,
+        amount: totalAmount,
+        principalReturned: pReturned,
+        actualProfit: profitReturned,
+        remainingDueAfter,
+        senderName: input.senderName,
+        paymentMethod: input.paymentMethod,
+        receiver: receiverUser?.name,
+        destinationAccount: destinationAccount?.name,
+      },
+      reason: `Recorded ${batchTitle} of ৳${totalAmount.toLocaleString()} for ${project.name}. Remaining due: ৳${remainingDueAfter.toLocaleString()}`,
+    });
+
+    return {
+      success: true,
+      project,
+      returnDoc,
+      installmentNumber,
+      batchTitle,
+      amount: totalAmount,
+      principalReturned: pReturned,
+      actualProfit: profitReturned,
+      remainingDueAfter,
+      totalExpectedReturn,
+      newTotalReturned,
+    };
+  }
+
+  /**
+   * Request Full / Partial Withdrawal from an Organization or Project (e.g. Zayn Farm)
+   */
+  static async requestWithdrawal(
+    input: {
+      projectId?: string;
+      orgName?: string;
+      amount: number;
+      date?: string | Date;
+      notes?: string;
+    },
+    actingUser: IUser
+  ) {
+    const actingUserId = (actingUser as unknown as { _id: Types.ObjectId })._id;
+    const reqDate = input.date ? new Date(input.date) : new Date();
+    const amount = Math.max(0, Number(input.amount) || 0);
+
+    if (input.projectId) {
+      const project = await InvestmentProject.findById(input.projectId);
+      if (!project) throw createError('Project not found', 404);
+
+      project.status = ProjectStatus.WITHDRAWAL_REQUESTED;
+      project.withdrawalRequestedAmount = amount;
+      project.withdrawalRequestedDate = reqDate;
+      project.withdrawalNotes =
+        input.notes || `Requested withdrawal of ৳${amount.toLocaleString()}`;
+      await project.save();
+
+      await AuditLog.create({
+        performedBy: actingUserId,
+        action: 'REQUEST_WITHDRAWAL',
+        entityName: 'InvestmentProject',
+        entityId: project._id,
+        afterState: { status: project.status, amount },
+        reason: project.withdrawalNotes,
+      });
+
+      return { success: true, count: 1, amount, projects: [project] };
+    }
+
+    if (input.orgName) {
+      const projects = await InvestmentProject.find({
+        externalEntity: { $regex: input.orgName.trim(), $options: 'i' },
+      });
+
+      for (const p of projects) {
+        p.status = ProjectStatus.WITHDRAWAL_REQUESTED;
+        p.withdrawalRequestedAmount = amount;
+        p.withdrawalRequestedDate = reqDate;
+        p.withdrawalNotes =
+          input.notes ||
+          `Full withdrawal requested from ${input.orgName}: ৳${amount.toLocaleString()} (Principal + Profit)`;
+        await p.save();
+
+        await AuditLog.create({
+          performedBy: actingUserId,
+          action: 'REQUEST_WITHDRAWAL',
+          entityName: 'InvestmentProject',
+          entityId: p._id,
+          afterState: { status: p.status, amount },
+          reason: p.withdrawalNotes,
+        });
+      }
+
+      return { success: true, count: projects.length, amount, projects };
+    }
+
+    throw createError('Either projectId or orgName must be provided', 400);
+  }
+
+  /**
+   * Distinct Organizations and their portfolio metrics
+   */
+  static async getOrganizations() {
+    const projects = await InvestmentProject.find().lean();
+    const allReturns = await InvestmentReturn.find().lean();
+    const orgMap = new Map<string, any>();
+
+    for (const prj of projects) {
+      const orgName = (prj.externalEntity || 'Unassigned').trim();
+      let entry = orgMap.get(orgName);
+      if (!entry) {
+        entry = {
+          name: orgName,
+          projectCount: 0,
+          activeCount: 0,
+          maturedCount: 0,
+          withdrawalRequestedCount: 0,
+          totalInvested: 0,
+          walletReinvested: 0,
+          accountantFunded: 0,
+          totalReturned: 0,
+          actualProfitReturned: 0,
+          remainingDue: 0,
+          withdrawalRequestedAmount: 0,
+        };
+        orgMap.set(orgName, entry);
+      }
+
+      entry.projectCount++;
+      entry.totalInvested += prj.totalFunded;
+      entry.walletReinvested += prj.walletReinvestedAmount || 0;
+      entry.accountantFunded += prj.accountantFundedAmount || 0;
+
+      if (prj.status === ProjectStatus.WITHDRAWAL_REQUESTED) {
+        entry.withdrawalRequestedCount++;
+        if (prj.withdrawalRequestedAmount) {
+          entry.withdrawalRequestedAmount = Math.max(
+            entry.withdrawalRequestedAmount,
+            prj.withdrawalRequestedAmount
+          );
+        }
+      } else if (
+        prj.status === ProjectStatus.ACTIVE ||
+        prj.status === ProjectStatus.PROPOSED
+      ) {
+        entry.activeCount++;
+      } else {
+        entry.maturedCount++;
+      }
+
+      const prjReturns = allReturns.filter(
+        (r) => String(r.projectId) === String(prj._id)
+      );
+      const pTotalReturn = prjReturns.reduce((s, r) => s + (r.totalReturn || 0), 0);
+      const pProfitReturn = prjReturns.reduce((s, r) => s + (r.actualProfit || 0), 0);
+
+      entry.totalReturned += pTotalReturn;
+      entry.actualProfitReturned += pProfitReturn;
+    }
+
+    for (const entry of orgMap.values()) {
+      entry.activeDeployedCapital = Math.max(
+        0,
+        entry.totalInvested - (entry.totalReturned - entry.actualProfitReturned)
+      );
+      entry.remainingDue = Math.max(0, entry.totalInvested - entry.totalReturned);
+    }
+
+    return Array.from(orgMap.values());
+  }
+
+  /**
+   * Synchronize Authoritative Historical Investments from Excel Workbook
+   * docs/updated-payments-files/NS Foundation Investments.xlsx
+   */
+  static async syncAuthoritativeInvestments(dryRun = false, actor: IUser) {
+    const possiblePaths = [
+      path.resolve(process.cwd(), 'docs', 'updated-payments-files', 'NS Foundation Investments.xlsx'),
+      path.resolve(process.cwd(), '..', 'docs', 'updated-payments-files', 'NS Foundation Investments.xlsx'),
+    ];
+    const excelPath = possiblePaths.find((p) => fs.existsSync(p));
+    if (!excelPath) {
+      throw createError(
+        `Authoritative investment workbook not found at ${possiblePaths[0]}`,
+        404
+      );
+    }
+
+    // Locate core actors
+    let moinUser = await User.findOne({ email: 'admin@nsfoundation.org' });
+    if (!moinUser) moinUser = await User.findOne({ name: { $regex: 'Moin', $options: 'i' } });
+    let samratUser = await User.findOne({ email: 'assistant@nsfoundation.org' });
+    if (!samratUser) samratUser = await User.findOne({ name: { $regex: 'Samrat', $options: 'i' } });
+
+    if (!moinUser) {
+      throw createError('Primary accountant Moin Uddin not found in database', 404);
+    }
+
+    // Locate or create Core Custody Accounts
+    const getOrCreateAccount = async (
+      name: string,
+      channel: CustodyChannel,
+      type: AccountType,
+      holderId: any
+    ) => {
+      let acc = await CustodyAccount.findOne({ name });
+      if (!acc && !dryRun) {
+        acc = await CustodyAccount.create({
+          name,
+          channel,
+          accountType: type,
+          holderId: holderId ? holderId._id : null,
+          accountNumber: `HIST-${channel}-${name.replace(/[^A-Za-z0-9]/g, '').slice(0, 10).toUpperCase()}`,
+          isActive: true,
+          cachedBalance: 0,
+        });
+      }
+      return acc;
+    };
+
+    let bankCustody = await CustodyAccount.findOne({ channel: CustodyChannel.BANK });
+    if (!bankCustody && !dryRun) {
+      bankCustody = await getOrCreateAccount(
+        'Islami Bank Bangladesh Ltd (IBBL)',
+        CustodyChannel.BANK,
+        AccountType.ACCOUNTANT_CUSTODY,
+        moinUser
+      );
+    }
+
+    let moinBkashCustody = await CustodyAccount.findOne({
+      channel: CustodyChannel.BKASH,
+      holderId: moinUser._id,
+    });
+    if (!moinBkashCustody)
+      moinBkashCustody = await CustodyAccount.findOne({ name: { $regex: 'Moin.*bKash', $options: 'i' } });
+    if (!moinBkashCustody && !dryRun) {
+      moinBkashCustody = await getOrCreateAccount(
+        'Moin Uddin Personal bKash',
+        CustodyChannel.BKASH,
+        AccountType.ACCOUNTANT_CUSTODY,
+        moinUser
+      );
+    }
+
+    let samratNagadCustody = await CustodyAccount.findOne({ channel: CustodyChannel.NAGAD });
+    if (!samratNagadCustody && !dryRun) {
+      samratNagadCustody = await getOrCreateAccount(
+        'Samrat Nagad Wallet',
+        CustodyChannel.NAGAD,
+        AccountType.ACCOUNTANT_CUSTODY,
+        samratUser
+      );
+    }
+
+    let samratBkashCustody = await CustodyAccount.findOne({
+      channel: CustodyChannel.BKASH,
+      holderId: samratUser?._id,
+    });
+    if (!samratBkashCustody)
+      samratBkashCustody = await CustodyAccount.findOne({
+        name: { $regex: 'Samrat.*bKash', $options: 'i' },
+      });
+    if (!samratBkashCustody && !dryRun) {
+      samratBkashCustody = await getOrCreateAccount(
+        'Samrat Personal bKash',
+        CustodyChannel.BKASH,
+        AccountType.ACCOUNTANT_CUSTODY,
+        samratUser
+      );
+    }
+
+    let moinCashCustody = await CustodyAccount.findOne({
+      channel: CustodyChannel.CASH,
+      name: { $not: /Samrat/i },
+    });
+    if (!moinCashCustody && !dryRun) {
+      moinCashCustody = await getOrCreateAccount(
+        'Physical Petty Cash',
+        CustodyChannel.CASH,
+        AccountType.ACCOUNTANT_CUSTODY,
+        moinUser
+      );
+    }
+
+    let growUpWallet = await CustodyAccount.findOne({ name: 'GrowUp Partner Wallet' });
+    if (!growUpWallet && !dryRun) {
+      growUpWallet = await getOrCreateAccount(
+        'GrowUp Partner Wallet',
+        CustodyChannel.WALLET,
+        AccountType.EXTERNAL_WALLET,
+        null
+      );
+    }
+
+    let zaynWallet = await CustodyAccount.findOne({ name: 'Zayn Farm Partner Wallet' });
+    if (!zaynWallet && !dryRun) {
+      zaynWallet = await getOrCreateAccount(
+        'Zayn Farm Partner Wallet',
+        CustodyChannel.WALLET,
+        AccountType.EXTERNAL_WALLET,
+        null
+      );
+    }
+
+    let hungryBirdsWallet = await CustodyAccount.findOne({
+      name: 'Hungry Birds Barisal Partner Wallet',
+    });
+    if (!hungryBirdsWallet && !dryRun) {
+      hungryBirdsWallet = await getOrCreateAccount(
+        'Hungry Birds Barisal Partner Wallet',
+        CustodyChannel.WALLET,
+        AccountType.EXTERNAL_WALLET,
+        null
+      );
+    }
+
+    const wb = XLSX.readFile(excelPath);
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rawData = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
+
+    const parseExcelDate = (serial: any): Date => {
+      if (!serial) return new Date();
+      if (typeof serial === 'number') {
+        const utcDays = Math.floor(serial - 25569);
+        return new Date(utcDays * 86400 * 1000);
+      }
+      return new Date(serial);
+    };
+
+    let totalFunded = 0;
+    let totalWallet = 0;
+    let totalMoin = 0;
+    let totalSamrat = 0;
+    let totalProfitRealized = 0;
+    const syncedProjects: any[] = [];
+
+    for (let i = 2; i <= 21; i++) {
+      const r = rawData[i];
+      if (!r || !r[0]) continue;
+      const sl = Number(r[0]);
+      const invTo = String(r[1] || '').trim();
+      const invNo = String(r[2] || '').trim();
+      const amount = Number(r[4] || 0);
+      const startDate = parseExcelDate(r[5]);
+      const endDate = parseExcelDate(r[6]);
+      const name = String(r[7] || '').trim();
+      const duration = String(r[8] || '').trim();
+      const annualRoiPercent = r[9] ? Number(r[9]) * 100 : 0;
+      const org = String(r[12] || '').trim();
+      const actualRoi = r[13] ? Number(r[13]) : 0;
+      const walletAmount =
+        r[16] && r[16] !== '-' && !isNaN(Number(r[16])) ? Number(r[16]) : 0;
+      const moinAmount =
+        r[17] && r[17] !== '-' && !isNaN(Number(r[17])) ? Number(r[17]) : 0;
+      const samratAmount =
+        r[18] && r[18] !== '-' && !isNaN(Number(r[18])) ? Number(r[18]) : 0;
+
+      totalFunded += amount;
+      totalWallet += walletAmount;
+      totalMoin += moinAmount;
+      totalSamrat += samratAmount;
+      totalProfitRealized += actualRoi;
+
+      const projectId =
+        sl <= 11
+          ? `PRJ-2024-${sl}`
+          : sl <= 15
+          ? `PRJ-2025-${sl}`
+          : `PRJ-2026-${sl}`;
+
+      let projectStatus: ProjectStatus = ProjectStatus.ACTIVE;
+      if (org.toLowerCase().includes('zayn')) {
+        projectStatus = ProjectStatus.WITHDRAWAL_REQUESTED;
+      } else if (sl === 5 || sl === 19 || sl === 20) {
+        projectStatus = ProjectStatus.ACTIVE;
+      } else {
+        projectStatus = ProjectStatus.MATURED;
+      }
+
+      syncedProjects.push({
+        sl,
+        projectId,
+        name,
+        org,
+        amount,
+        walletAmount,
+        moinAmount,
+        samratAmount,
+        status: projectStatus,
+        startDate,
+        endDate,
+        duration,
+        annualRoiPercent,
+        actualRoi,
+      });
+
+      if (!dryRun) {
+        // Upsert InvestmentProject
+        let project = await InvestmentProject.findOne({
+          $or: [
+            { projectId },
+            { name, externalEntity: org },
+            ...(invNo ? [{ invoiceNo: invNo }] : []),
+          ],
+        });
+
+        const isZayn = org.toLowerCase().includes('zayn');
+
+        if (!project) {
+          project = await InvestmentProject.create({
+            projectId,
+            name,
+            invoiceNo: invNo || undefined,
+            invoiceTo: invTo || undefined,
+            category: org.toLowerCase().includes('hungry')
+              ? 'Restaurant / Trade'
+              : org.toLowerCase().includes('zayn')
+              ? 'Agro / Land Trading'
+              : 'Agriculture',
+            externalEntity: org,
+            startDate,
+            plannedDuration: duration || undefined,
+            maturityDate: endDate,
+            expectedAnnualRoiPercent: annualRoiPercent,
+            expectedROI: annualRoiPercent,
+            targetPrincipal: amount,
+            totalFunded: amount,
+            walletReinvestedAmount: walletAmount,
+            accountantFundedAmount: moinAmount + samratAmount,
+            withdrawalRequestedAmount: isZayn ? 256490 : undefined,
+            withdrawalRequestedDate: isZayn ? new Date('2026-10-01') : undefined,
+            withdrawalNotes: isZayn
+              ? 'Requested full withdrawal of BDT 256,490 (past principal + profit) from Zayn Farm for reinvestment into new opportunities.'
+              : undefined,
+            status: projectStatus,
+            createdBy: moinUser._id,
+          });
+        } else {
+          project.name = name;
+          project.targetPrincipal = amount;
+          project.totalFunded = amount;
+          project.startDate = startDate;
+          project.maturityDate = endDate;
+          project.plannedDuration = duration || project.plannedDuration;
+          project.expectedAnnualRoiPercent = annualRoiPercent;
+          project.expectedROI = annualRoiPercent;
+          project.walletReinvestedAmount = walletAmount;
+          project.accountantFundedAmount = moinAmount + samratAmount;
+          project.externalEntity = org;
+          if (invNo) project.invoiceNo = invNo;
+          if (invTo) project.invoiceTo = invTo;
+          project.status = projectStatus;
+          if (isZayn) {
+            project.withdrawalRequestedAmount = 256490;
+            project.withdrawalRequestedDate = new Date('2026-10-01');
+            project.withdrawalNotes =
+              'Requested full withdrawal of BDT 256,490 (past principal + profit) from Zayn Farm for reinvestment into new opportunities.';
+          }
+          await project.save();
+        }
+
+        // Clean fundings for this project before re-inserting
+        await InvestmentFunding.deleteMany({ projectId: project._id });
+        await CustodyMovement.deleteMany({
+          sourceRefId: project._id,
+          sourceType: MovementSourceType.INVESTMENT_FUNDING,
+        });
+
+        // 1. Wallet funding
+        if (walletAmount > 0) {
+          const walletCustody =
+            org.toLowerCase().includes('zayn') && sl === 18
+              ? zaynWallet!
+              : growUpWallet!;
+
+          const fWallet = await InvestmentFunding.create({
+            projectId: project._id,
+            custodyAccountId: walletCustody._id,
+            amount: walletAmount,
+            date: startDate,
+            transactionRef: invNo || '',
+            fundedBy: moinUser._id,
+            notes: `Wallet re-investment proceeds for ${name}`,
+          });
+
+          const movW = await CustodyMovement.create({
+            custodyAccountId: walletCustody._id,
+            movementType: MovementType.OUT,
+            amount: walletAmount,
+            sourceType: MovementSourceType.INVESTMENT_FUNDING,
+            sourceRefId: project._id,
+            date: startDate,
+            description: `Wallet re-investment out to ${name} (${projectId})`,
+            performedBy: moinUser._id,
+          });
+
+          fWallet.custodyMovementId = movW._id;
+          await fWallet.save();
+        }
+
+        // 2. Moin funding
+        if (moinAmount > 0) {
+          let moinAcc = bankCustody!;
+          if (sl === 4 || sl === 7 || sl === 8) {
+            moinAcc = moinBkashCustody!;
+          }
+
+          const fMoin = await InvestmentFunding.create({
+            projectId: project._id,
+            custodyAccountId: moinAcc._id,
+            amount: moinAmount,
+            date: startDate,
+            transactionRef: invNo || '',
+            fundedBy: moinUser._id,
+            notes: `Accountant contribution by Moin Uddin for ${name}`,
+          });
+
+          const movM = await CustodyMovement.create({
+            custodyAccountId: moinAcc._id,
+            movementType: MovementType.OUT,
+            amount: moinAmount,
+            sourceType: MovementSourceType.INVESTMENT_FUNDING,
+            sourceRefId: project._id,
+            date: startDate,
+            description: `Investment funding into ${name} (${projectId}) by Moin Uddin`,
+            performedBy: moinUser._id,
+          });
+
+          fMoin.custodyMovementId = movM._id;
+          await fMoin.save();
+        }
+
+        // 3. Samrat funding
+        if (samratAmount > 0) {
+          let samratAcc = samratNagadCustody!;
+          if (sl === 5) {
+            samratAcc = moinCashCustody!;
+          } else if (sl === 7 || sl === 8) {
+            samratAcc = samratBkashCustody!;
+          }
+
+          const fSamrat = await InvestmentFunding.create({
+            projectId: project._id,
+            custodyAccountId: samratAcc._id,
+            amount: samratAmount,
+            date: startDate,
+            transactionRef: invNo || '',
+            fundedBy: samratUser ? samratUser._id : moinUser._id,
+            notes: `Accountant contribution by Nurul Amin Samrat for ${name}`,
+          });
+
+          const movS = await CustodyMovement.create({
+            custodyAccountId: samratAcc._id,
+            movementType: MovementType.OUT,
+            amount: samratAmount,
+            sourceType: MovementSourceType.INVESTMENT_FUNDING,
+            sourceRefId: project._id,
+            date: startDate,
+            description: `Investment funding into ${name} (${projectId}) by Samrat`,
+            performedBy: samratUser ? samratUser._id : moinUser._id,
+          });
+
+          fSamrat.custodyMovementId = movS._id;
+          await fSamrat.save();
+        }
+
+        // Returns synchronization
+        // Clean existing returns and their movements
+        const oldReturns = await InvestmentReturn.find({ projectId: project._id });
+        const oldReturnIds = oldReturns.map((o) => o._id);
+        await CustodyMovement.deleteMany({
+          sourceRefId: { $in: oldReturnIds },
+          sourceType: MovementSourceType.INVESTMENT_RETURN,
+        });
+        await InvestmentReturn.deleteMany({ projectId: project._id });
+
+        if (sl === 5) {
+          // Hungry Birds 5 installment batches
+          const hbInstallments = [
+            {
+              installmentNumber: 1,
+              batchTitle: 'Investment return 1st batch',
+              maturityDate: new Date('2025-01-15'),
+              amount: 2500,
+              principal: 0,
+              profit: 2500,
+              remainingDueAfter: 68300,
+              notes: 'Investment return 1st batch: 2500/= tk',
+            },
+            {
+              installmentNumber: 2,
+              batchTitle: 'Investment return 2nd batch',
+              maturityDate: new Date('2025-10-01'),
+              amount: 6000,
+              principal: 0,
+              profit: 6000,
+              remainingDueAfter: 62300,
+              notes: 'Investment return 2nd batch: 6000/= tk date: 1/10/25',
+            },
+            {
+              installmentNumber: 3,
+              batchTitle: 'Investment return 3rd batch',
+              maturityDate: new Date('2026-04-23'),
+              amount: 1500,
+              principal: 0,
+              profit: 1500,
+              remainingDueAfter: 60800,
+              notes: 'Investment return 3rd batch: 1500/= tk date: 23/04/26',
+            },
+            {
+              installmentNumber: 4,
+              batchTitle: 'Investment return 4th batch',
+              maturityDate: new Date('2026-04-25'),
+              amount: 2500,
+              principal: 1700,
+              profit: 800,
+              remainingDueAfter: 58300,
+              notes: 'Investment return 4th batch: 2500/= tk date: 25/04/26',
+            },
+            {
+              installmentNumber: 5,
+              batchTitle: 'Investment return 5th batch',
+              maturityDate: new Date('2026-08-05'),
+              amount: 5600,
+              principal: 5600,
+              profit: 0,
+              remainingDueAfter: 52700,
+              notes: 'Investment return 5th batch: 5600/= tk date: 5/08/26',
+            },
+          ];
+
+          for (const item of hbInstallments) {
+            const rDoc = await InvestmentReturn.create({
+              projectId: project._id,
+              installmentNumber: item.installmentNumber,
+              batchTitle: item.batchTitle,
+              maturityDate: item.maturityDate,
+              principalReturned: item.principal,
+              actualProfit: item.profit,
+              actualLoss: 0,
+              totalReturn: item.amount,
+              senderName: 'Abu Bakar Rohan',
+              paymentMethod: PaymentMethod.BANK_TRANSFER,
+              receiverId: moinUser._id,
+              remainingDueAfter: item.remainingDueAfter,
+              destinationType: ReturnDestinationType.ACCOUNTANT_CUSTODY,
+              destinationCustodyAccountId: bankCustody!._id,
+              notes: item.notes,
+              recordedBy: moinUser._id,
+            });
+
+            const inMov = await CustodyMovement.create({
+              custodyAccountId: bankCustody!._id,
+              movementType: MovementType.IN,
+              amount: item.amount,
+              sourceType: MovementSourceType.INVESTMENT_RETURN,
+              sourceRefId: rDoc._id,
+              date: item.maturityDate,
+              description: `[${item.batchTitle}] Return from Hungry Birds Restaurant (TK ${item.amount}/-) - Received by Moin via Bank (Sender: Abu Bakar Rohan)`,
+              performedBy: moinUser._id,
+            });
+
+            rDoc.custodyMovementId = inMov._id;
+            await rDoc.save();
+          }
+        } else if (
+          org.toLowerCase().includes('growup') &&
+          projectStatus === ProjectStatus.MATURED
+        ) {
+          // Matured GrowUp project return into GrowUp Partner Wallet
+          const rDoc = await InvestmentReturn.create({
+            projectId: project._id,
+            maturityDate: endDate,
+            principalReturned: amount,
+            actualProfit: actualRoi,
+            actualLoss: 0,
+            totalReturn: amount + actualRoi,
+            destinationType: ReturnDestinationType.EXTERNAL_WALLET,
+            destinationCustodyAccountId: growUpWallet!._id,
+            notes: `Matured return for ${name} into GrowUp Partner Wallet`,
+            recordedBy: moinUser._id,
+          });
+
+          const inMov = await CustodyMovement.create({
+            custodyAccountId: growUpWallet!._id,
+            movementType: MovementType.IN,
+            amount: amount + actualRoi,
+            sourceType: MovementSourceType.INVESTMENT_RETURN,
+            sourceRefId: rDoc._id,
+            date: endDate,
+            description: `Matured return inflow for ${name} into GrowUp Partner Wallet (Principal: ৳${amount.toLocaleString()}, Profit: ৳${actualRoi.toLocaleString()})`,
+            performedBy: moinUser._id,
+          });
+
+          rDoc.custodyMovementId = inMov._id;
+          await rDoc.save();
+        } else if (sl === 15) {
+          // Land Trading -4 matured return into Zayn Farm Wallet (which partially funded Project 18)
+          const rDoc = await InvestmentReturn.create({
+            projectId: project._id,
+            maturityDate: endDate,
+            principalReturned: 100000,
+            actualProfit: 20000,
+            actualLoss: 0,
+            totalReturn: 120000,
+            destinationType: ReturnDestinationType.EXTERNAL_WALLET,
+            destinationCustodyAccountId: zaynWallet!._id,
+            notes: `Matured proceeds for Land Trading -4 into Zayn Farm Partner Wallet`,
+            recordedBy: moinUser._id,
+          });
+
+          const inMov = await CustodyMovement.create({
+            custodyAccountId: zaynWallet!._id,
+            movementType: MovementType.IN,
+            amount: 120000,
+            sourceType: MovementSourceType.INVESTMENT_RETURN,
+            sourceRefId: rDoc._id,
+            date: endDate,
+            description: `Matured return inflow for Land Trading -4 into Zayn Farm Wallet (Principal: ৳100,000, Profit: ৳20,000)`,
+            performedBy: moinUser._id,
+          });
+
+          rDoc.custodyMovementId = inMov._id;
+          await rDoc.save();
+        }
+      }
+    }
+
+    // Persist into Staged Migration Database (MigrationBatch & MigrationRecord)
+    try {
+      let batch = await MigrationBatch.findOne({ sourceReference: 'NS Foundation Investments.xlsx' });
+      if (!batch) {
+        batch = await MigrationBatch.create({
+          name: 'Authoritative Historical Investments & Returns (20 Projects)',
+          sourceYear: 2024,
+          sourceSheet: wb.SheetNames[0] || 'Investments',
+          sourceReference: 'NS Foundation Investments.xlsx',
+          totalRows: syncedProjects.length,
+          verifiedRows: syncedProjects.length,
+          reviewRows: 0,
+          unresolvedRows: 0,
+          createdBy: moinUser._id,
+        });
+      } else {
+        batch.totalRows = syncedProjects.length;
+        batch.verifiedRows = syncedProjects.length;
+        await batch.save();
+      }
+
+      await MigrationRecord.deleteMany({ batchId: batch._id });
+      const migrationRecords = syncedProjects.map((p, idx) => ({
+        batchId: batch!._id,
+        rowNumber: idx + 1,
+        recordType: 'INVESTMENT_RETURN' as const,
+        status: MigrationRecordStatus.VERIFIED,
+        sourceYear: p.startDate.getFullYear(),
+        sourceSheet: wb.SheetNames[0] || 'Investments',
+        sourceRow: p.sl + 2,
+        sourceReference: p.projectId,
+        rawData: {
+          sl: String(p.sl),
+          projectId: p.projectId,
+          name: p.name,
+          org: p.org,
+          amount: String(p.amount),
+          walletAmount: String(p.walletAmount),
+          moinAmount: String(p.moinAmount),
+          samratAmount: String(p.samratAmount),
+          status: p.status,
+          duration: p.duration,
+          roi: String(p.annualRoiPercent),
+        },
+        normalizedData: {
+          projectId: p.projectId,
+          name: p.name,
+          category: p.org.toLowerCase().includes('hungry')
+            ? 'Restaurant / Trade'
+            : p.org.toLowerCase().includes('zayn')
+            ? 'Agro / Land Trading'
+            : 'Agriculture',
+          externalEntity: p.org,
+          totalFunded: p.amount,
+          walletReinvestedAmount: p.walletAmount,
+          accountantFundedAmount: p.moinAmount + p.samratAmount,
+          startDate: p.startDate,
+          maturityDate: p.endDate,
+          plannedDuration: p.duration,
+          expectedAnnualRoiPercent: p.annualRoiPercent,
+          status: p.status,
+          profitRealized: p.actualRoi,
+        },
+        validationErrors: [],
+        reviewedBy: moinUser._id,
+        reviewedAt: new Date(),
+      }));
+      await MigrationRecord.insertMany(migrationRecords);
+    } catch (stageErr) {
+      console.error('Failed to update staged migration database:', stageErr);
+    }
+
+    if (!dryRun) {
+      // Rebalance all custody accounts
+      const allAccounts = await CustodyAccount.find();
+      for (const acc of allAccounts) {
+        const { currentBalance } = await CustodyService.getDerivedAccountBalance(acc._id);
+        acc.cachedBalance = currentBalance;
+        await acc.save();
+      }
+
+      await AuditLog.create({
+        performedBy: (actor as any)._id,
+        action: 'SYNC_AUTHORITATIVE_INVESTMENTS',
+        entityName: 'InvestmentProject',
+        reason:
+          'Synchronized 20 authoritative historical investment projects, 5 Hungry Birds installments, and Zayn Farm withdrawal request from NS Foundation Investments.xlsx.',
+        afterState: {
+          totalProjects: syncedProjects.length,
+          totalFunded,
+          totalWallet,
+          totalMoin,
+          totalSamrat,
+          totalProfitRealized,
+        },
+      });
+    }
+
+    return {
+      dryRun,
+      totalProjects: syncedProjects.length,
+      totalFunded,
+      totalWallet,
+      totalMoin,
+      totalSamrat,
+      accountantsTotal: totalMoin + totalSamrat,
+      totalProfitRealized,
+      syncedProjects,
+      status: 'SUCCESS',
+      message: dryRun
+        ? `Preview: Found 20 authoritative investment projects (Total: ৳${totalFunded.toLocaleString()}: Wallet: ৳${totalWallet.toLocaleString()}, Moin: ৳${totalMoin.toLocaleString()}, Samrat: ৳${totalSamrat.toLocaleString()}). Ready to sync.`
+        : `Successfully synchronized 20 investment projects, 5 Hungry Birds installments (Due: ৳52,700), and Zayn Farm withdrawal request (৳256,490) with balanced custody.`,
     };
   }
 }

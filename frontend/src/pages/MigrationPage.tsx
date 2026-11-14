@@ -475,7 +475,7 @@ export const MigrationPage: React.FC = () => {
                   ৳ {Number(overview?.investments.totalFunded || 0).toLocaleString('en-IN')}
                 </div>
                 <div className="text-xs text-gray-400 mt-1">
-                  {overview?.investments.projectsCount || 0} / {overview?.investments.expectedProjects || 11}{' '}
+                  {overview?.investments.projectsCount || 0} / {overview?.investments.expectedProjects || 20}{' '}
                   {t('Projects')} • ৳ {Number(overview?.investments.totalRealizedProfit || 0).toLocaleString('en-IN')}{' '}
                   {t('Profit')}
                 </div>
@@ -656,13 +656,13 @@ export const MigrationPage: React.FC = () => {
                       {t('4. Historical Investments & Returns')}
                     </h3>
                     <p className="text-xs text-purple-400/90 font-medium">
-                      {t('Projects: PRJ-2024-1 to PRJ-2024-11 & Partner Wallets')}
+                      {t('Authoritative Projects: 20 Projects from NS Foundation Investments.xlsx')}
                     </p>
                   </div>
                 </div>
                 <p className="text-xs text-gray-300 leading-relaxed pt-2">
                   {t(
-                    'Synchronizes 11 historical investment projects, capital disbursements, partner wallets (GrowUp, Zayn Farm, Hungry Birds), and records matured returns and realized net profits.'
+                    'Synchronizes 20 real investment projects (৳1,312,363), capital disbursements, partner wallets (GrowUp, Zayn Farm, Hungry Birds), 5 Hungry Birds installments (Due: ৳52,700), and Zayn Farm withdrawal request (৳256,490).'
                   )}
                 </p>
               </div>

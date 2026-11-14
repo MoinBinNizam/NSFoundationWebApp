@@ -103,7 +103,7 @@ export class ReinvestmentService {
 
   static async executeReinvestment(
     input: {
-      sourceProjectId: string;
+      sourceProjectId?: string | null;
       destinationProjectId: string;
       walletAccountId: string;
       reinvestedAmount: number;
@@ -117,16 +117,16 @@ export class ReinvestmentService {
     const walletAmount = positiveAmount(input.reinvestedAmount, 'reinvestedAmount');
     const newAccountantFunds = Number(input.newAccountantFunds) || 0;
     if (newAccountantFunds < 0) throw createError('newAccountantFunds cannot be negative', 400);
-    if (input.sourceProjectId === input.destinationProjectId) {
+    if (input.sourceProjectId && input.sourceProjectId === input.destinationProjectId) {
       throw createError('Source and destination projects must be different', 400);
     }
 
     const [sourceProject, destinationProject, wallet] = await Promise.all([
-      InvestmentProject.findById(input.sourceProjectId),
+      input.sourceProjectId ? InvestmentProject.findById(input.sourceProjectId) : Promise.resolve(null),
       InvestmentProject.findById(input.destinationProjectId),
       this.requireWallet(input.walletAccountId),
     ]);
-    if (!sourceProject) throw createError('Source investment project not found', 404);
+    if (input.sourceProjectId && !sourceProject) throw createError('Source investment project not found', 404);
     if (!destinationProject) throw createError('Destination investment project not found', 404);
     if ([ProjectStatus.CLOSED, ProjectStatus.DEFAULTED].includes(destinationProject.status)) {
       throw createError(`Cannot fund a project with status '${destinationProject.status}'`, 400);
@@ -160,15 +160,16 @@ export class ReinvestmentService {
 
     // All validation precedes financial writes. Each immutable ledger entry is
     // linked to one Reinvestment record for a complete audit trail.
+    const sourceLabel = sourceProject ? sourceProject.projectId : `${wallet.name} (Pooled Returns)`;
     const reinvestment = await Reinvestment.create({
-      sourceProjectId: sourceProject._id,
+      sourceProjectId: sourceProject ? sourceProject._id : null,
       destinationProjectId: destinationProject._id,
       walletAccountId: wallet._id,
       reinvestedAmount: walletAmount,
       newAccountantFunds,
       newAccountantCustodyAccountId: accountantAccount?._id ?? null,
       date,
-      notes: input.notes?.trim() || `Wallet reinvestment from ${sourceProject.projectId} to ${destinationProject.projectId}`,
+      notes: input.notes?.trim() || `Wallet reinvestment from ${sourceLabel} to ${destinationProject.projectId}`,
       approvedBy: performedBy,
     });
 
@@ -189,7 +190,7 @@ export class ReinvestmentService {
       date,
       custodyMovementId: walletMovement._id,
       fundedBy: performedBy,
-      notes: `Reinvested proceeds from ${sourceProject.name} via ${wallet.name}`,
+      notes: `Reinvested proceeds from ${sourceProject ? sourceProject.name : wallet.name} via ${wallet.name}`,
     });
 
     let accountantMovement = null;
@@ -229,7 +230,7 @@ export class ReinvestmentService {
       entityName: 'Reinvestment',
       entityId: reinvestment._id,
       afterState: {
-        sourceProjectId: sourceProject._id,
+        sourceProjectId: sourceProject ? sourceProject._id : null,
         destinationProjectId: destinationProject._id,
         walletAccountId: wallet._id,
         walletAmount,
@@ -294,7 +295,11 @@ export class ReinvestmentService {
       totalWalletHoldings: wallets.reduce((sum, wallet) => sum + wallet.derivedBalance, 0),
       totalReinvestedProceeds: wallets.reduce((sum, wallet) => sum + wallet.totalReinvested, 0),
       totalLiquidatedToAccountants: wallets.reduce((sum, wallet) => sum + wallet.totalLiquidated, 0),
-      activeReinvestmentChains: new Set(events.map((event) => event.sourceProjectId.toString())).size,
+      activeReinvestmentChains: new Set(
+        events
+          .filter((event) => event.sourceProjectId)
+          .map((event) => event.sourceProjectId!.toString())
+      ).size,
       totalWallets: wallets.length,
       totalReinvestmentEvents: events.length,
     };
@@ -302,8 +307,8 @@ export class ReinvestmentService {
 
   private static async requireWallet(walletId: string) {
     const wallet = await CustodyAccount.findById(walletId);
-    if (!wallet || !wallet.isActive || wallet.accountType !== AccountType.EXTERNAL_WALLET || wallet.channel !== CustodyChannel.WALLET) {
-      throw createError('An active external wallet account is required', 404);
+    if (!wallet || !wallet.isActive) {
+      throw createError('An active custody or wallet account is required', 404);
     }
     return wallet;
   }

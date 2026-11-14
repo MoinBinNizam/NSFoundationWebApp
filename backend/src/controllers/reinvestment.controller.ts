@@ -32,8 +32,8 @@ export class ReinvestmentController {
   static async execute(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { sourceProjectId, destinationProjectId, walletAccountId, reinvestedAmount, newAccountantFunds, newAccountantCustodyAccountId, date, notes } = req.body;
-      if (!sourceProjectId || !destinationProjectId || !walletAccountId || reinvestedAmount === undefined) {
-        return next(createError('sourceProjectId, destinationProjectId, walletAccountId, and reinvestedAmount are required', 400));
+      if (!destinationProjectId || !walletAccountId || reinvestedAmount === undefined) {
+        return next(createError('destinationProjectId, walletAccountId, and reinvestedAmount are required', 400));
       }
       if (!req.user) return next(createError('Authentication required', 401));
       const result = await ReinvestmentService.executeReinvestment({ sourceProjectId, destinationProjectId, walletAccountId, reinvestedAmount: Number(reinvestedAmount), newAccountantFunds: Number(newAccountantFunds) || 0, newAccountantCustodyAccountId, date, notes }, req.user);

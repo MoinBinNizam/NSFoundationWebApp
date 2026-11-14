@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import { IInvestmentReturn, ReturnDestinationType } from '../types/models.js';
+import { IInvestmentReturn, ReturnDestinationType, PaymentMethod } from '../types/models.js';
 
 const investmentReturnSchema = new Schema<IInvestmentReturn>(
   {
@@ -8,6 +8,14 @@ const investmentReturnSchema = new Schema<IInvestmentReturn>(
       ref: 'InvestmentProject',
       required: [true, 'Project reference is required'],
       index: true,
+    },
+    installmentNumber: {
+      type: Number,
+      min: [1, 'Installment number must be at least 1'],
+    },
+    batchTitle: {
+      type: String,
+      trim: true,
     },
     maturityDate: {
       type: Date,
@@ -33,6 +41,21 @@ const investmentReturnSchema = new Schema<IInvestmentReturn>(
     totalReturn: {
       type: Number,
       required: [true, 'Total return amount is required'],
+    },
+    senderName: {
+      type: String,
+      trim: true,
+    },
+    paymentMethod: {
+      type: String,
+      enum: Object.values(PaymentMethod),
+    },
+    receiverId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    remainingDueAfter: {
+      type: Number,
     },
     destinationType: {
       type: String,

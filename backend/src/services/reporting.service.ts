@@ -168,8 +168,8 @@ export class ReportingService {
       Member.find({ status: 'ACTIVE' }).select('_id').lean(),
       MemberYearAccount.find().select('excessAdvance').lean(),
       canAccessInvestments(user)
-        ? InvestmentProject.find({ status: 'ACTIVE' })
-            .select('projectId name category externalEntity targetPrincipal totalFunded startDate maturityDate expectedAnnualRoiPercent')
+        ? InvestmentProject.find({ status: { $in: ['ACTIVE', 'WITHDRAWAL_REQUESTED'] } })
+            .select('projectId name category externalEntity targetPrincipal totalFunded startDate maturityDate expectedAnnualRoiPercent status withdrawalRequestedAmount withdrawalRequestedDate')
             .sort({ startDate: -1 })
             .lean()
         : Promise.resolve([]),
@@ -206,13 +206,22 @@ export class ReportingService {
     const returnsAgg = pIds.length > 0
       ? await InvestmentReturn.aggregate([
           { $match: { projectId: { $in: pIds } } },
-          { $group: { _id: '$projectId', totalReturned: { $sum: '$totalReturn' }, profit: { $sum: '$actualProfit' }, principalReturned: { $sum: '$principalReturned' } } }
+          {
+            $group: {
+              _id: '$projectId',
+              totalReturned: { $sum: '$totalReturn' },
+              profit: { $sum: '$actualProfit' },
+              principalReturned: { $sum: '$principalReturned' },
+              count: { $sum: 1 },
+              lastRemainingDue: { $last: '$remainingDueAfter' },
+            },
+          },
         ])
       : [];
     const returnsMap = new Map(returnsAgg.map((r: any) => [String(r._id), r]));
 
     const activeProjectsDetailed = projectsList.map((p: any) => {
-      const ret = returnsMap.get(String(p._id)) || { totalReturned: 0, profit: 0, principalReturned: 0 };
+      const ret = returnsMap.get(String(p._id)) || { totalReturned: 0, profit: 0, principalReturned: 0, count: 0, lastRemainingDue: null };
       const start = p.startDate ? new Date(p.startDate).getTime() : Date.now();
       const end = p.maturityDate ? new Date(p.maturityDate).getTime() : (start + 365 * 24 * 60 * 60 * 1000);
       const now = Date.now();
@@ -220,6 +229,11 @@ export class ReportingService {
       const totalDuration = Math.max(1, end - start);
       const timeProgressPercent = Math.min(100, Math.max(0, Math.round((elapsed / totalDuration) * 100)));
       const daysRemaining = p.maturityDate ? Math.ceil((end - now) / (24 * 60 * 60 * 1000)) : null;
+
+      const expectedTotal = Number(p.targetPrincipal || 0) + (Number(p.targetPrincipal || 0) * (Number(p.expectedAnnualRoiPercent || 0) / 100));
+      const remainingDue = ret.lastRemainingDue !== null && ret.lastRemainingDue !== undefined
+        ? Number(ret.lastRemainingDue)
+        : Math.max(0, expectedTotal - (Number(ret.totalReturned || 0)));
 
       return {
         id: String(p._id),
@@ -231,6 +245,11 @@ export class ReportingService {
         totalFunded: Number(p.totalFunded || 0),
         principalReturned: Number(ret.principalReturned || 0),
         profitEarned: Number(ret.profit || 0),
+        totalReturned: Number(ret.totalReturned || 0),
+        remainingDue,
+        status: p.status,
+        installmentCount: ret.count || 0,
+        withdrawalRequestedAmount: Number(p.withdrawalRequestedAmount || 0),
         netOutstanding: Math.max(0, Number(p.totalFunded || 0) - Number(ret.principalReturned || 0)),
         timeProgressPercent,
         daysRemaining,

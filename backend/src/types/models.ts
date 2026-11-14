@@ -112,6 +112,7 @@ export enum ProjectStatus {
   PRINCIPAL_PARTIALLY_RETURNED = 'PRINCIPAL_PARTIALLY_RETURNED',
   OVERDUE_PRINCIPAL = 'OVERDUE_PRINCIPAL',
   MATURED = 'MATURED',
+  WITHDRAWAL_REQUESTED = 'WITHDRAWAL_REQUESTED',
   FULLY_SETTLED = 'FULLY_SETTLED',
   CLOSED = 'CLOSED',
   DEFAULTED = 'DEFAULTED',
@@ -429,6 +430,11 @@ export interface IInvestmentProject {
   expectedROI?: number; // alias for backwards compatibility
   targetPrincipal: number;
   totalFunded: number;
+  walletReinvestedAmount?: number;
+  accountantFundedAmount?: number;
+  withdrawalRequestedAmount?: number;
+  withdrawalRequestedDate?: Date;
+  withdrawalNotes?: string;
   status: ProjectStatus;
   createdBy?: Types.ObjectId;
   updatedBy?: Types.ObjectId;
@@ -452,11 +458,17 @@ export interface IInvestmentFunding {
 // 18. InvestmentReturn
 export interface IInvestmentReturn {
   projectId: Types.ObjectId;
+  installmentNumber?: number;
+  batchTitle?: string;
   maturityDate: Date;
   principalReturned: number;
   actualProfit: number;
   actualLoss: number;
   totalReturn: number;
+  senderName?: string;
+  paymentMethod?: PaymentMethod;
+  receiverId?: Types.ObjectId;
+  remainingDueAfter?: number;
   destinationType: ReturnDestinationType;
   destinationCustodyAccountId?: Types.ObjectId | null;
   custodyMovementId?: Types.ObjectId | null;
@@ -469,7 +481,7 @@ export interface IInvestmentReturn {
 
 // 19. Reinvestment
 export interface IReinvestment {
-  sourceProjectId: Types.ObjectId;
+  sourceProjectId?: Types.ObjectId | null;
   destinationProjectId: Types.ObjectId;
   walletAccountId: Types.ObjectId;
   reinvestedAmount: number;
