@@ -2823,7 +2823,7 @@ export const InvestmentsPage: React.FC = () => {
                   </label>
                   <select
                     value={returnForm.destinationType}
-                    onChange={(e) => setReturnForm({ ...returnForm, destinationType: e.target.value as any })}
+                    onChange={(e) => setReturnForm({ ...returnForm, destinationType: e.target.value as any, destinationCustodyAccountId: '' })}
                     className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
                   >
                     <option value="ACCOUNTANT_CUSTODY">{t('Accountant Custody')}</option>
@@ -2836,19 +2836,14 @@ export const InvestmentsPage: React.FC = () => {
                   <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
                     {t('Deposit Account')} {returnForm.destinationType === 'ACCOUNTANT_CUSTODY' && <span className="text-red-400">*</span>}
                   </label>
-                  {returnForm.destinationType === 'PROJECT_WALLET' ? (
-                    <div className="w-full bg-[#111827] border border-gray-800 rounded-lg px-3 py-2 text-xs text-gray-400 italic">
-                      {t('Will be retained in project wallet (no separate custody account needed)')}
-                    </div>
-                  ) : (
-                    <select
+                  <select
                       value={returnForm.destinationCustodyAccountId}
                       onChange={(e) => setReturnForm({ ...returnForm, destinationCustodyAccountId: e.target.value })}
                       className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      required={returnForm.destinationType === 'ACCOUNTANT_CUSTODY'}
+                      required
                     >
                       <option value="">Select deposit account...</option>
-                      {groupedCustody.moin.length > 0 && (
+                      {returnForm.destinationType === 'ACCOUNTANT_CUSTODY' && groupedCustody.moin.length > 0 && (
                         <optgroup label={`${t("Accountant Moin's Custody")} (${t("Subtotal")}: BDT ${groupedCustody.moinTotal.toLocaleString()})`}>
                           {groupedCustody.moin.map((acc) => (
                             <option key={acc._id} value={acc._id}>
@@ -2857,7 +2852,7 @@ export const InvestmentsPage: React.FC = () => {
                           ))}
                         </optgroup>
                       )}
-                      {groupedCustody.samrat.length > 0 && (
+                      {returnForm.destinationType === 'ACCOUNTANT_CUSTODY' && groupedCustody.samrat.length > 0 && (
                         <optgroup label={`${t("Accountant Samrat's Custody")} (${t("Subtotal")}: BDT ${groupedCustody.samratTotal.toLocaleString()})`}>
                           {groupedCustody.samrat.map((acc) => (
                             <option key={acc._id} value={acc._id}>
@@ -2866,7 +2861,7 @@ export const InvestmentsPage: React.FC = () => {
                           ))}
                         </optgroup>
                       )}
-                      {groupedCustody.external.length > 0 && (
+                      {returnForm.destinationType !== 'ACCOUNTANT_CUSTODY' && groupedCustody.external.length > 0 && (
                         <optgroup label={`${t("Investment / Partner Wallets")} (${t("Subtotal")}: BDT ${groupedCustody.externalTotal.toLocaleString()})`}>
                           {groupedCustody.external.map((acc) => (
                             <option key={acc._id} value={acc._id}>
@@ -2876,7 +2871,6 @@ export const InvestmentsPage: React.FC = () => {
                         </optgroup>
                       )}
                     </select>
-                  )}
                 </div>
               </div>
 

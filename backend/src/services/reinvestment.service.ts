@@ -219,6 +219,8 @@ export class ReinvestmentService {
 
     const totalFunded = walletAmount + newAccountantFunds;
     destinationProject.totalFunded += totalFunded;
+    destinationProject.walletReinvestedAmount = Number(destinationProject.walletReinvestedAmount || 0) + walletAmount;
+    destinationProject.accountantFundedAmount = Number(destinationProject.accountantFundedAmount || 0) + newAccountantFunds;
     if (destinationProject.status === ProjectStatus.PROPOSED) destinationProject.status = ProjectStatus.ACTIVE;
     await destinationProject.save();
     const walletBalanceAfter = await refreshBalance(wallet);

@@ -166,6 +166,8 @@ export class InvestmentService {
     const actingUserId = (actingUser as unknown as { _id: Types.ObjectId })._id;
 
     let totalNewFunding = 0;
+    let walletFunding = 0;
+    let accountantFunding = 0;
     const createdFundings = [];
 
     // Process each supplying custody account
@@ -224,6 +226,8 @@ export class InvestmentService {
       await custodyAccount.save();
 
       totalNewFunding += amount;
+      if (custodyAccount.accountType === AccountType.EXTERNAL_WALLET) walletFunding += amount;
+      else if (custodyAccount.accountType === AccountType.ACCOUNTANT_CUSTODY) accountantFunding += amount;
       createdFundings.push({
         funding: fundingDoc,
         movement: outMovement,
@@ -251,6 +255,8 @@ export class InvestmentService {
 
     // Update project total funded & status to ACTIVE
     project.totalFunded += totalNewFunding;
+    project.walletReinvestedAmount = Number(project.walletReinvestedAmount || 0) + walletFunding;
+    project.accountantFundedAmount = Number(project.accountantFundedAmount || 0) + accountantFunding;
     if (project.status === ProjectStatus.PROPOSED) {
       project.status = ProjectStatus.ACTIVE;
     }
@@ -352,8 +358,15 @@ export class InvestmentService {
       if (!destinationAccount || !destinationAccount.isActive) {
         throw createError('Destination custody account not found or inactive', 400);
       }
-    } else if (input.destinationType === ReturnDestinationType.ACCOUNTANT_CUSTODY) {
-      throw createError('Destination custody account is required for accountant custody return', 400);
+    }
+    if (!destinationAccount) throw createError('A destination custody or wallet account is required for every investment return', 400);
+    const expectsAccountantCustody = input.destinationType === ReturnDestinationType.ACCOUNTANT_CUSTODY;
+    const expectsWallet = input.destinationType === ReturnDestinationType.PROJECT_WALLET || input.destinationType === ReturnDestinationType.EXTERNAL_WALLET;
+    if (expectsAccountantCustody && destinationAccount.accountType !== AccountType.ACCOUNTANT_CUSTODY) {
+      throw createError('Accountant custody returns must be deposited into an active accountant custody account', 400);
+    }
+    if (expectsWallet && destinationAccount.accountType !== AccountType.EXTERNAL_WALLET) {
+      throw createError('Wallet returns must be deposited into an active project or partner wallet', 400);
     }
 
     const actingUserId = (actingUser as unknown as { _id: Types.ObjectId })._id;
@@ -374,7 +387,8 @@ export class InvestmentService {
       recordedBy: actingUserId,
     });
 
-    // 2. If funds deposited into an accountant custody account, create CustodyMovement (IN)
+    // 2. Every positive return is an IN movement: accountant custody and
+    // external/project wallets are both auditable custody ledgers.
     let inMovement = null;
     if (destinationAccount && totalReturn > 0) {
       inMovement = await CustodyMovement.create({
@@ -670,7 +684,7 @@ export class InvestmentService {
           filters?.asOfDate
         );
         const originalPrincipal = prj.totalFunded > 0 ? prj.totalFunded : prj.targetPrincipal;
-        const netRealizedProfit = calculation.actualProfitReturned;
+        const netRealizedProfit = calculation.netRealizedProfit;
         const actualROI = originalPrincipal > 0 ? (netRealizedProfit / originalPrincipal) * 100 : 0;
 
         const hasWallet = (prj.walletReinvestedAmount || 0) > 0;
@@ -694,7 +708,7 @@ export class InvestmentService {
             totalReturnReceived: calculation.totalReturnReceived,
             netOutstandingCapital: calculation.outstandingPrincipal,
             totalProfitRealized: calculation.actualProfitReturned,
-            totalLosses: 0,
+            totalLosses: calculation.actualLosses,
             netRealizedProfit,
             actualROI: Math.round(actualROI * 100) / 100,
             isOverdue: calculation.isOverdue,
@@ -762,7 +776,7 @@ export class InvestmentService {
     ]);
 
     const originalPrincipal = project.totalFunded > 0 ? project.totalFunded : project.targetPrincipal;
-    const actualROI = originalPrincipal > 0 ? (calculation.actualProfitReturned / originalPrincipal) * 100 : 0;
+    const actualROI = originalPrincipal > 0 ? (calculation.netRealizedProfit / originalPrincipal) * 100 : 0;
     const hasWallet = (project.walletReinvestedAmount || 0) > 0;
     const hasAccountant = (project.accountantFundedAmount || 0) > 0;
     const fundingSourceType = hasWallet && hasAccountant ? 'MIXED' : hasWallet ? 'REINVESTMENT' : 'ACCOUNTANT';
@@ -785,8 +799,8 @@ export class InvestmentService {
           totalReturnReceived: calculation.totalReturnReceived,
           netOutstandingCapital: calculation.outstandingPrincipal,
           totalProfitRealized: calculation.actualProfitReturned,
-          totalLosses: 0,
-          netRealizedProfit: calculation.actualProfitReturned,
+          totalLosses: calculation.actualLosses,
+          netRealizedProfit: calculation.netRealizedProfit,
           actualROI: Math.round(actualROI * 100) / 100,
           isOverdue: calculation.isOverdue,
           overdueDays: calculation.overdueDays,
@@ -819,6 +833,13 @@ export class InvestmentService {
     const project = await InvestmentProject.findById(projectId);
     if (!project) {
       throw createError('Investment project not found', 404);
+    }
+
+    if (status === ProjectStatus.CLOSED) {
+      const calculation = await InvestmentCalculationService.calculateExpectedProfit(project._id);
+      if (calculation.outstandingPrincipal > 0) {
+        throw createError(`Project cannot be closed while ৳${calculation.outstandingPrincipal.toLocaleString()} principal remains outstanding. Record the return, mark it defaulted, or keep the project open.`, 400);
+      }
     }
 
     const previousStatus = project.status;

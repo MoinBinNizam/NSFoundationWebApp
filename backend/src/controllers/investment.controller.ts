@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { InvestmentService } from '../services/investment.service.js';
+import { ReinvestmentService } from '../services/reinvestment.service.js';
 import { IUser } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
 
@@ -262,7 +263,9 @@ export class InvestmentController {
         return next(createError('Authentication required', 401));
       }
 
-      const result = await InvestmentService.reinvestProjectFunds(
+      // Kept as a compatibility endpoint for existing clients. All new and
+      // legacy reinvestments use the single wallet-safe implementation.
+      const result = await ReinvestmentService.executeReinvestment(
         {
           sourceProjectId,
           destinationProjectId,
@@ -278,7 +281,7 @@ export class InvestmentController {
 
       res.status(200).json({
         success: true,
-        message: `Successfully reinvested ৳${result.totalInvestedInDest.toLocaleString()} into ${result.destProject.name}`,
+        message: `Successfully reinvested ৳${result.totalFunded.toLocaleString()} into ${result.destinationProject.name}`,
         data: result,
       });
     } catch (error) {

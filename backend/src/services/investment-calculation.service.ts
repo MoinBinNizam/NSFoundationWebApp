@@ -26,6 +26,8 @@ export interface SegmentedProfitCalculation {
   overdueDays: number;
   expectedProfitAccrued: number;
   actualProfitReturned: number;
+  actualLosses: number;
+  netRealizedProfit: number;
   expectedProfitOutstanding: number;
   totalReturnReceived: number;
   derivedStatus: ProjectStatus;
@@ -97,6 +99,10 @@ export function calculateSegmentedProfitFromData(input: {
   );
   const totalActualProfitAll = sortedReturns.reduce(
     (sum, r) => sum + (Number(r.actualProfit) || 0),
+    0
+  );
+  const totalActualLossAll = sortedReturns.reduce(
+    (sum, r) => sum + (Number(r.actualLoss) || 0),
     0
   );
   const totalReturnReceivedAll = sortedReturns.reduce(
@@ -212,6 +218,8 @@ export function calculateSegmentedProfitFromData(input: {
     overdueDays,
     expectedProfitAccrued,
     actualProfitReturned: totalActualProfitAll,
+    actualLosses: totalActualLossAll,
+    netRealizedProfit: Math.round((totalActualProfitAll - totalActualLossAll) * 100) / 100,
     expectedProfitOutstanding,
     totalReturnReceived: totalReturnReceivedAll,
     derivedStatus,
