@@ -1,6 +1,6 @@
 Please read the given new excel file of investment and use the data from here. Do not seed dummy data. Please allow to return invested principal money and profit amount from a project in random installment to one accoutant through bKash or Bank or other payment methods. Example- NS foundation invested 60,000 BDT to Hungry Bird restaurent in 7-17-2024 for one year time with the ROI max 18%. This is a hand writen receipt given to him-  NS Foundation Payment Confirmation Receipt *
 Date: 05/08/2026.
-August 2026.
+August 2026. শেয়ার ও বার্ষিক হিসাব ব্যবস্থাপনা
 Sender: Abu Bakar Rohan.
 Received Amount: TK 5600/-
 Payment method: Bank.

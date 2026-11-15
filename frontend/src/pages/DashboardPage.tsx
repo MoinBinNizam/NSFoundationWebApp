@@ -113,7 +113,7 @@ interface Dashboard {
       netRealizedProfit: number;
     } | null;
   };
-  custodyByAccount: Array<{ name: string; channel: string; balance: number }>;
+  custodyByAccount: Array<{ name: string; channel: string; accountType?: string; balance: number; holderName?: string | null; holderAccountantType?: string | null }>;
   custodyByChannel?: CustodyChannelSummary;
   shareMetrics?: ShareMetrics;
   totalNetWorth?: number;
@@ -337,6 +337,15 @@ export const DashboardPage: React.FC = () => {
   // Calculate total positive custody for distribution percentage
   const totalCustodySum =
     dashboard?.custodyByAccount.reduce((acc, a) => acc + Math.max(0, a.balance), 0) || 0;
+  const accountantCustody = (dashboard?.custodyByAccount || [])
+    .filter((account) => account.accountType === 'ACCOUNTANT_CUSTODY')
+    .reduce<Array<{ name: string; accountantType?: string | null; balance: number; accounts: number }>>((groups, account) => {
+      const name = account.holderName || t('Unassigned custody');
+      const group = groups.find((item) => item.name === name);
+      if (group) { group.balance += account.balance; group.accounts += 1; }
+      else groups.push({ name, accountantType: account.holderAccountantType, balance: account.balance, accounts: 1 });
+      return groups;
+    }, []);
   const displayedActivity = activityItems.length ? activityItems : dashboard?.recentActivity || [];
 
   return (
@@ -452,8 +461,17 @@ export const DashboardPage: React.FC = () => {
           <Loading />
         ) : (
           <div className="flex flex-col gap-6 sm:gap-8">
-            {/* PWA Desktop & Mobile App Installation Hub */}
-            <PwaInstallCard />
+            {/* Keep optional app-install help available without taking dashboard space. */}
+            <details className="group rounded-2xl border border-emerald-500/20 bg-slate-900/45">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-sm font-bold text-emerald-200 marker:content-none">
+                <span>{t('NS Foundation Desktop & Mobile App')}</span>
+                <span className="text-xs font-medium text-gray-400 group-open:hidden">{t('Show')}</span>
+                <span className="hidden text-xs font-medium text-gray-400 group-open:inline">{t('Hide')}</span>
+              </summary>
+              <div className="border-t border-white/10 p-3 sm:p-4">
+                <PwaInstallCard />
+              </div>
+            </details>
 
             {/* EXECUTIVE SECTION A: The 4 Pillars of Society Net Worth */}
             <div className="glass-card p-5 sm:p-6 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-blue-950/40 border border-blue-500/20 shadow-xl space-y-4">
@@ -1104,6 +1122,27 @@ export const DashboardPage: React.FC = () => {
                 </div>
 
                 <div className="space-y-3 pt-1">
+                  {dashboard?.roleScope === 'ORGANIZATION' && accountantCustody.length > 0 && (
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {accountantCustody.map((accountant) => (
+                        <div key={accountant.name} className="rounded-xl border border-violet-500/20 bg-violet-500/[0.06] p-3.5">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-bold text-violet-200">{accountant.name}</p>
+                              <p className="mt-1 text-[11px] text-gray-400">
+                                {accountant.accountantType === 'PRIMARY' ? t('Primary Accountant') : accountant.accountantType === 'ASSISTANT' ? t('Assistant Accountant') : t('Custody holder')}
+                                {' · '}{accountant.accounts} {t('accounts')}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">{t('Current custody')}</p>
+                              <p className="mt-1 text-lg font-extrabold text-violet-200">{money(accountant.balance)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   {dashboard?.custodyByAccount.length ? (
                     dashboard.custodyByAccount.map((account) => {
                       const percent =

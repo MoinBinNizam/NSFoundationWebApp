@@ -1705,7 +1705,7 @@ export const PaymentsPage: React.FC = () => {
           </section>
 
           {/* Breakdown Section: By Payment Method & Multi-Accountant Comparison */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-6">
             {/* Payment Method Breakdown Card */}
             <div className="glass-card p-6 space-y-4">
               <h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
@@ -1713,7 +1713,7 @@ export const PaymentsPage: React.FC = () => {
                 <span>{t('Collection by Payment Method')}</span>
               </h2>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2">
                 {[
                   { key: 'BANK_TRANSFER', label: 'Bank', color: 'from-blue-500 to-indigo-600' },
                   { key: 'BKASH', label: 'bKash', color: 'from-pink-500 to-rose-600' },
