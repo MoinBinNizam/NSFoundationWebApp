@@ -240,7 +240,7 @@ export class InvestmentCalculationService {
       throw new Error(`Investment project not found with ID '${projectId}'`);
     }
 
-    const returns = await InvestmentReturn.find({ projectId: project._id }).sort({ maturityDate: 1 });
+    const returns = await InvestmentReturn.find({ projectId: project._id, reversedAt: null }).sort({ maturityDate: 1 });
 
     const originalPrincipal = project.totalFunded > 0 ? project.totalFunded : project.targetPrincipal;
     const roi = project.expectedAnnualRoiPercent ?? project.expectedROI ?? 0;

@@ -14,6 +14,7 @@ router.use(authenticate, requireModuleAccess('INVESTMENTS', 'view'), requireInve
 
 // Public / Read routes
 router.get('/stats', InvestmentController.getStats);
+router.get('/reconciliation', InvestmentController.getReconciliation);
 router.get('/organizations', InvestmentController.getOrganizations);
 router.get('/projects', InvestmentController.listProjects);
 router.get('/projects/:id', InvestmentController.getProjectDetails);
@@ -49,6 +50,12 @@ router.post(
   requireModuleAccess('INVESTMENTS', 'edit'),
   financialIdempotency('INVESTMENT_RETURN'),
   InvestmentController.recordReturn
+);
+router.post(
+  '/returns/:returnId/reverse',
+  requireModuleAccess('INVESTMENTS', 'edit'),
+  financialIdempotency('INVESTMENT_RETURN_REVERSAL'),
+  InvestmentController.reverseReturn
 );
 
 router.post(

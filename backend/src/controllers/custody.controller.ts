@@ -2,12 +2,34 @@ import { Request, Response, NextFunction } from 'express';
 import { CustodyService } from '../services/custody.service.js';
 import { IUser } from '../types/models.js';
 import { createError } from '../middlewares/error.js';
+import { ReceiptStorageService } from '../services/ocr/storage/receipt-storage.service.js';
+import path from 'path';
 
 interface AuthenticatedRequest extends Request {
   user?: IUser;
 }
 
 export class CustodyController {
+  static async uploadTransferInvoice(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required', 401));
+      const file = req.file;
+      if (!file) return next(createError('Please attach an invoice or receipt file', 400));
+      const stored = await ReceiptStorageService.putBuffer(file.buffer, file.originalname, file.mimetype);
+      res.status(201).json({ success: true, data: { invoiceUrl: `/api/custody/transfer-invoices/file?key=${encodeURIComponent(stored.storageKey)}`, ...stored } });
+    } catch (error) { next(error); }
+  }
+
+  static async streamTransferInvoice(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const key = String(req.query.key || '');
+      if (!key) return next(createError('File key is required', 400));
+      const { stream, fullPath } = await ReceiptStorageService.getReadStream(key);
+      const ext = path.extname(fullPath).toLowerCase();
+      res.setHeader('Content-Type', ext === '.pdf' ? 'application/pdf' : ext === '.webp' ? 'image/webp' : ext === '.png' ? 'image/png' : 'image/jpeg');
+      stream.pipe(res);
+    } catch (error) { next(error); }
+  }
   /**
    * GET /api/custody/accounts
    * Returns list of custody accounts with real-time derived balances
@@ -101,10 +123,10 @@ export class CustodyController {
    */
   static async executeTransfer(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const { sourceAccountId, destinationAccountId, amount, date, purpose } = req.body;
+      const { sourceAccountId, destinationAccountId, fromAccountantId, toAccountantId, amount, date, purpose, paymentMethod, comments, reason, invoiceUrl } = req.body;
 
-      if (!sourceAccountId || !destinationAccountId || !amount) {
-        return next(createError('sourceAccountId, destinationAccountId, and amount are required', 400));
+      if (!sourceAccountId || !destinationAccountId || !fromAccountantId || !toAccountantId || !amount || !reason) {
+        return next(createError('Sending accountant, receiving accountant, accounts, amount, and reason are required', 400));
       }
 
       if (!req.user) {
@@ -115,9 +137,15 @@ export class CustodyController {
         {
           sourceAccountId,
           destinationAccountId,
+          fromAccountantId,
+          toAccountantId,
           amount: Number(amount),
           date,
           purpose,
+          paymentMethod,
+          comments,
+          reason,
+          invoiceUrl,
         },
         req.user
       );

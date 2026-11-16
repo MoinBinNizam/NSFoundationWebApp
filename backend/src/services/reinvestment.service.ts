@@ -3,6 +3,7 @@ import { AuditLog } from '../models/AuditLog.js';
 import { CustodyAccount } from '../models/CustodyAccount.js';
 import { CustodyMovement } from '../models/CustodyMovement.js';
 import { InvestmentFunding } from '../models/InvestmentFunding.js';
+import { InvestmentReturn } from '../models/InvestmentReturn.js';
 import { InvestmentProject } from '../models/InvestmentProject.js';
 import { Reinvestment } from '../models/Reinvestment.js';
 import { CustodyService } from './custody.service.js';
@@ -261,6 +262,7 @@ export class ReinvestmentService {
       amount,
       date: input.date,
       purpose: input.notes?.trim() || `Wallet liquidation from ${wallet.name}`,
+      reason: input.notes?.trim() || `Wallet liquidation from ${wallet.name}`,
     }, actingUser);
 
     await AuditLog.create({
@@ -289,6 +291,23 @@ export class ReinvestmentService {
       ...event.toObject(),
       totalCapitalToDestination: event.reinvestedAmount + event.newAccountantFunds,
     }));
+  }
+
+  static async getWalletToProjectLineage(walletId?: string) {
+    const returnFilter: Record<string, unknown> = walletId
+      ? { destinationCustodyAccountId: walletId }
+      : { destinationType: { $in: ['PROJECT_WALLET', 'EXTERNAL_WALLET'] } };
+    const [returns, reinvestmentChains] = await Promise.all([
+      InvestmentReturn.find({ ...returnFilter, reversedAt: null })
+        .populate('projectId', 'projectId name')
+        .populate('destinationCustodyAccountId', 'name channel')
+        .sort({ maturityDate: -1 }),
+      this.getReinvestmentChains(),
+    ]);
+    return {
+      walletReturns: returns.map((item: any) => ({ id: item._id, project: item.projectId, wallet: item.destinationCustodyAccountId, date: item.maturityDate, principal: item.principalReturned, profit: item.actualProfit, loss: item.actualLoss, total: item.totalReturn })),
+      reinvestmentChains: reinvestmentChains.filter((chain: any) => !walletId || String(chain.walletAccountId?._id || chain.walletAccountId) === walletId),
+    };
   }
 
   static async getReinvestmentStats() {

@@ -29,6 +29,10 @@ export class ReinvestmentController {
     try { res.json({ success: true, data: await ReinvestmentService.getReinvestmentChains(req.query.projectId ? String(req.query.projectId) : undefined) }); } catch (error) { next(error); }
   }
 
+  static async getLineage(req: Request, res: Response, next: NextFunction) {
+    try { res.json({ success: true, data: await ReinvestmentService.getWalletToProjectLineage(req.query.walletId ? String(req.query.walletId) : undefined) }); } catch (error) { next(error); }
+  }
+
   static async execute(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { sourceProjectId, destinationProjectId, walletAccountId, reinvestedAmount, newAccountantFunds, newAccountantCustodyAccountId, date, notes } = req.body;

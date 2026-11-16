@@ -404,9 +404,15 @@ export interface IFundTransfer {
   transferNumber: string;
   sourceAccountId: Types.ObjectId;
   destinationAccountId: Types.ObjectId;
+  fromAccountantId?: Types.ObjectId;
+  toAccountantId?: Types.ObjectId;
   amount: number;
   date: Date;
   purpose?: string;
+  paymentMethod?: PaymentMethod;
+  comments?: string;
+  reason?: string;
+  invoiceUrl?: string;
   outMovementId?: Types.ObjectId;
   inMovementId?: Types.ObjectId;
   transferredBy: Types.ObjectId;
@@ -476,6 +482,10 @@ export interface IInvestmentReturn {
   notes?: string;
   recordedBy: Types.ObjectId;
   idempotencyKey?: string;
+  reversedAt?: Date | null;
+  reversedBy?: Types.ObjectId | null;
+  reversalReason?: string | null;
+  reversalMovementId?: Types.ObjectId | null;
   createdAt: Date;
 }
 

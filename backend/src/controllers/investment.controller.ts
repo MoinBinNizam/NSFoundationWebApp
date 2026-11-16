@@ -24,6 +24,11 @@ export class InvestmentController {
     }
   }
 
+  static async getReconciliation(_req: Request, res: Response, next: NextFunction) {
+    try { res.status(200).json({ success: true, data: await InvestmentService.getPortfolioReconciliation() }); }
+    catch (error) { next(error); }
+  }
+
   /**
    * GET /api/investments/projects
    */
@@ -231,6 +236,15 @@ export class InvestmentController {
     } catch (error) {
       next(error);
     }
+  }
+
+  static async reverseReturn(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required', 401));
+      const reason = String(req.body.reason || '').trim();
+      const result = await InvestmentService.reverseProjectReturn(req.params.returnId, reason, req.user);
+      res.status(200).json({ success: true, message: 'Investment return reversed. Record a replacement return if needed.', data: result });
+    } catch (error) { next(error); }
   }
 
   /**

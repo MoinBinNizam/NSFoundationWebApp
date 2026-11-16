@@ -84,6 +84,10 @@ const investmentReturnSchema = new Schema<IInvestmentReturn>(
       index: true,
       sparse: true,
     },
+    reversedAt: { type: Date, default: null, index: true },
+    reversedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    reversalReason: { type: String, trim: true, default: null },
+    reversalMovementId: { type: Schema.Types.ObjectId, ref: 'CustodyMovement', default: null },
     notes: {
       type: String,
       trim: true,

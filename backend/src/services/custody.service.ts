@@ -211,9 +211,15 @@ export class CustodyService {
     input: {
       sourceAccountId: string;
       destinationAccountId: string;
+      fromAccountantId?: string;
+      toAccountantId?: string;
       amount: number;
       date?: string | Date;
       purpose?: string;
+      paymentMethod?: string;
+      comments?: string;
+      reason?: string;
+      invoiceUrl?: string;
     },
     actingUser: IUser
   ) {
@@ -226,6 +232,7 @@ export class CustodyService {
     if (sourceAccountId === destinationAccountId) {
       throw createError('Source and destination custody accounts cannot be identical', 400);
     }
+    if (!input.reason?.trim()) throw createError('Transfer reason is required', 400);
 
     const [sourceAccount, destinationAccount] = await Promise.all([
       CustodyAccount.findById(sourceAccountId).populate('holderId', 'name email accountantType'),
@@ -237,6 +244,16 @@ export class CustodyService {
     }
     if (!destinationAccount || !destinationAccount.isActive) {
       throw createError('Destination custody account not found or inactive', 404);
+    }
+    const sourceHolderId = String((sourceAccount.holderId as any)?._id || sourceAccount.holderId || '');
+    const destinationHolderId = String((destinationAccount.holderId as any)?._id || destinationAccount.holderId || '');
+    if (input.fromAccountantId || input.toAccountantId) {
+      if (!input.fromAccountantId || !input.toAccountantId || input.fromAccountantId === input.toAccountantId) {
+        throw createError('Choose two different accountants for an accountant transfer', 400);
+      }
+      if (sourceAccount.accountType !== 'ACCOUNTANT_CUSTODY' || destinationAccount.accountType !== 'ACCOUNTANT_CUSTODY' || sourceHolderId !== input.fromAccountantId || destinationHolderId !== input.toAccountantId) {
+        throw createError('Selected custody accounts must belong to the selected sending and receiving accountants', 400);
+      }
     }
 
     // Verify source account has sufficient derived balance
@@ -287,9 +304,15 @@ export class CustodyService {
       transferNumber,
       sourceAccountId: sourceAccount._id,
       destinationAccountId: destinationAccount._id,
+      fromAccountantId: input.fromAccountantId,
+      toAccountantId: input.toAccountantId,
       amount,
       date: transferDate,
       purpose: input.purpose || '',
+      paymentMethod: input.paymentMethod,
+      comments: input.comments || '',
+      reason: input.reason.trim(),
+      invoiceUrl: input.invoiceUrl || '',
       outMovementId: outMovement._id,
       inMovementId: inMovement._id,
       transferredBy: actingUserId,
@@ -322,8 +345,14 @@ export class CustodyService {
         transferNumber,
         fromAccount: sourceAccount.name,
         toAccount: destinationAccount.name,
+        fromAccountantId: input.fromAccountantId,
+        toAccountantId: input.toAccountantId,
         amount,
         purpose: input.purpose,
+        paymentMethod: input.paymentMethod,
+        comments: input.comments,
+        reason: input.reason,
+        invoiceUrl: input.invoiceUrl,
         date: transferDate,
       },
       reason: `Executed inter-account transfer ${transferNumber} from ${sourceAccount.name} to ${destinationAccount.name}`,

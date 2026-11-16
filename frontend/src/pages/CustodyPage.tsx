@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { apiRequest } from '../services/api';
+import { apiRequest, getApiUrl, getAuthToken } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { ModuleGuide } from '../components/ModuleGuide';
@@ -121,6 +121,10 @@ interface FundTransferItem {
   amount: number;
   date: string;
   purpose: string;
+  paymentMethod?: string;
+  comments?: string;
+  reason?: string;
+  invoiceUrl?: string;
   transferredBy: {
     _id: string;
     name: string;
@@ -174,14 +178,21 @@ export const CustodyPage: React.FC = () => {
   const [showReconcileModal, setShowReconcileModal] = useState(false);
   const [showNewAccountModal, setShowNewAccountModal] = useState(false);
   const [selectedTransferVoucher, setSelectedTransferVoucher] = useState<FundTransferItem | null>(null);
+  const [transferInvoiceFile, setTransferInvoiceFile] = useState<File | null>(null);
 
   // Transfer Form State
   const [transferForm, setTransferForm] = useState({
+    fromAccountantId: '',
+    toAccountantId: '',
     sourceAccountId: '',
     destinationAccountId: '',
+    paymentMethod: 'BANK_TRANSFER',
     amount: '',
     date: new Date().toISOString().split('T')[0],
     purpose: '',
+    comments: '',
+    reason: '',
+    invoiceUrl: '',
   });
 
   // Reconcile Form State
@@ -299,33 +310,55 @@ export const CustodyPage: React.FC = () => {
   // Execute Transfer
   const handleExecuteTransfer = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!transferForm.sourceAccountId || !transferForm.destinationAccountId || !transferForm.amount) {
-      setErrorMessage('Please fill in source account, destination account, and transfer amount');
+    if (!transferForm.fromAccountantId || !transferForm.toAccountantId || !transferForm.sourceAccountId || !transferForm.destinationAccountId || !transferForm.amount || !transferForm.reason) {
+      setErrorMessage('Please select both accountants and accounts, then enter amount and reason');
       return;
     }
 
     try {
       setActionLoading(true);
       setErrorMessage(null);
+      let invoiceUrl = transferForm.invoiceUrl;
+      if (transferInvoiceFile) {
+        const body = new FormData();
+        body.append('file', transferInvoiceFile);
+        const upload = await fetch(getApiUrl('/custody/transfer-invoices'), { method: 'POST', headers: { Authorization: `Bearer ${getAuthToken() || ''}` }, body });
+        const uploadJson = await upload.json();
+        if (!upload.ok || !uploadJson.success) throw new Error(uploadJson.message || 'Could not upload the invoice file');
+        invoiceUrl = uploadJson.data.invoiceUrl;
+      }
       const res = await apiRequest<{ transferNumber: string; message?: string }>('/custody/transfer', {
         method: 'POST',
         body: JSON.stringify({
           sourceAccountId: transferForm.sourceAccountId,
           destinationAccountId: transferForm.destinationAccountId,
+          fromAccountantId: transferForm.fromAccountantId,
+          toAccountantId: transferForm.toAccountantId,
           amount: parseFloat(transferForm.amount),
           date: transferForm.date,
           purpose: transferForm.purpose,
+          paymentMethod: transferForm.paymentMethod,
+          comments: transferForm.comments,
+          reason: transferForm.reason,
+          invoiceUrl,
         }),
       });
 
       setSuccessMessage(`Transfer ${res.data.transferNumber} executed successfully!`);
       setShowTransferModal(false);
+      setTransferInvoiceFile(null);
       setTransferForm({
+        fromAccountantId: '',
+        toAccountantId: '',
         sourceAccountId: '',
         destinationAccountId: '',
+        paymentMethod: 'BANK_TRANSFER',
         amount: '',
         date: new Date().toISOString().split('T')[0],
         purpose: '',
+        comments: '',
+        reason: '',
+        invoiceUrl: '',
       });
 
       // Refresh overview
@@ -452,6 +485,21 @@ export const CustodyPage: React.FC = () => {
   // Selected source account for transfer preview
   const selectedSourceAccount = accounts.find((a) => a._id === transferForm.sourceAccountId);
   const selectedDestAccount = accounts.find((a) => a._id === transferForm.destinationAccountId);
+  const accountantAccounts = accounts.filter((account) => account.accountType === 'ACCOUNTANT_CUSTODY' && account.holderId?._id);
+  const accountants = Array.from(new Map(accountantAccounts.map((account) => [account.holderId!._id, account.holderId!])).values());
+  const sourceOptions = accountantAccounts.filter((account) => account.holderId?._id === transferForm.fromAccountantId);
+  const destinationOptions = accountantAccounts.filter((account) => account.holderId?._id === transferForm.toAccountantId);
+  const sourceCombinedBalance = sourceOptions.reduce((total, account) => total + account.derivedBalance, 0);
+  const channelForMethod: Record<string, string> = { BANK_TRANSFER: 'BANK', BKASH: 'BKASH', NAGAD: 'NAGAD', CASH: 'CASH' };
+  const chooseDefaultAccounts = (fromId: string, toId: string, method: string) => {
+    const preferredChannel = channelForMethod[method];
+    const from = accountantAccounts.filter((account) => account.holderId?._id === fromId);
+    const to = accountantAccounts.filter((account) => account.holderId?._id === toId);
+    return {
+      sourceAccountId: from.find((account) => account.channel === preferredChannel && account.derivedBalance > 0)?._id || from.find((account) => account.derivedBalance > 0)?._id || '',
+      destinationAccountId: to.find((account) => account.channel === preferredChannel)?._id || to[0]?._id || '',
+    };
+  };
 
   // Reconcile selected account info
   const selectedReconcileAccount = accounts.find((a) => a._id === reconcileForm.accountId);
@@ -1339,6 +1387,42 @@ export const CustodyPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleExecuteTransfer} className="p-6 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">Transfer from accountant</label>
+                  <select value={transferForm.fromAccountantId} onChange={(e) => {
+                    const fromAccountantId = e.target.value;
+                    const defaults = chooseDefaultAccounts(fromAccountantId, transferForm.toAccountantId, transferForm.paymentMethod);
+                    setTransferForm({ ...transferForm, fromAccountantId, ...defaults });
+                  }} className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200" required>
+                    <option value="">Select sending accountant...</option>
+                    {accountants.map((accountant) => <option key={accountant._id} value={accountant._id}>{accountant.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">Transfer to accountant</label>
+                  <select value={transferForm.toAccountantId} onChange={(e) => {
+                    const toAccountantId = e.target.value;
+                    const defaults = chooseDefaultAccounts(transferForm.fromAccountantId, toAccountantId, transferForm.paymentMethod);
+                    setTransferForm({ ...transferForm, toAccountantId, ...defaults });
+                  }} className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200" required>
+                    <option value="">Select receiving accountant...</option>
+                    {accountants.filter((accountant) => accountant._id !== transferForm.fromAccountantId).map((accountant) => <option key={accountant._id} value={accountant._id}>{accountant.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              {transferForm.fromAccountantId && <p className="-mt-2 text-xs text-emerald-300">Sending accountant's combined available custody: BDT {sourceCombinedBalance.toLocaleString()}</p>}
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">Payment method</label>
+                <select value={transferForm.paymentMethod} onChange={(e) => {
+                  const paymentMethod = e.target.value;
+                  const defaults = chooseDefaultAccounts(transferForm.fromAccountantId, transferForm.toAccountantId, paymentMethod);
+                  setTransferForm({ ...transferForm, paymentMethod, ...defaults });
+                }} className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2.5 text-sm text-gray-200">
+                  <option value="BANK_TRANSFER">Bank transfer</option><option value="BKASH">bKash</option><option value="NAGAD">Nagad</option><option value="CASH">Cash</option>
+                </select>
+                <p className="mt-1 text-xs text-gray-500">Matching custody accounts are selected automatically; you can override them below.</p>
+              </div>
               {/* Source Account */}
               <div>
                 <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
@@ -1351,29 +1435,13 @@ export const CustodyPage: React.FC = () => {
                   required
                 >
                   <option value="">{t('Select source custody account...')}</option>
-                  <optgroup label={`${t("Accountant Moin's Custody")} (৳${groupedCustody.moinTotal.toLocaleString()})`}>
-                    {groupedCustody.moin.map((acc) => (
+                  <optgroup label="Selected sending accountant custody">
+                    {sourceOptions.map((acc) => (
                       <option key={acc._id} value={acc._id} disabled={acc.derivedBalance <= 0}>
                         {acc.name} ({acc.channel}) — Available: BDT {acc.derivedBalance.toLocaleString()}
                       </option>
                     ))}
                   </optgroup>
-                  <optgroup label={`${t("Accountant Samrat's Custody")} (৳${groupedCustody.samratTotal.toLocaleString()})`}>
-                    {groupedCustody.samrat.map((acc) => (
-                      <option key={acc._id} value={acc._id} disabled={acc.derivedBalance <= 0}>
-                        {acc.name} ({acc.channel}) — Available: BDT {acc.derivedBalance.toLocaleString()}
-                      </option>
-                    ))}
-                  </optgroup>
-                  {groupedCustody.external.length > 0 && (
-                    <optgroup label={`${t('Investment / Partner Wallets')} (৳${groupedCustody.externalTotal.toLocaleString()})`}>
-                      {groupedCustody.external.map((acc) => (
-                        <option key={acc._id} value={acc._id} disabled={acc.derivedBalance <= 0}>
-                          {acc.name} ({acc.channel}) — Available: BDT {acc.derivedBalance.toLocaleString()}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
                 </select>
 
                 {selectedSourceAccount && (
@@ -1398,8 +1466,8 @@ export const CustodyPage: React.FC = () => {
                   required
                 >
                   <option value="">{t('Select destination custody account...')}</option>
-                  <optgroup label={t("Accountant Moin's Custody")}>
-                    {groupedCustody.moin
+                  <optgroup label="Selected receiving accountant custody">
+                    {destinationOptions
                       .filter((acc) => acc._id !== transferForm.sourceAccountId)
                       .map((acc) => (
                         <option key={acc._id} value={acc._id}>
@@ -1407,26 +1475,6 @@ export const CustodyPage: React.FC = () => {
                         </option>
                       ))}
                   </optgroup>
-                  <optgroup label={t("Accountant Samrat's Custody")}>
-                    {groupedCustody.samrat
-                      .filter((acc) => acc._id !== transferForm.sourceAccountId)
-                      .map((acc) => (
-                        <option key={acc._id} value={acc._id}>
-                          {acc.name} ({acc.channel}) — Current: BDT {acc.derivedBalance.toLocaleString()}
-                        </option>
-                      ))}
-                  </optgroup>
-                  {groupedCustody.external.length > 0 && (
-                    <optgroup label={t('Investment / Partner Wallets')}>
-                      {groupedCustody.external
-                        .filter((acc) => acc._id !== transferForm.sourceAccountId)
-                        .map((acc) => (
-                          <option key={acc._id} value={acc._id}>
-                            {acc.name} ({acc.channel}) — Current: BDT {acc.derivedBalance.toLocaleString()}
-                          </option>
-                        ))}
-                    </optgroup>
-                  )}
                 </select>
 
                 {selectedDestAccount && (
@@ -1481,19 +1529,28 @@ export const CustodyPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Purpose / Notes */}
+              {/* Reason / evidence note */}
               <div>
                 <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">
-                  Purpose / Justification
+                  Transfer reason
                 </label>
                 <input
                   type="text"
-                  value={transferForm.purpose}
-                  onChange={(e) => setTransferForm({ ...transferForm, purpose: e.target.value })}
-                  placeholder="e.g. Consolidation of Nagad fees to Islami Bank for land project"
+                  value={transferForm.reason}
+                  onChange={(e) => setTransferForm({ ...transferForm, reason: e.target.value, purpose: e.target.value })}
+                  placeholder="e.g. Accountant responsibility handover"
                   className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-500"
                   required
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">Comments (optional)</label>
+                <textarea value={transferForm.comments} onChange={(e) => setTransferForm({ ...transferForm, comments: e.target.value })} placeholder="Reference, receipt number, or handover note" rows={2} className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder-gray-500" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 uppercase tracking-wider mb-1.5">Invoice / payment receipt (optional)</label>
+                <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(e) => setTransferInvoiceFile(e.target.files?.[0] || null)} className="w-full text-xs text-gray-300 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-600 file:px-3 file:py-2 file:text-white" />
+                <p className="mt-1 text-xs text-gray-500">JPEG, PNG, WebP, or PDF; maximum 10 MB.</p>
               </div>
 
               {/* Submit Buttons */}

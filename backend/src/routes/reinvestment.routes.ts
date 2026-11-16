@@ -9,6 +9,7 @@ router.get('/stats', ReinvestmentController.getStats);
 router.get('/wallets', ReinvestmentController.listWallets);
 router.get('/wallets/:id/ledger', ReinvestmentController.getWalletLedger);
 router.get('/chains', ReinvestmentController.listChains);
+router.get('/lineage', ReinvestmentController.getLineage);
 router.post('/execute', financialIdempotency('WALLET_REINVESTMENT'), ReinvestmentController.execute);
 router.post('/liquidate', financialIdempotency('WALLET_LIQUIDATION'), ReinvestmentController.liquidate);
 export default router;

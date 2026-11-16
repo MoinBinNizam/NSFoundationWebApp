@@ -1,5 +1,5 @@
 import mongoose, { Schema, Model } from 'mongoose';
-import { IFundTransfer } from '../types/models.js';
+import { IFundTransfer, PaymentMethod } from '../types/models.js';
 
 const fundTransferSchema = new Schema<IFundTransfer>(
   {
@@ -23,6 +23,8 @@ const fundTransferSchema = new Schema<IFundTransfer>(
       required: [true, 'Destination custody account is required'],
       index: true,
     },
+    fromAccountantId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
+    toAccountantId: { type: Schema.Types.ObjectId, ref: 'User', index: true },
     amount: {
       type: Number,
       required: [true, 'Transfer amount is required'],
@@ -38,6 +40,10 @@ const fundTransferSchema = new Schema<IFundTransfer>(
       type: String,
       trim: true,
     },
+    paymentMethod: { type: String, enum: Object.values(PaymentMethod) },
+    comments: { type: String, trim: true },
+    reason: { type: String, trim: true },
+    invoiceUrl: { type: String, trim: true },
     outMovementId: {
       type: Schema.Types.ObjectId,
       ref: 'CustodyMovement',

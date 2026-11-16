@@ -917,6 +917,33 @@ export class InvestmentService {
     };
   }
 
+  /** Portfolio reconciliation for management review; every amount is derived
+   * from immutable funding, return, and custody records. */
+  static async getPortfolioReconciliation() {
+    const projects = await this.getProjects({ limit: 0 });
+    const rows = projects.items.map((project: any) => ({
+      projectId: project.projectId,
+      name: project.name,
+      status: project.status,
+      invested: Number(project.totalFunded || 0),
+      principalReturned: Number(project.metrics?.totalPrincipalReturned || 0),
+      profit: Number(project.metrics?.actualProfitReturned || 0),
+      loss: Number(project.metrics?.totalLosses || 0),
+      netProfit: Number(project.metrics?.netRealizedProfit || 0),
+      outstandingPrincipal: Number(project.metrics?.outstandingPrincipal || 0),
+      walletReinvested: Number(project.metrics?.walletReinvestedAmount || 0),
+      accountantFunded: Number(project.metrics?.accountantFundedAmount || 0),
+      totalReturned: Number(project.metrics?.totalReturnReceived || 0),
+    }));
+    const totals = rows.reduce((sum, row) => ({
+      invested: sum.invested + row.invested, principalReturned: sum.principalReturned + row.principalReturned,
+      profit: sum.profit + row.profit, loss: sum.loss + row.loss, netProfit: sum.netProfit + row.netProfit,
+      outstandingPrincipal: sum.outstandingPrincipal + row.outstandingPrincipal, walletReinvested: sum.walletReinvested + row.walletReinvested,
+      accountantFunded: sum.accountantFunded + row.accountantFunded, totalReturned: sum.totalReturned + row.totalReturned,
+    }), { invested: 0, principalReturned: 0, profit: 0, loss: 0, netProfit: 0, outstandingPrincipal: 0, walletReinvested: 0, accountantFunded: 0, totalReturned: 0 });
+    return { rows, totals };
+  }
+
   /**
    * Record a Random / Partial Installment Return to an Accountant
    * Supports random batch returns with sender, payment method, responsible accountant,
@@ -1207,6 +1234,46 @@ export class InvestmentService {
     }
 
     throw createError('Either projectId or orgName must be provided', 400);
+  }
+
+  /**
+   * Financial returns are immutable. A correction first reverses the custody
+   * receipt, then a new replacement return can be recorded with the right
+   * amount or destination.
+   */
+  static async reverseProjectReturn(returnId: string, reason: string, actingUser: IUser) {
+    if (!reason?.trim()) throw createError('A reversal reason is required.', 400);
+    const returnDoc = await InvestmentReturn.findById(returnId);
+    if (!returnDoc) throw createError('Investment return not found.', 404);
+    if (returnDoc.reversedAt) throw createError('This investment return has already been reversed.', 409);
+    if (!returnDoc.destinationCustodyAccountId) throw createError('The return has no destination account to reverse.', 400);
+
+    const account = await CustodyAccount.findById(returnDoc.destinationCustodyAccountId);
+    if (!account || !account.isActive) throw createError('Return destination account is unavailable for reversal.', 400);
+    const balance = await CustodyService.getDerivedAccountBalance(account._id);
+    if (balance.currentBalance < returnDoc.totalReturn) throw createError(`Cannot reverse: ${account.name} has insufficient available balance.`, 400);
+
+    const performedBy = (actingUser as unknown as { _id: Types.ObjectId })._id;
+    const reversalMovement = await CustodyMovement.create({
+      custodyAccountId: account._id,
+      movementType: MovementType.OUT,
+      amount: returnDoc.totalReturn,
+      sourceType: MovementSourceType.ADJUSTMENT,
+      sourceRefId: returnDoc._id,
+      date: new Date(),
+      description: `Reversal of investment return ${returnDoc._id}: ${reason.trim()}`,
+      performedBy,
+    });
+    returnDoc.reversedAt = new Date();
+    returnDoc.reversedBy = performedBy;
+    returnDoc.reversalReason = reason.trim();
+    returnDoc.reversalMovementId = reversalMovement._id;
+    await returnDoc.save();
+    const refreshed = await CustodyService.getDerivedAccountBalance(account._id);
+    account.cachedBalance = refreshed.currentBalance;
+    await account.save();
+    await AuditLog.create({ performedBy, action: 'REVERSE_INVESTMENT_RETURN', entityName: 'InvestmentReturn', entityId: returnDoc._id, beforeState: { totalReturn: returnDoc.totalReturn, destinationCustodyAccountId: account._id }, afterState: { reversedAt: returnDoc.reversedAt, reversalMovementId: reversalMovement._id }, reason: reason.trim() });
+    return { returnDoc, reversalMovement, accountBalance: refreshed.currentBalance };
   }
 
   /**
