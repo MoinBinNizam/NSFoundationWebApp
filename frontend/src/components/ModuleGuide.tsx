@@ -334,9 +334,10 @@ const MODULE_GUIDES: Record<
 interface ModuleGuideProps {
   moduleKey: ModuleKey;
   defaultOpen?: boolean;
+  children?: React.ReactNode;
 }
 
-export const ModuleGuide: React.FC<ModuleGuideProps> = ({ moduleKey, defaultOpen = false }) => {
+export const ModuleGuide: React.FC<ModuleGuideProps> = ({ moduleKey, defaultOpen = false, children }) => {
   const { language } = usePreferences();
   const isBn = language === 'bn';
   const guide = MODULE_GUIDES[moduleKey];
@@ -452,6 +453,12 @@ export const ModuleGuide: React.FC<ModuleGuideProps> = ({ moduleKey, defaultOpen
           </div>
         ))}
       </div>
+
+      {children && (
+        <div className="mt-4 pt-4 border-t border-white/10">
+          {children}
+        </div>
+      )}
     </div>
   );
 };

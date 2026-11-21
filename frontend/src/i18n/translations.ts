@@ -9,6 +9,11 @@ export const bangla: Record<string, string> = {
   'Contributions & Payments': 'জমা ও পরিশোধ',
   'Accountant Custody': 'হিসাবরক্ষকের তহবিল',
   Investments: 'বিনিয়োগ',
+  'Investments profits': 'বিনিয়োগের মুনাফা',
+  'View Portfolio': 'পোর্টফোলিও দেখুন',
+  'Matured Projects Profit': 'মেয়াদোত্তীর্ণ প্রকল্পের মুনাফা',
+  'Reinvested Projects Profit': 'পুনর্বিনিয়োগকৃত প্রকল্পের মুনাফা',
+  'All Projects Realized': 'সকল প্রকল্পের অর্জিত মুনাফা',
   'Project Wallets': 'প্রকল্প ওয়ালেট',
   'Project Wallets & Reinvestment': 'প্রকল্প ওয়ালেট ও পুনর্বিনিয়োগ',
   'Expense Management': 'খরচ ব্যবস্থাপনা',
@@ -1820,6 +1825,8 @@ export const bangla: Record<string, string> = {
   'Batches Returned': 'টি ব্যাচ ফেরত প্রাপ্ত',
   'Please select destination project and wallet account': 'অনুগ্রহ করে গন্তব্য প্রকল্প ও ওয়ালেট হিসাব নির্বাচন করুন',
   'Wallet proceeds successfully reinvested into new project!': 'ওয়ালেট তহবিল সফলভাবে নতুন প্রকল্পে পুনর্বিনিয়োগ করা হয়েছে!',
+  'Registry of cooperative society members, share allocations, dropped member exits, and refund payment vouchers.': 'সমবায় সমিতির সদস্যদের নিবন্ধন, শেয়ার বরাদ্দ, বাদ পড়া সদস্য ও রিফান্ড পেমেন্ট ভাউচার।',
+  'Member Statement Directory': 'সদস্যদের হিসাব বিবরণী তালিকা',
 };
 
 export const englishFromBangla = Object.fromEntries(Object.entries(bangla).map(([english, bengali]) => [bengali, english]));

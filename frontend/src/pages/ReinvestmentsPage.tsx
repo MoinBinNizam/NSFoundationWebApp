@@ -214,10 +214,10 @@ export const ReinvestmentsPage: React.FC = () => {
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div>
         <div className="flex items-center gap-2 text-emerald-400"><Repeat2 size={20} /><span className="text-xs font-bold uppercase tracking-wider">{t('Reinvestment Operations')}</span></div>
-        <h2 className="mt-1 text-2xl font-bold text-white">Project Wallets & Reinvestment</h2>
-        <p className="mt-1 text-sm text-gray-400">Keep external partner proceeds separate, trace their lineage, and reinvest or liquidate them with a complete ledger trail.</p>
+        <h2 className="mt-1 text-2xl font-bold text-white">{t('Project Wallets & Reinvestment')}</h2>
+        <p className="mt-1 text-sm text-gray-400">{t('Keep external partner proceeds separate, trace their lineage, and reinvest or liquidate them with a complete ledger trail.')}</p>
       </div>
-      <button onClick={load} disabled={loading} className="btn-secondary inline-flex items-center justify-center gap-2"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} />Refresh</button>
+      <button onClick={load} disabled={loading} className="btn-secondary inline-flex items-center justify-center gap-2"><RefreshCw size={16} className={loading ? 'animate-spin' : ''} />{t('Refresh')}</button>
     </div>
 
     {error && <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</div>}
@@ -231,7 +231,7 @@ export const ReinvestmentsPage: React.FC = () => {
     </div>
 
     <div className="flex flex-wrap gap-2 border-b border-white/10 pb-3">
-      {([['wallets', 'Organization Wallets'], ['chains', 'Reinvestment Chains'], ['audit', 'Reinvestment Audit']] as const).map(([key, label]) => <button key={key} onClick={() => setTab(key)} className={`rounded-lg px-4 py-2 text-sm font-medium transition ${tab === key ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>{label}</button>)}
+      {([['wallets', 'Organization Wallets'], ['chains', 'Reinvestment Chains'], ['audit', 'Reinvestment Audit']] as const).map(([key, label]) => <button key={key} onClick={() => setTab(key)} className={`rounded-lg px-4 py-2 text-sm font-medium transition ${tab === key ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'text-gray-400 hover:bg-white/5 hover:text-white'}`}>{t(label)}</button>)}
     </div>
 
     {tab === 'wallets' && <div className="grid gap-4 lg:grid-cols-2">

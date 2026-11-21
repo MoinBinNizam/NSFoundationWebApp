@@ -88,7 +88,7 @@ export class ReportingService {
       AuditLog.find(activityFilter).populate('performedBy', 'name email accountantType').sort({ createdAt: -1, _id: -1 }).limit(activityPageSize),
       AuditLog.countDocuments(activityFilter),
       Member.countDocuments({ status: 'ACTIVE', ...(selectedEnd ? { joinDate: { $lte: selectedEnd } } : {}) }),
-      canAccessInvestments(user) ? InvestmentService.getInvestmentStats() : Promise.resolve(null),
+      canAccessInvestments(user) ? InvestmentService.getInvestmentStats(query as any) : Promise.resolve(null),
       MonthlyLedger.find({ month: selectedLedgerRange }).select('memberId month principalDue penaltyDue principalPaid penaltyPaid penaltyWaived').lean(),
       Payment.aggregate([{ $match: trendPaymentFilter }, { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$paymentDate' } }, total: { $sum: '$totalAmount' } } }]),
       Expense.aggregate([{ $match: trendExpenseFilter }, { $group: { _id: { $dateToString: { format: '%Y-%m', date: '$date' } }, total: { $sum: '$amount' } } }]),

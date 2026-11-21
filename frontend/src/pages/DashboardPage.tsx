@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { useNavigate } from 'react-router-dom';
 import { ModuleGuide } from '../components/ModuleGuide';
-import { PwaInstallCard } from '../components/PwaInstallCard';
 import {
   Activity,
   BarChart3,
@@ -110,7 +109,18 @@ interface Dashboard {
     investments?: {
       totalCapitalInvested: number;
       activeProjectsCount: number;
+      maturedProjectsCount?: number;
+      proposedProjectsCount?: number;
+      totalProjectsCount?: number;
+      totalPrincipalReturned?: number;
+      totalProfitRealized?: number;
+      totalLosses?: number;
       netRealizedProfit: number;
+      maturedProjectsProfit?: number;
+      reinvestedProjectsProfit?: number;
+      activeProjectsProfit?: number;
+      allTimeProfitRealized?: number;
+      overallROI?: number;
     } | null;
   };
   custodyByAccount: Array<{ name: string; channel: string; accountType?: string; balance: number; holderName?: string | null; holderAccountantType?: string | null }>;
@@ -349,86 +359,91 @@ export const DashboardPage: React.FC = () => {
   const displayedActivity = activityItems.length ? activityItems : dashboard?.recentActivity || [];
 
   return (
-    <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto pb-10">
+    <div className="space-y-4 sm:space-y-5 max-w-7xl mx-auto pb-10">
       {/* Module Operational Guide */}
       <ModuleGuide moduleKey="DASHBOARD" defaultOpen={false} />
 
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-blue-400">
-            <BarChart3 size={18} />
+            <BarChart3 size={17} />
             <span className="text-xs font-bold uppercase tracking-wider">{t('Analytics')}</span>
           </div>
-          <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          <h1 className="mt-0.5 text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
             {view === 'dashboard' ? t('NS Foundation Dashboard') : t('Society Reports Workspace')}
           </h1>
-          <p className="mt-1 text-xs sm:text-sm text-gray-400">
+          <p className="mt-0.5 text-xs sm:text-sm text-gray-400">
             {view === 'dashboard'
               ? t('Real-time financial overview derived directly from immutable ledger projections.')
               : t('Search, sort, filter, and export auditable reports across all financial operations.')}
           </p>
         </div>
+      </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+      {/* Primary Top Bar: Navigation Tabs + Embedded Reporting Period Replacement + Refresh */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-white/10 pb-2.5">
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
           <button
-            onClick={view === 'dashboard' ? loadDashboard : loadReport}
-            className="btn btn-secondary btn-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider"
+            type="button"
+            onClick={() => setView('dashboard')}
+            className={`pb-2.5 px-3 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 whitespace-nowrap ${
+              view === 'dashboard'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-white'
+            }`}
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin text-blue-400' : 'text-gray-400'} />
-            <span>{t('Refresh')}</span>
+            <BarChart3 size={15} />
+            <span>{t('Dashboard Overview')}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setView('reports')}
+            className={`pb-2.5 px-3 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 whitespace-nowrap ${
+              view === 'reports'
+                ? 'border-blue-500 text-blue-400'
+                : 'border-transparent text-gray-400 hover:text-white'
+            }`}
+          >
+            <FileText size={15} />
+            <span>{t('Reports & Exports')}</span>
           </button>
         </div>
-      </div>
 
-      {/* Primary Top Navigation Tabs (Identical to Contributions & Payments) */}
-      <div className="flex border-b border-white/10 gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
-        <button
-          onClick={() => setView('dashboard')}
-          className={`pb-3 px-4 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 whitespace-nowrap ${view === 'dashboard'
-              ? 'border-blue-500 text-blue-400'
-              : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-        >
-          <BarChart3 size={16} />
-          <span>{t('Dashboard Overview')}</span>
-        </button>
-
-        <button
-          onClick={() => setView('reports')}
-          className={`pb-3 px-4 text-xs font-bold tracking-wider uppercase transition-all duration-200 border-b-2 flex items-center gap-2 whitespace-nowrap ${view === 'reports'
-              ? 'border-blue-500 text-blue-400'
-              : 'border-transparent text-gray-400 hover:text-white'
-            }`}
-        >
-          <FileText size={16} />
-          <span>{t('Reports & Exports')}</span>
-        </button>
-      </div>
-
-      {/* Error Alert */}
-      {error && (
-        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex items-center justify-between">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300">
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
-      {/* Shared Filter Bar (Identical to Contributions & Payments filter pattern) */}
-      <div className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-3 flex-wrap">
-          <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Calendar size={14} className="text-blue-400" />
-              <span>{t('Reporting Period:')}</span>
+        {/* Embedded Reporting Period Replacement Controls */}
+        <div className="flex items-center gap-2 flex-wrap self-start md:self-auto">
+          <div className="flex items-center gap-1.5 bg-slate-900/90 border border-white/15 rounded-xl px-2.5 py-1 shadow-sm">
+            <Calendar size={13} className="text-blue-400 shrink-0" />
+            <span className="text-[11px] font-bold text-gray-300 uppercase tracking-wider whitespace-nowrap">
+              {t('Reporting Period:')}
             </span>
-            <select aria-label={t('Reporting year')} className="form-select min-w-[130px] px-2 py-1.5 text-xs" value={reportingYear} onChange={(e) => applyReportingPeriod(e.target.value, reportingMonth)}>
-              <option value="ALL">{t('All years')}</option>
-              {Array.from({ length: new Date().getFullYear() - 2024 + 1 }, (_, index) => 2024 + index).map((year) => <option key={year} value={year}>{year}</option>)}
+            <select
+              aria-label={t('Reporting year')}
+              className="bg-slate-900 border border-white/10 rounded-lg text-blue-300 text-xs font-bold focus:outline-none cursor-pointer py-1 px-2"
+              value={reportingYear}
+              onChange={(e) => applyReportingPeriod(e.target.value, reportingMonth)}
+            >
+              <option value="ALL" className="bg-slate-900 text-white">{t('All years')}</option>
+              {Array.from({ length: new Date().getFullYear() - 2024 + 1 }, (_, index) => 2024 + index).map((year) => (
+                <option key={year} value={year} className="bg-slate-900 text-white">{year}</option>
+              ))}
             </select>
-            <select aria-label={t('Reporting month')} disabled={reportingYear === 'ALL'} className="form-select min-w-[130px] px-2 py-1.5 text-xs disabled:opacity-50" value={reportingMonth} onChange={(e) => applyReportingPeriod(reportingYear, e.target.value)}><option value="ALL">{t('All months')}</option>{Array.from({ length: 12 }, (_, index) => <option key={index + 1} value={index + 1}>{t(new Date(2024, index, 1).toLocaleString('en', { month: 'long' }))}</option>)}</select>
+            <select
+              aria-label={t('Reporting month')}
+              disabled={reportingYear === 'ALL'}
+              className="bg-slate-900 border border-white/10 rounded-lg text-blue-300 text-xs font-bold focus:outline-none cursor-pointer py-1 px-2 disabled:opacity-40"
+              value={reportingMonth}
+              onChange={(e) => applyReportingPeriod(reportingYear, e.target.value)}
+            >
+              <option value="ALL" className="bg-slate-900 text-white">{t('All months')}</option>
+              {Array.from({ length: 12 }, (_, index) => (
+                <option key={index + 1} value={index + 1} className="bg-slate-900 text-white">
+                  {t(new Date(2024, index, 1).toLocaleString('en', { month: 'short' }))}
+                </option>
+              ))}
+            </select>
           </div>
 
           {(startDate || endDate) && (
@@ -441,38 +456,42 @@ export const DashboardPage: React.FC = () => {
                 setReportingMonth('ALL');
                 setPage(1);
               }}
-              className="text-xs text-rose-400 hover:text-rose-300 font-semibold px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 transition-all flex items-center gap-1"
+              className="text-xs text-rose-400 hover:text-rose-300 font-semibold px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 transition-all flex items-center gap-1 shadow-sm"
+              title={t('Clear Filter')}
             >
               <X size={13} />
               <span>{t('Clear Filter')}</span>
             </button>
           )}
-        </div>
 
-        <div className="text-xs text-gray-400">
-          <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-2" />
-          {startDate || endDate ? t('Filtered Date Window') : t('All Historical Records')}
+          <button
+            type="button"
+            onClick={view === 'dashboard' ? loadDashboard : loadReport}
+            className="btn btn-secondary btn-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider py-1.5 px-3"
+            title={t('Refresh')}
+          >
+            <RefreshCw size={13} className={loading ? 'animate-spin text-blue-400' : 'text-gray-400'} />
+            <span className="hidden sm:inline">{t('Refresh')}</span>
+          </button>
         </div>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200 flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-300">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* VIEW 1: DASHBOARD TAB */}
       {view === 'dashboard' ? (
         loading ? (
           <Loading />
         ) : (
-          <div className="flex flex-col gap-6 sm:gap-8">
-            {/* Keep optional app-install help available without taking dashboard space. */}
-            <details className="group rounded-2xl border border-emerald-500/20 bg-slate-900/45">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-sm font-bold text-emerald-200 marker:content-none">
-                <span>{t('NS Foundation Desktop & Mobile App')}</span>
-                <span className="text-xs font-medium text-gray-400 group-open:hidden">{t('Show')}</span>
-                <span className="hidden text-xs font-medium text-gray-400 group-open:inline">{t('Hide')}</span>
-              </summary>
-              <div className="border-t border-white/10 p-3 sm:p-4">
-                <PwaInstallCard />
-              </div>
-            </details>
-
+          <div className="flex flex-col gap-5 sm:gap-6">
             {/* EXECUTIVE SECTION A: The 4 Pillars of Society Net Worth */}
             <div className="glass-card p-5 sm:p-6 bg-gradient-to-br from-slate-900/90 via-slate-900/70 to-blue-950/40 border border-blue-500/20 shadow-xl space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/10 pb-3">
@@ -671,7 +690,7 @@ export const DashboardPage: React.FC = () => {
             </div>
 
             {/* 1. Primary Metric KPI Cards (Contributions & Payments Cards Design) */}
-            <div className="order-1 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-3">
+            <div className="order-1 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
               {/* Card 1: Total Collections */}
               <button type="button" onClick={() => openReport('collection')} className="glass-card w-full p-5 text-left border-l-4 border-l-emerald-500 hover:border-emerald-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-emerald-400/70">
                 <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
@@ -690,6 +709,45 @@ export const DashboardPage: React.FC = () => {
                   </span>
                 </div>
                 <MetricDelta metric={dashboard?.comparisons.collections} label="vs prior month" />
+              </button>
+
+              {/* Card 2: Investments profits */}
+              <button
+                type="button"
+                onClick={() => navigate('/investments')}
+                className="glass-card w-full p-5 text-left border-l-4 border-l-teal-500 hover:border-teal-500/50 transition-all focus:outline-none focus:ring-2 focus:ring-teal-400/70"
+                aria-label={t('Investments profits')}
+              >
+                <div className="flex items-center justify-between text-gray-400 text-xs font-semibold uppercase tracking-wider">
+                  <span className="text-teal-300 font-bold">{t('Investments profits')}</span>
+                  <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                    <TrendingUp size={18} />
+                  </div>
+                </div>
+                <p className="text-2xl sm:text-3xl font-extrabold text-teal-300 mt-3 tracking-tight">
+                  {money(
+                    dashboard?.metrics.investments
+                      ? (dashboard.metrics.investments.totalProfitRealized ?? dashboard.metrics.investments.netRealizedProfit ?? 0)
+                      : 0
+                  )}
+                </p>
+                <div className="mt-3 grid grid-cols-2 gap-1.5 border-t border-white/5 pt-2.5 text-[10px] text-gray-400">
+                  <span className="truncate">
+                    {t('Matured')}: <b className="text-emerald-300 font-bold">{money(dashboard?.metrics.investments?.maturedProjectsProfit || 0)}</b>
+                  </span>
+                  <span className="truncate text-right">
+                    {t('Reinvested')}: <b className="text-cyan-300 font-bold">{money(dashboard?.metrics.investments?.reinvestedProjectsProfit || 0)}</b>
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-gray-400 mt-2">
+                  <span>
+                    {dashboard?.metrics.investments?.maturedProjectsCount || 0} {t('matured')} · {dashboard?.metrics.investments?.totalProjectsCount || 0} {t('projects')}
+                  </span>
+                  <span className="text-teal-400 font-semibold flex items-center gap-0.5 hover:underline">
+                    <span>{t('View Portfolio')}</span>
+                    <ArrowUpRight size={12} />
+                  </span>
+                </div>
               </button>
 
               {/* Card 2: Operational Expenses */}

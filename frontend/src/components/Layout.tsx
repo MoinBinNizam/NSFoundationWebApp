@@ -237,7 +237,7 @@ export const Layout: React.FC = () => {
           <div className="flex items-center gap-2.5">
             <button
               onClick={triggerInstall}
-              className={`btn btn-secondary btn-sm gap-1.5 px-2.5 transition-all ${
+              className={`btn btn-secondary btn-sm gap-1.5 px-2.5 min-w-[110px] justify-center transition-all shrink-0 ${
                 isInstalled
                   ? 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10'
                   : 'text-amber-300 border-amber-500/30 hover:bg-amber-500/10 shadow-sm'
@@ -249,25 +249,25 @@ export const Layout: React.FC = () => {
               }
               aria-label={language === 'bn' ? 'ডেস্কটপ ও মোবাইল অ্যাপ ইনস্টল করুন' : 'Install Desktop & Mobile App'}
             >
-              {isInstalled ? <CheckCircle2 size={15} /> : <Download size={15} />}
+              {isInstalled ? <CheckCircle2 size={15} className="shrink-0" /> : <Download size={15} className="shrink-0" />}
               <span className="hidden sm:inline font-bold text-xs">
                 {isInstalled
-                  ? (language === 'bn' ? 'অ্যাপ ইনস্টল্ড ✓' : 'Installed ✓')
+                  ? (language === 'bn' ? 'ইনস্টল্ড ✓' : 'Installed ✓')
                   : (language === 'bn' ? 'অ্যাপ ইনস্টল' : 'Install App')}
               </span>
             </button>
             <button
               onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')}
-              className="btn btn-secondary btn-sm gap-1.5 px-2.5 font-bold"
+              className="btn btn-secondary btn-sm gap-1.5 px-2.5 font-bold min-w-[84px] w-[84px] justify-center text-center shrink-0 transition-none"
               title={t('Switch language')}
               aria-label={t('Switch language')}
               data-localization-skip
             >
-              <Languages size={16} />
-              <span>{language === 'en' ? 'বাংলা' : 'EN'}</span>
+              <Languages size={15} className="text-blue-400 shrink-0" />
+              <span className="w-9 text-center font-bold tracking-wide shrink-0">{language === 'en' ? 'বাংলা' : 'EN'}</span>
             </button>
-            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="btn btn-secondary btn-sm px-2.5" title={t('Switch color theme')} aria-label={t('Switch color theme')}>{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>
-            <span className="badge badge-active hidden sm:inline-flex text-[11px] py-1">
+            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="btn btn-secondary btn-sm px-2.5 w-[36px] justify-center shrink-0" title={t('Switch color theme')} aria-label={t('Switch color theme')}>{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>
+            <span className="badge badge-active hidden sm:inline-flex text-[11px] py-1 min-w-[130px] justify-center text-center shrink-0">
               {t('System Operational')}
             </span>
           </div>

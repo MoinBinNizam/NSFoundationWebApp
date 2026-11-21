@@ -863,11 +863,12 @@ export class InvestmentService {
   /**
    * Portfolio-Wide Investment Metrics
    */
-  static async getInvestmentStats() {
-    const [projects, returns, fundings] = await Promise.all([
+  static async getInvestmentStats(filter?: { startDate?: string | Date; endDate?: string | Date }) {
+    const [projects, allReturns, fundings, reinvestments] = await Promise.all([
       InvestmentProject.find(),
       InvestmentReturn.find(),
       InvestmentFunding.find(),
+      Reinvestment.find(),
     ]);
 
     let totalCapitalInvested = 0;
@@ -885,14 +886,59 @@ export class InvestmentService {
       else if (prj.status === ProjectStatus.PROPOSED) proposedProjectsCount++;
     }
 
+    const reinvestedDestProjectIds = new Set(
+      reinvestments.map((r) => String(r.destinationProjectId))
+    );
+    const projectMap = new Map(projects.map((p) => [String(p._id), p]));
+
+    let allTimeProfitRealized = 0;
+    for (const ret of allReturns) {
+      allTimeProfitRealized += Number(ret.actualProfit) || 0;
+    }
+
+    let returns = allReturns;
+    if (filter?.startDate || filter?.endDate) {
+      const start = filter.startDate ? new Date(filter.startDate) : null;
+      const end = filter.endDate ? new Date(filter.endDate) : null;
+      if (end) end.setHours(23, 59, 59, 999);
+
+      returns = allReturns.filter((ret) => {
+        const d = ret.maturityDate ? new Date(ret.maturityDate) : new Date((ret as any).createdAt);
+        if (start && d < start) return false;
+        if (end && d > end) return false;
+        return true;
+      });
+    }
+
     let totalPrincipalReturned = 0;
     let totalProfitRealized = 0;
     let totalLosses = 0;
+    let maturedProjectsProfit = 0;
+    let reinvestedProjectsProfit = 0;
+    let activeProjectsProfit = 0;
 
     for (const ret of returns) {
-      totalPrincipalReturned += ret.principalReturned;
-      totalProfitRealized += ret.actualProfit;
-      totalLosses += ret.actualLoss;
+      const pReturned = Number(ret.principalReturned) || 0;
+      const profit = Number(ret.actualProfit) || 0;
+      const loss = Number(ret.actualLoss) || 0;
+
+      totalPrincipalReturned += pReturned;
+      totalProfitRealized += profit;
+      totalLosses += loss;
+
+      const proj = projectMap.get(String(ret.projectId));
+      if (proj) {
+        if (proj.status === ProjectStatus.MATURED || proj.status === ProjectStatus.FULLY_SETTLED) {
+          maturedProjectsProfit += profit;
+        } else if (proj.status === ProjectStatus.ACTIVE) {
+          activeProjectsProfit += profit;
+        }
+
+        const isReinvested = (Number(proj.walletReinvestedAmount) || 0) > 0 || reinvestedDestProjectIds.has(String(proj._id));
+        if (isReinvested) {
+          reinvestedProjectsProfit += profit;
+        }
+      }
     }
 
     const activeDeployedCapital = Math.max(0, totalCapitalInvested - totalPrincipalReturned);
@@ -908,9 +954,13 @@ export class InvestmentService {
       totalTargetPrincipal,
       activeDeployedCapital,
       totalPrincipalReturned,
-      totalProfitRealized,
-      totalLosses,
-      netRealizedProfit,
+      totalProfitRealized: Math.round(totalProfitRealized * 100) / 100,
+      totalLosses: Math.round(totalLosses * 100) / 100,
+      netRealizedProfit: Math.round(netRealizedProfit * 100) / 100,
+      maturedProjectsProfit: Math.round(maturedProjectsProfit * 100) / 100,
+      reinvestedProjectsProfit: Math.round(reinvestedProjectsProfit * 100) / 100,
+      activeProjectsProfit: Math.round(activeProjectsProfit * 100) / 100,
+      allTimeProfitRealized: Math.round(allTimeProfitRealized * 100) / 100,
       overallROI: Math.round(overallROI * 100) / 100,
       totalFundingEventsCount: fundings.length,
       totalReturnEventsCount: returns.length,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   FileDown,
   FileText,
@@ -27,6 +27,7 @@ import { usePreferences } from '../context/PreferencesContext';
 import { useLogo } from '../context/LogoContext';
 import { BrandLogo } from '../components/BrandLogo';
 import { ModuleGuide } from '../components/ModuleGuide';
+import { TableScrollControls } from '../components/TableScrollControls';
 import { apiRequest, getApiUrl, getAuthToken } from '../services/api';
 import {
   downloadMemberReportImage,
@@ -82,6 +83,10 @@ export const DocumentsPage: React.FC = () => {
 
   // Active sub-tab in Statements & Reports
   const [activeTab, setActiveTab] = useState<'member' | 'annual' | 'audit'>('member');
+
+  // Horizontal scroll table container refs
+  const memberDirectoryTableRef = useRef<HTMLDivElement>(null);
+  const auditPackTableRef = useRef<HTMLDivElement>(null);
 
   // Year filter: Default 2024
   const [year, setYear] = useState<string>('2024');
@@ -841,9 +846,10 @@ export const DocumentsPage: React.FC = () => {
                     : 'Click any member to preview or directly export official statements.'}
                 </p>
               </div>
+              <TableScrollControls containerRef={memberDirectoryTableRef} />
             </div>
 
-            <div className="table-container overflow-x-auto">
+            <div ref={memberDirectoryTableRef} className="table-container overflow-x-auto">
               <table className="data-table min-w-[800px]">
                 <thead>
                   <tr>
@@ -1438,11 +1444,12 @@ export const DocumentsPage: React.FC = () => {
                         className="w-full bg-slate-950/80 border border-white/15 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-rose-500"
                       />
                     </div>
+                    <TableScrollControls containerRef={auditPackTableRef} />
                   </div>
                 </div>
 
                 {/* Table Container */}
-                <div className="table-container overflow-x-auto max-h-[560px] overflow-y-auto">
+                <div ref={auditPackTableRef} className="table-container overflow-x-auto max-h-[560px] overflow-y-auto">
                   <table className="data-table text-xs">
                     <thead className="sticky top-0 bg-slate-900/95 z-10">
                       <tr>

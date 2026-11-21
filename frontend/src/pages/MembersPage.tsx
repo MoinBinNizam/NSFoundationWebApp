@@ -1405,11 +1405,9 @@ export const MembersPage: React.FC = () => {
                   {stats.total} {t(stats.total === 1 ? 'registered member' : 'registered members')}
                 </span>
               </div>
-            </div>
-          </div>
 
-          <div className="flex justify-end mb-2">
-            <TableScrollControls containerRef={rosterTableRef} />
+              <TableScrollControls containerRef={rosterTableRef} />
+            </div>
           </div>
 
           {/* Member List Table */}
@@ -1706,7 +1704,10 @@ export const MembersPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex justify-end mt-4 mb-2">
+            <div className="flex items-center justify-between gap-3 pt-3 pb-1 border-t border-white/5">
+              <div className="text-xs font-semibold text-gray-300">
+                {isBn ? `তালিকাভুক্ত বাদ পড়া সদস্য (${exits.length})` : `Settlement Records (${exits.length})`}
+              </div>
               <TableScrollControls containerRef={exitsTableRef} />
             </div>
 
