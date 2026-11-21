@@ -7,7 +7,7 @@ import { AuthRequest } from '../middlewares/auth.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
 import { generateToken } from '../utils/jwt.js';
 import { createError } from '../middlewares/error.js';
-import { UserRole, AccountantType, UserStatus } from '../types/models.js';
+import { UserRole, AccountantType, UserStatus, AccountType } from '../types/models.js';
 import { normalizePhone } from '../middlewares/sanitize.js';
 import { CustodyChannel } from '../types/models.js';
 import { CustodyService } from '../services/custody.service.js';
@@ -212,10 +212,13 @@ export async function listStaffCandidates(_req: AuthRequest, res: Response, next
 export async function appointMemberStaff(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     if (!req.user) return next(createError('Authentication required.', 401));
-    const { userId, accountantType, linkedGatewayChannels = [], reason } = req.body;
+    const { userId, accountantType, linkedGatewayChannels = [], custodyAccounts = [], reason } = req.body;
     if (!userId || !accountantType || !reason?.trim()) return next(createError('Member, responsibility type, and appointment reason are required.', 400));
     if (!Object.values(AccountantType).includes(accountantType)) return next(createError('Staff type must be PRIMARY or ASSISTANT.', 400));
     if (!Array.isArray(linkedGatewayChannels) || linkedGatewayChannels.some((channel) => !Object.values(CustodyChannel).includes(channel))) return next(createError('One or more linked gateway channels are invalid.', 400));
+    if (!Array.isArray(custodyAccounts) || custodyAccounts.some((account) => !account?.channel || !Object.values(CustodyChannel).includes(account.channel) || !String(account.accountNumber || '').trim())) return next(createError('Each custody account needs a valid channel and account number.', 400));
+    if (new Set(custodyAccounts.map((account) => account.channel)).size !== custodyAccounts.length) return next(createError('Only one custody account per payment channel can be created at appointment.', 400));
+    if (custodyAccounts.some((account) => !linkedGatewayChannels.includes(account.channel))) return next(createError('Every configured custody account must be an enabled receiving gateway.', 400));
     const [candidate, occupied] = await Promise.all([
       User.findById(userId).select('+gatewayAccessKeyHash'),
       User.findOne({ _id: { $ne: userId }, accountantType, status: UserStatus.ACTIVE }),
@@ -233,8 +236,12 @@ export async function appointMemberStaff(req: AuthRequest, res: Response, next: 
     candidate.offboardedBy = null;
     candidate.sessionVersion = Number(candidate.sessionVersion || 0) + 1;
     await candidate.save();
-    await AuditLog.create({ performedBy: req.user._id, action: 'APPOINT_MEMBER_STAFF', entityName: 'User', entityId: candidate._id, beforeState, afterState: { role: candidate.role, accountantType, linkedGatewayChannels }, reason: reason.trim(), ipAddress: req.ip, userAgent: req.headers['user-agent'] });
-    res.status(200).json({ success: true, message: 'Member appointed. Create and verify the new custody accounts before collecting payments.', data: { id: candidate._id, name: candidate.name, accountantType, gatewayAccessKey: routingKey.raw } });
+    const createdAccounts = await CustodyAccount.insertMany(custodyAccounts.map((account) => ({
+      name: String(account.name || `${candidate.name} ${account.channel}`).trim(), accountType: AccountType.ACCOUNTANT_CUSTODY,
+      holderId: candidate._id, channel: account.channel, accountNumber: String(account.accountNumber).trim(), notes: String(account.notes || `Created during ${accountantType.toLowerCase()} appointment.`).trim(), cachedBalance: 0, isActive: true,
+    })));
+    await AuditLog.create({ performedBy: req.user._id, action: 'APPOINT_MEMBER_STAFF', entityName: 'User', entityId: candidate._id, beforeState, afterState: { role: candidate.role, accountantType, linkedGatewayChannels, custodyAccounts: createdAccounts.map((account) => ({ id: account._id, channel: account.channel, accountNumber: account.accountNumber })) }, reason: reason.trim(), ipAddress: req.ip, userAgent: req.headers['user-agent'] });
+    res.status(200).json({ success: true, message: 'Member appointed and custody accounts configured.', data: { id: candidate._id, name: candidate.name, accountantType, custodyAccounts: createdAccounts, gatewayAccessKey: routingKey.raw } });
   } catch (error) { next(error); }
 }
 
@@ -242,7 +249,7 @@ export async function appointMemberStaff(req: AuthRequest, res: Response, next: 
 export async function handoverStaff(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   try {
     if (!req.user) return next(createError('Authentication required.', 401));
-    const { outgoingStaffId, successorUserId, successorCustodyAccountIds, linkedGatewayChannels = [], reason } = req.body;
+    const { outgoingStaffId, successorUserId, successorCustodyAccountIds = [], successorCustodySetup = [], linkedGatewayChannels = [], autoTransferBalances = false, temporaryPassword, reason } = req.body;
     if (!outgoingStaffId || !successorUserId || !Array.isArray(successorCustodyAccountIds) || !reason?.trim()) return next(createError('Outgoing staff, successor, successor custody accounts, and handover reason are required.', 400));
     if (outgoingStaffId === successorUserId) return next(createError('Outgoing staff and successor must be different people.', 400));
     if (!Array.isArray(linkedGatewayChannels) || linkedGatewayChannels.some((channel) => !Object.values(CustodyChannel).includes(channel))) return next(createError('One or more linked gateway channels are invalid.', 400));
@@ -251,11 +258,32 @@ export async function handoverStaff(req: AuthRequest, res: Response, next: NextF
     if (!outgoing?.accountantType || outgoing.status !== UserStatus.ACTIVE) return next(createError('Outgoing operational staff member is not active.', 404));
     if (!successor?.memberId || successor.status !== UserStatus.ACTIVE) return next(createError('Successor must be an active member account.', 400));
     if (successor.accountantType) return next(createError('Successor already holds an accountant responsibility.', 409));
-    const successorAccounts = await CustodyAccount.find({ _id: { $in: successorCustodyAccountIds }, holderId: successor._id, isActive: true });
-    if (successorAccounts.length !== new Set(successorCustodyAccountIds).size) return next(createError('Every selected successor custody account must be active and belong to the successor.', 400));
+    if (temporaryPassword !== undefined && temporaryPassword !== '' && (typeof temporaryPassword !== 'string' || temporaryPassword.length < 8)) return next(createError('Temporary password must contain at least 8 characters.', 400));
+    const accountsToCreate = Array.isArray(successorCustodySetup) ? successorCustodySetup.filter((account) => String(account?.accountNumber || '').trim()) : [];
+    if (!Array.isArray(successorCustodySetup) || accountsToCreate.some((account) => !Object.values(CustodyChannel).includes(account?.channel))) return next(createError('Each new successor custody account needs a valid channel.', 400));
+    for (const setup of accountsToCreate) {
+      const exists = await CustodyAccount.exists({ holderId: successor._id, channel: setup.channel, isActive: true });
+      if (!exists) await CustodyAccount.create({ name: String(setup.name || `${successor.name} ${setup.channel}`).trim(), accountType: AccountType.ACCOUNTANT_CUSTODY, holderId: successor._id, channel: setup.channel, accountNumber: String(setup.accountNumber).trim(), notes: 'Created during accountant responsibility handover.', cachedBalance: 0, isActive: true });
+    }
+    const requestedAccountIds = successorCustodyAccountIds.length ? successorCustodyAccountIds : (await CustodyAccount.find({ holderId: successor._id, isActive: true }).select('_id')).map((account) => account._id);
+    const successorAccounts = await CustodyAccount.find({ _id: { $in: requestedAccountIds }, holderId: successor._id, isActive: true });
+    if (successorCustodyAccountIds.length && successorAccounts.length !== new Set(successorCustodyAccountIds).size) return next(createError('Every selected successor custody account must be active and belong to the successor.', 400));
     const missingChannels = linkedGatewayChannels.filter((channel) => !successorAccounts.some((account) => account.channel === channel));
     if (missingChannels.length) return next(createError(`Create/select successor custody accounts for: ${missingChannels.join(', ')}.`, 400));
-    const outgoingAccounts = await assertCustodyHandoverReady(String(outgoing._id));
+    let outgoingAccounts: any[];
+    const generatedTransfers: string[] = [];
+    if (autoTransferBalances) {
+      const sources = await CustodyAccount.find({ holderId: outgoing._id, isActive: true });
+      for (const source of sources) {
+        const { currentBalance } = await CustodyService.getDerivedAccountBalance(source._id);
+        if (currentBalance < -0.01) return next(createError(`Cannot automatically hand over ${source.name} because it has a negative balance. Reconcile it first.`, 409));
+        if (currentBalance < 0.01) continue;
+        const destination = successorAccounts.find((account) => account.channel === source.channel) || successorAccounts[0];
+        const transfer = await CustodyService.transferFunds({ sourceAccountId: String(source._id), destinationAccountId: String(destination._id), fromAccountantId: String(outgoing._id), toAccountantId: String(successor._id), amount: currentBalance, purpose: `Responsibility handover: ${source.name} to ${destination.name}`, paymentMethod: source.channel === CustodyChannel.BANK ? 'BANK_TRANSFER' : source.channel, comments: 'Automatically created by accountant responsibility handover.', reason: reason.trim() }, req.user);
+        generatedTransfers.push(transfer.transferNumber);
+      }
+    }
+    outgoingAccounts = await assertCustodyHandoverReady(String(outgoing._id));
     const outgoingBefore = { role: outgoing.role, accountantType: outgoing.accountantType, linkedGatewayChannels: outgoing.linkedGatewayChannels, status: outgoing.status };
     const successorBefore = { role: successor.role, accountantType: successor.accountantType, linkedGatewayChannels: successor.linkedGatewayChannels, status: successor.status };
     const routingKey = createGatewayKey();
@@ -277,9 +305,14 @@ export async function handoverStaff(req: AuthRequest, res: Response, next: NextF
     successor.offboardedAt = null;
     successor.offboardedBy = null;
     successor.sessionVersion = Number(successor.sessionVersion || 0) + 1;
+    if (temporaryPassword) {
+      successor.passwordHash = await hashPassword(temporaryPassword);
+      successor.mustChangePassword = true;
+      successor.temporaryPasswordExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    }
     await Promise.all([outgoing.save(), successor.save()]);
-    await AuditLog.create({ performedBy: req.user._id, action: 'HANDOVER_ACCOUNTANT_RESPONSIBILITY', entityName: 'User', entityId: successor._id, beforeState: { outgoing: outgoingBefore, successor: successorBefore, outgoingCustodyAccounts: outgoingAccounts.map((account) => account._id) }, afterState: { outgoing: { id: outgoing._id, status: outgoing.status, role: outgoing.role }, successor: { id: successor._id, role: successor.role, accountantType: successor.accountantType, linkedGatewayChannels }, successorCustodyAccounts: successorAccounts.map((account) => account._id) }, reason: reason.trim(), ipAddress: req.ip, userAgent: req.headers['user-agent'] });
-    res.status(200).json({ success: true, message: 'Responsibility handed over. Historical records remain with the former custodian; future activity uses the successor custody accounts.', data: { successorId: successor._id, gatewayAccessKey: routingKey.raw } });
+    await AuditLog.create({ performedBy: req.user._id, action: 'HANDOVER_ACCOUNTANT_RESPONSIBILITY', entityName: 'User', entityId: successor._id, beforeState: { outgoing: outgoingBefore, successor: successorBefore, outgoingCustodyAccounts: outgoingAccounts.map((account) => account._id) }, afterState: { outgoing: { id: outgoing._id, status: outgoing.status, role: outgoing.role }, successor: { id: successor._id, role: successor.role, accountantType: successor.accountantType, linkedGatewayChannels }, successorCustodyAccounts: successorAccounts.map((account) => account._id), generatedTransfers }, reason: reason.trim(), ipAddress: req.ip, userAgent: req.headers['user-agent'] });
+    res.status(200).json({ success: true, message: 'Responsibility handed over. Historical records remain with the former custodian; future activity uses the successor custody accounts.', data: { successorId: successor._id, gatewayAccessKey: routingKey.raw, generatedTransfers } });
   } catch (error) { next(error); }
 }
 

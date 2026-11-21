@@ -821,7 +821,7 @@ export const CustodyPage: React.FC = () => {
                       <ArrowUpRight className="w-3 h-3 text-rose-400" /> {t('Total Out')}
                     </span>
                     <span className="font-medium text-rose-400">
-                      -BDT {(acc.totalOutflow || 0).toLocaleString()}
+                      BDT {Math.abs(acc.totalOutflow || 0).toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -1166,7 +1166,7 @@ export const CustodyPage: React.FC = () => {
                                 isIncoming ? 'text-emerald-400' : 'text-rose-400'
                               }`}
                             >
-                              {isIncoming ? '+' : '-'}BDT {mov.amount.toLocaleString()}
+                              BDT {Math.abs(mov.amount).toLocaleString()}
                             </span>
                           </td>
                           <td className="py-3 px-4 whitespace-nowrap">

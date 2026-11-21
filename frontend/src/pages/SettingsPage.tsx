@@ -451,12 +451,16 @@ export const SettingsPage: React.FC = () => {
     accountantType: "ASSISTANT",
     linkedGatewayChannels: [] as string[],
     reason: "",
+    custodyAccounts: [] as { channel: string; accountNumber: string; name: string; notes: string }[],
   });
   const [handoverForm, setHandoverForm] = useState({
     successorUserId: "",
     successorCustodyAccountIds: [] as string[],
     linkedGatewayChannels: [] as string[],
     reason: "",
+    autoTransferBalances: true,
+    successorCustodySetup: [] as { channel: string; accountNumber: string; name: string }[],
+    temporaryPassword: "",
   });
   const [ruleForm, setRuleForm] = useState({
     effectiveFrom: "",
@@ -582,7 +586,7 @@ export const SettingsPage: React.FC = () => {
     setSaving(true);
     setError(null);
     try {
-      const response = await apiRequest<{ gatewayAccessKey: string }>(
+      const response = await apiRequest<{ gatewayAccessKey: string; generatedTransfers?: string[] }>(
         "/auth/staff",
         { method: "POST", body: JSON.stringify(staffForm) },
       );
@@ -627,9 +631,10 @@ export const SettingsPage: React.FC = () => {
         { method: "POST", body: JSON.stringify(appointmentForm) },
       );
       setShowAppointment(false);
+      setAppointmentForm({ userId: "", accountantType: "ASSISTANT", linkedGatewayChannels: [], reason: "", custodyAccounts: [] });
       setNewRoutingKey(response.data.gatewayAccessKey);
       setNotice(
-        "Member appointed to the operational responsibility. Create custody accounts before collecting payments.",
+        "Member appointed and selected custody accounts configured. Save the routing key now.",
       );
       await loadSettings();
     } catch (requestError) {
@@ -644,7 +649,7 @@ export const SettingsPage: React.FC = () => {
     setSaving(true);
     setError(null);
     try {
-      const response = await apiRequest<{ gatewayAccessKey: string }>(
+      const response = await apiRequest<{ gatewayAccessKey: string; generatedTransfers?: string[] }>(
         "/auth/staff/handover",
         {
           method: "POST",
@@ -657,7 +662,7 @@ export const SettingsPage: React.FC = () => {
       setHandoverFrom(null);
       setNewRoutingKey(response.data.gatewayAccessKey);
       setNotice(
-        `Responsibility handed over from ${handoverFrom.name}. Historical records remain unchanged.`,
+        `Responsibility handed over from ${handoverFrom.name}. ${response.data.generatedTransfers?.length ? `${response.data.generatedTransfers.length} custody transfer(s) recorded. ` : ""}Historical records remain unchanged.`,
       );
       await loadSettings();
     } catch (requestError) {
@@ -1242,6 +1247,7 @@ export const SettingsPage: React.FC = () => {
                   accountantType: "ASSISTANT",
                   linkedGatewayChannels: [],
                   reason: "",
+                  custodyAccounts: [],
                 });
                 setShowAppointment(true);
               }}
@@ -1320,6 +1326,9 @@ export const SettingsPage: React.FC = () => {
                               linkedGatewayChannels:
                                 member.linkedGatewayChannels || [],
                               reason: "",
+                              autoTransferBalances: true,
+                              successorCustodySetup: [],
+                              temporaryPassword: "",
                             });
                             setHandoverFrom(member);
                           }}
@@ -2177,6 +2186,9 @@ export const SettingsPage: React.FC = () => {
                               : appointmentForm.linkedGatewayChannels.filter(
                                   (item) => item !== channel,
                                 ),
+                            custodyAccounts: e.target.checked
+                              ? [...appointmentForm.custodyAccounts, { channel, accountNumber: "", name: "", notes: "" }]
+                              : appointmentForm.custodyAccounts.filter((item) => item.channel !== channel),
                           })
                         }
                       />
@@ -2185,6 +2197,18 @@ export const SettingsPage: React.FC = () => {
                   ))}
                 </div>
               </div>
+              {appointmentForm.custodyAccounts.length > 0 && (
+                <div className="space-y-3 rounded-xl border border-gray-700 p-3">
+                  <p className="form-label mb-0">{t("Custody account details")}</p>
+                  <p className="text-xs text-gray-400">{t("Enter the number for every payment method this accountant will receive. New accounts begin with a zero balance.")}</p>
+                  {appointmentForm.custodyAccounts.map((account, index) => (
+                    <div key={account.channel} className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <input className="form-input" value={account.name} placeholder={`${account.channel} ${t("account name")}`} onChange={(e) => setAppointmentForm({ ...appointmentForm, custodyAccounts: appointmentForm.custodyAccounts.map((item, i) => i === index ? { ...item, name: e.target.value } : item) })} />
+                      <input required className="form-input" value={account.accountNumber} placeholder={`${account.channel} ${t("number / account reference")}`} onChange={(e) => setAppointmentForm({ ...appointmentForm, custodyAccounts: appointmentForm.custodyAccounts.map((item, i) => i === index ? { ...item, accountNumber: e.target.value } : item) })} />
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="form-group mb-0">
                 <label className="form-label">{t("Appointment reason")}</label>
                 <textarea
@@ -2348,6 +2372,9 @@ export const SettingsPage: React.FC = () => {
                               : handoverForm.linkedGatewayChannels.filter(
                                   (item) => item !== channel,
                                 ),
+                            successorCustodySetup: e.target.checked
+                              ? [...handoverForm.successorCustodySetup, { channel, accountNumber: "", name: "" }]
+                              : handoverForm.successorCustodySetup.filter((item) => item.channel !== channel),
                           })
                         }
                       />
@@ -2355,6 +2382,23 @@ export const SettingsPage: React.FC = () => {
                     </label>
                   ))}
                 </div>
+              </div>
+              {handoverForm.successorCustodySetup.length > 0 && (
+                <div className="space-y-2 rounded-xl border border-white/10 p-3">
+                  <p className="form-label mb-0">{t("New successor custody accounts")}</p>
+                  <p className="text-xs text-gray-400">{t("Fill a number only when this account does not already exist. Existing active accounts are kept unchanged.")}</p>
+                  {handoverForm.successorCustodySetup.map((account, index) => (
+                    <div key={account.channel} className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <input className="form-input" placeholder={`${account.channel} ${t("account name")}`} value={account.name} onChange={(e) => setHandoverForm({ ...handoverForm, successorCustodySetup: handoverForm.successorCustodySetup.map((item, i) => i === index ? { ...item, name: e.target.value } : item) })} />
+                      <input className="form-input" placeholder={`${account.channel} ${t("number / account reference")}`} value={account.accountNumber} onChange={(e) => setHandoverForm({ ...handoverForm, successorCustodySetup: handoverForm.successorCustodySetup.map((item, i) => i === index ? { ...item, accountNumber: e.target.value } : item) })} />
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="form-group mb-0">
+                <label className="form-label">{t("Temporary login password (optional)")}</label>
+                <input type="password" minLength={8} className="form-input" value={handoverForm.temporaryPassword} onChange={(e) => setHandoverForm({ ...handoverForm, temporaryPassword: e.target.value })} placeholder={t("Set only if the successor needs a new login password")}/>
+                <p className="mt-1 text-xs text-gray-400">{t("When set, the successor must change this password after signing in. It expires in 7 days.")}</p>
               </div>
               <div className="form-group mb-0">
                 <label className="form-label">
@@ -2371,9 +2415,11 @@ export const SettingsPage: React.FC = () => {
                   placeholder={t("Resignation, new appointment, and approval reference")}
                 />
               </div>
-              <p className="text-xs text-amber-200">
-                {t("All outgoing custody accounts must already be at ৳0. The handover is refused if any balance remains.")}
-              </p>
+              <label className="flex gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-gray-200">
+                <input type="checkbox" checked={handoverForm.autoTransferBalances} onChange={(e) => setHandoverForm({ ...handoverForm, autoTransferBalances: e.target.checked })} />
+                <span><strong className="text-emerald-300">{t("Transfer all available balances automatically")}</strong><br /><span className="text-xs text-gray-400">{t("Each old custody account creates a separate, auditable transfer to the successor's matching payment channel.")}</span></span>
+              </label>
+              <p className="text-xs text-amber-200">{handoverForm.autoTransferBalances ? t("Every positive balance will be transferred before the former custody accounts are closed. Negative balances must be reconciled first.") : t("All outgoing custody accounts must already be at ৳0. The handover is refused if any balance remains.")}</p>
               <div className="flex justify-end gap-2">
                 <button
                   type="button"
