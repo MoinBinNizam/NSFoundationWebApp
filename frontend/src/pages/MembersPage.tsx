@@ -83,51 +83,37 @@ export const BOARD_ROLE_PRESETS: {
   {
     role: 'DIRECTOR',
     titleEn: 'Director / Advisor',
-    titleBn: 'পরিচালক (Director)',
+    titleBn: 'পরিচালক / উপদেষ্টা (Director / Advisor)',
     responsibilitiesEn: 'Oversee organizational policies, strategic planning, board resolutions, and high-level governance.',
-    responsibilitiesBn: 'সংগঠনের নীতি নির্ধারণ, কৌশলগত পরিকল্পনা, বোর্ড সিদ্ধান্ত এবং সামগ্রিক শাসন ব্যবস্থা তদারকি।',
+    responsibilitiesBn: 'সংগঠনের নীতি নির্ধারণ, কৌশলগত পরিকল্পনা, বোর্ড সিদ্ধান্ত এবং সামগ্রিক পরিচালনা তদারকি।',
   },
   {
     role: 'PRESIDENT',
     titleEn: 'President',
     titleBn: 'সভাপতি (President)',
     responsibilitiesEn: 'Preside over general assemblies, executive committee meetings, and represent society governance.',
-    responsibilitiesBn: 'সাধারণ সভা ও কার্যনির্বাহী কমিটির সভায় সভাপতিত্ব এবং সমবায় সমিতির প্রতিনিধিত্ব।',
-  },
-  {
-    role: 'VICE_PRESIDENT',
-    titleEn: 'Vice President',
-    titleBn: 'সহ-সভাপতি',
-    responsibilitiesEn: 'Assist the President in executive coordination, chair meetings in President absence, and oversee committee operations.',
-    responsibilitiesBn: 'কার্যনির্বাহী সমন্বয়ে সভাপতিকে সহায়তা, সভাপতির অনুপস্থিতিতে সভায় সভাপতিত্ব ও কমিটি তদারকি।',
-  },
-  {
-    role: 'GENERAL_SECRETARY',
-    titleEn: 'General Secretary (GS)',
-    titleBn: 'সাধারণ সম্পাদক (GS)',
-    responsibilitiesEn: 'Secretarial administration, documentation of official minutes, member correspondence, and notices.',
-    responsibilitiesBn: 'দাপ্তরিক ও সচিবালয় প্রশাসন, সভার কার্যবিবরণী নথিবদ্ধকরণ, সদস্য যোগাযোগ এবং অফিশিয়াল নোটিশ প্রদান।',
+    responsibilitiesBn: 'সাধারণ সভা ও পরিচালনা পর্ষদের সভায় সভাপতিত্ব এবং সমবায় সমিতির প্রতিনিধিত্ব।',
   },
   {
     role: 'ACCOUNTANT',
     titleEn: 'Primary Accountant',
-    titleBn: 'প্রধান হিসাবরক্ষক',
+    titleBn: 'প্রধান হিসাবরক্ষক (Primary Accountant)',
     responsibilitiesEn: 'Chief financial custody, monthly subscription collection management, accounting ledgers, and official disbursement records.',
     responsibilitiesBn: 'প্রধান আর্থিক হেফাজত, মাসিক চাঁদা আদায় ব্যবস্থাপনা, হিসাবরক্ষণ লেজার ও অফিশিয়াল অর্থ লেনদেন নথিভুক্তকরণ।',
   },
   {
     role: 'ASSISTANT_ACCOUNTANT',
     titleEn: 'Assistant Accountant',
-    titleBn: 'সহকারী হিসাবরক্ষক',
+    titleBn: 'সহকারী হিসাবরক্ষক (Assistant Accountant)',
     responsibilitiesEn: 'Assistant custody management, member ledger reconciliation, digital gateway verification, and collection tracking.',
     responsibilitiesBn: 'সহকারী তহবিল হেফাজত, সদস্য লেজার সমন্বয়, ডিজিটাল গেটওয়ে যাচাই এবং কালেকশন পর্যবেক্ষণ।',
   },
   {
-    role: 'TREASURER',
-    titleEn: 'Treasurer',
-    titleBn: 'কোষাধ্যক্ষ',
-    responsibilitiesEn: 'Monitor financial accounts, verify fund movements, assist audit procedures, and oversee society treasuries.',
-    responsibilitiesBn: 'আর্থিক হিসাব তদারকি, তহবিল চলাচল নিরীক্ষা, অডিট প্রক্রিয়ায় সহায়তা এবং তহবিলের হেফাজত পর্যবেক্ষণ।',
+    role: 'GENERAL_SECRETARY',
+    titleEn: 'General Secretary (GS)',
+    titleBn: 'সাধারণ সম্পাদক (General Secretary - GS)',
+    responsibilitiesEn: 'Secretarial administration, documentation of official minutes, member correspondence, and notices.',
+    responsibilitiesBn: 'দাপ্তরিক ও সচিবালয় প্রশাসন, সভার কার্যবিবরণী নথিবদ্ধকরণ, সদস্য যোগাযোগ এবং অফিশিয়াল নোটিশ প্রদান।',
   },
   {
     role: 'CONVENER',
@@ -135,13 +121,6 @@ export const BOARD_ROLE_PRESETS: {
     titleBn: 'আহ্বায়ক (Convener)',
     responsibilitiesEn: 'Sub-committee coordination, member mobilization, assembly convening, and cooperative welfare oversight.',
     responsibilitiesBn: 'সাব-কমিটি সমন্বয়, সদস্য সংহতি বৃদ্ধি, সাংগঠনিক সমাবেশ আহ্বান এবং কল্যাণমূলক কার্যক্রম তদারকি।',
-  },
-  {
-    role: 'EXECUTIVE_MEMBER',
-    titleEn: 'Executive Member',
-    titleBn: 'কার্যনির্বাহী সদস্য',
-    responsibilitiesEn: 'Participate in executive decision-making, support sub-committees, and uphold cooperative resolutions.',
-    responsibilitiesBn: 'কার্যনির্বাহী সিদ্ধান্ত গ্রহণে অংশগ্রহণ, উপকমিটি কার্যক্রমে সহায়তা এবং সাংগঠনিক সিদ্ধান্ত বাস্তবায়ন।',
   },
 ];
 
@@ -469,7 +448,7 @@ export const MembersPage: React.FC = () => {
 
   const openAddBoardModal = () => {
     const nextOrder = (governingBody.length > 0 ? Math.max(...governingBody.map((g) => g.order || 0)) : 0) + 1;
-    const defaultPreset = BOARD_ROLE_PRESETS.find((p) => p.role === 'EXECUTIVE_MEMBER') || BOARD_ROLE_PRESETS[0];
+    const defaultPreset = BOARD_ROLE_PRESETS[0];
     const existingIds = new Set(governingBody.map((g) => g.memberId?._id));
     const activeMembers = members.filter((m) => m.status === 'ACTIVE');
     const salah = activeMembers.find((m) => m.memberId === 'NSF001' || /salah/i.test(m.name));
@@ -3828,21 +3807,21 @@ export const MembersPage: React.FC = () => {
       {/* ADD BOARD MEMBER / EXECUTIVE ROLE MODAL                                   */}
       {/* ========================================================================= */}
       {isAddBoardModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="glass-card max-w-xl w-full p-6 space-y-4 border border-indigo-500/30 shadow-2xl rounded-2xl max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="glass-card max-w-xl w-full p-4 sm:p-6 space-y-4 border border-indigo-500/30 shadow-2xl rounded-2xl max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
                   <Award size={18} />
                 </div>
-                <h3 className="text-base font-bold text-white">
+                <h3 className="text-sm sm:text-base font-bold text-white">
                   {isBn ? 'পরিচালনা পর্ষদে নতুন সদস্য ও পদবি যোগ করুন' : 'Add Board Member / Executive Role'}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setIsAddBoardModalOpen(false)}
-                className="text-gray-400 hover:text-white transition-colors"
+                className="text-gray-400 hover:text-white transition-colors p-1"
               >
                 <X size={18} />
               </button>
@@ -3875,7 +3854,7 @@ export const MembersPage: React.FC = () => {
                   const selected = members.find((m) => m._id === boardFormMemberId);
                   if (!selected) return null;
                   return (
-                    <div className="mt-2 p-3 rounded-xl bg-slate-950/80 border border-indigo-500/20 text-xs flex items-center justify-between">
+                    <div className="mt-2 p-3 rounded-xl bg-slate-950/80 border border-indigo-500/20 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
                         <div className="font-bold text-white flex items-center gap-2">
                           <span>{selected.name}</span>
@@ -3887,11 +3866,11 @@ export const MembersPage: React.FC = () => {
                           {selected.phone} • {selected.email || t('No email')}
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="sm:text-right flex sm:flex-col items-center sm:items-end justify-between gap-1">
                         <span className="badge text-[10px] bg-blue-500/15 text-blue-300 border border-blue-500/30">
                           {selected.shareCount} {t('Shares')}
                         </span>
-                        <div className="text-[10px] text-gray-400 mt-1">
+                        <div className="text-[10px] text-gray-400">
                           {t(DESIGNATION_CONFIG[selected.designation || 'GENERAL_MEMBER']?.label || selected.designation || 'General Member')}
                         </div>
                       </div>
@@ -3905,13 +3884,13 @@ export const MembersPage: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
                   {t('Role / Designation')} *
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-2">
                   {BOARD_ROLE_PRESETS.map((preset) => (
                     <button
                       key={preset.role}
                       type="button"
                       onClick={() => handleRolePresetSelect(preset.role)}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all text-left truncate ${
+                      className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all text-left truncate ${
                         boardFormRole === preset.role
                           ? 'bg-indigo-600 text-white border-indigo-400 shadow-sm'
                           : 'bg-slate-900/60 text-gray-400 border-gray-700 hover:text-white hover:border-gray-600'
@@ -4071,21 +4050,21 @@ export const MembersPage: React.FC = () => {
       {/* EDIT BOARD MEMBER / EXECUTIVE ROLE MODAL                                  */}
       {/* ========================================================================= */}
       {editingBoardMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="glass-card max-w-xl w-full p-6 space-y-4 border border-indigo-500/30 shadow-2xl rounded-2xl max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="glass-card max-w-xl w-full p-4 sm:p-6 space-y-4 border border-indigo-500/30 shadow-2xl rounded-2xl max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
                   <Pencil size={18} />
                 </div>
-                <h3 className="text-base font-bold text-white">
+                <h3 className="text-sm sm:text-base font-bold text-white">
                   {isBn ? 'কার্যনির্বাহী পদবি ও দায়িত্ব কাঠামো সম্পাদনা' : 'Edit Executive Role & Responsibilities'}
                 </h3>
               </div>
               <button
                 type="button"
                 onClick={() => setEditingBoardMember(null)}
-                className="text-gray-400 hover:text-white transition-colors"
+                className="text-gray-400 hover:text-white transition-colors p-1"
               >
                 <X size={18} />
               </button>
@@ -4118,7 +4097,7 @@ export const MembersPage: React.FC = () => {
                   const selected = members.find((m) => m._id === boardFormMemberId);
                   if (!selected) return null;
                   return (
-                    <div className="mt-2 p-3 rounded-xl bg-slate-950/80 border border-indigo-500/20 text-xs flex items-center justify-between">
+                    <div className="mt-2 p-3 rounded-xl bg-slate-950/80 border border-indigo-500/20 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
                         <div className="font-bold text-white flex items-center gap-2">
                           <span>{selected.name}</span>
@@ -4130,11 +4109,11 @@ export const MembersPage: React.FC = () => {
                           {selected.phone} • {selected.email || t('No email')}
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="sm:text-right flex sm:flex-col items-center sm:items-end justify-between gap-1">
                         <span className="badge text-[10px] bg-blue-500/15 text-blue-300 border border-blue-500/30">
                           {selected.shareCount} {t('Shares')}
                         </span>
-                        <div className="text-[10px] text-gray-400 mt-1">
+                        <div className="text-[10px] text-gray-400">
                           {t(DESIGNATION_CONFIG[selected.designation || 'GENERAL_MEMBER']?.label || selected.designation || 'General Member')}
                         </div>
                       </div>
@@ -4148,13 +4127,13 @@ export const MembersPage: React.FC = () => {
                 <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
                   {t('Role / Designation')} *
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-2">
                   {BOARD_ROLE_PRESETS.map((preset) => (
                     <button
                       key={preset.role}
                       type="button"
                       onClick={() => handleRolePresetSelect(preset.role)}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all text-left truncate ${
+                      className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all text-left truncate ${
                         boardFormRole === preset.role
                           ? 'bg-indigo-600 text-white border-indigo-400 shadow-sm'
                           : 'bg-slate-900/60 text-gray-400 border-gray-700 hover:text-white hover:border-gray-600'

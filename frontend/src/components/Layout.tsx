@@ -217,12 +217,12 @@ export const Layout: React.FC = () => {
       {/* Main Content Body */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header Bar */}
-        <header className="h-16 border-b border-white/10 bg-[#111827]/75 backdrop-blur-md flex items-center justify-between px-4 sm:px-8 sticky top-0 z-40">
-          <div className="flex items-center gap-3">
+        <header className="h-16 border-b border-white/10 bg-[#111827]/75 backdrop-blur-md flex items-center justify-between px-3 sm:px-6 lg:px-8 sticky top-0 z-40">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 max-w-[50%] sm:max-w-none">
             {/* Mobile Hamburger Toggle */}
             <button
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden text-gray-400 hover:text-white p-2 rounded-lg hover:bg-white/5"
+              className="lg:hidden text-gray-400 hover:text-white p-1.5 sm:p-2 rounded-lg hover:bg-white/5 shrink-0"
               aria-label="Toggle navigation menu"
             >
               <Menu size={20} />
@@ -230,14 +230,14 @@ export const Layout: React.FC = () => {
 
             <div className="flex min-w-0 items-center gap-2 text-xs">
               <span className="text-gray-500 hidden sm:inline">{t('Modules')} /</span>
-              <span className="truncate font-semibold text-white" title={t(currentModuleTitle)}>{t(currentModuleTitle)}</span>
+              <span className="truncate font-semibold text-white text-xs sm:text-sm" title={t(currentModuleTitle)}>{t(currentModuleTitle)}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             <button
               onClick={triggerInstall}
-              className={`btn btn-secondary btn-sm gap-1.5 px-2.5 min-w-[110px] justify-center transition-all shrink-0 ${
+              className={`btn btn-secondary btn-sm gap-1 sm:gap-1.5 px-2 sm:px-2.5 w-9 sm:w-auto sm:min-w-[108px] h-9 justify-center transition-all shrink-0 ${
                 isInstalled
                   ? 'text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10'
                   : 'text-amber-300 border-amber-500/30 hover:bg-amber-500/10 shadow-sm'
@@ -249,7 +249,7 @@ export const Layout: React.FC = () => {
               }
               aria-label={language === 'bn' ? 'ডেস্কটপ ও মোবাইল অ্যাপ ইনস্টল করুন' : 'Install Desktop & Mobile App'}
             >
-              {isInstalled ? <CheckCircle2 size={15} className="shrink-0" /> : <Download size={15} className="shrink-0" />}
+              {isInstalled ? <CheckCircle2 size={16} className="shrink-0" /> : <Download size={16} className="shrink-0" />}
               <span className="hidden sm:inline font-bold text-xs">
                 {isInstalled
                   ? (language === 'bn' ? 'ইনস্টল্ড ✓' : 'Installed ✓')
@@ -258,16 +258,16 @@ export const Layout: React.FC = () => {
             </button>
             <button
               onClick={() => setLanguage(language === 'en' ? 'bn' : 'en')}
-              className="btn btn-secondary btn-sm gap-1.5 px-2.5 font-bold min-w-[84px] w-[84px] justify-center text-center shrink-0 transition-none"
+              className="btn btn-secondary btn-sm gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 font-bold w-[62px] sm:w-[84px] h-9 justify-center text-center shrink-0 transition-none"
               title={t('Switch language')}
               aria-label={t('Switch language')}
               data-localization-skip
             >
               <Languages size={15} className="text-blue-400 shrink-0" />
-              <span className="w-9 text-center font-bold tracking-wide shrink-0">{language === 'en' ? 'বাংলা' : 'EN'}</span>
+              <span className="w-7 sm:w-9 text-center font-bold tracking-wide shrink-0 text-[11px] sm:text-xs">{language === 'en' ? 'বাংলা' : 'EN'}</span>
             </button>
-            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="btn btn-secondary btn-sm px-2.5 w-[36px] justify-center shrink-0" title={t('Switch color theme')} aria-label={t('Switch color theme')}>{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>
-            <span className="badge badge-active hidden sm:inline-flex text-[11px] py-1 min-w-[130px] justify-center text-center shrink-0">
+            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="btn btn-secondary btn-sm px-2 w-9 h-9 justify-center shrink-0" title={t('Switch color theme')} aria-label={t('Switch color theme')}>{theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}</button>
+            <span className="badge badge-active hidden md:inline-flex text-[11px] py-1 min-w-[130px] justify-center text-center shrink-0">
               {t('System Operational')}
             </span>
           </div>
