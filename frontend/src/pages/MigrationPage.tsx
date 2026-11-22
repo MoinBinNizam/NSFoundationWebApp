@@ -173,7 +173,7 @@ export const MigrationPage: React.FC = () => {
   const handleSync = async (endpoint: string, dryRun: boolean, scopeName: string) => {
     if (!dryRun) {
       const confirmed = window.confirm(
-        t(`Are you sure you want to run LIVE PRODUCTION synchronization for ${scopeName}? This will write and update records in the live database.`)
+        `${t('Are you sure you want to run LIVE PRODUCTION synchronization for')} ${t(scopeName)}? ${t('This will write and update records in the live database.')}`
       );
       if (!confirmed) return;
     }
@@ -324,16 +324,16 @@ export const MigrationPage: React.FC = () => {
               )}
               <div>
                 <h4 className="font-bold text-base text-white">
-                  {syncResult.scope} — {syncResult.isError ? t('Execution Failed') : t('Execution Completed')}
+                  {t(syncResult.scope)} — {syncResult.isError ? t('Execution Failed') : t('Execution Completed')}
                 </h4>
-                <p className="text-sm mt-0.5">{syncResult.message}</p>
+                <p className="text-sm mt-0.5">{t(syncResult.message)}</p>
                 {syncResult.data && (
                   <div className="mt-2 text-xs font-mono bg-slate-900/60 p-2.5 rounded-lg border border-white/5 space-y-1">
                     {Object.entries(syncResult.data)
                       .filter(([k]) => k !== 'message')
                       .map(([k, v]) => (
                         <div key={k} className="flex gap-2">
-                          <span className="text-gray-400 capitalize">{k}:</span>
+                          <span className="text-gray-400 capitalize">{t(k)}:</span>
                           <span className="text-white font-bold">{String(v)}</span>
                         </div>
                       ))}
@@ -371,7 +371,7 @@ export const MigrationPage: React.FC = () => {
                       : 'badge-inactive'
                   }`}
                 >
-                  {overview?.year2024.status || 'PENDING'}
+                  {t(overview?.year2024.status || 'PENDING')}
                 </span>
               </div>
               <div>
@@ -403,7 +403,7 @@ export const MigrationPage: React.FC = () => {
                       : 'badge-inactive'
                   }`}
                 >
-                  {overview?.year2025.status || 'PENDING'}
+                  {t(overview?.year2025.status || 'PENDING')}
                 </span>
               </div>
               <div>
@@ -435,7 +435,7 @@ export const MigrationPage: React.FC = () => {
                       : 'badge-inactive'
                   }`}
                 >
-                  {overview?.expenses.status || 'PENDING'}
+                  {t(overview?.expenses.status || 'PENDING')}
                 </span>
               </div>
               <div>
@@ -467,7 +467,7 @@ export const MigrationPage: React.FC = () => {
                       : 'badge-inactive'
                   }`}
                 >
-                  {overview?.investments.status || 'PENDING'}
+                  {t(overview?.investments.status || 'PENDING')}
                 </span>
               </div>
               <div>
@@ -721,11 +721,11 @@ export const MigrationPage: React.FC = () => {
                 <tbody>
                   {(overview?.custody || []).map((acc) => (
                     <tr key={acc.id}>
-                      <td className="font-bold text-white">{acc.name}</td>
+                      <td className="font-bold text-white">{t(acc.name)}</td>
                       <td>
-                        <span className="badge badge-outline">{acc.channel}</span>
+                        <span className="badge badge-outline">{t(acc.channel)}</span>
                       </td>
-                      <td className="text-xs text-gray-400">{acc.accountType}</td>
+                      <td className="text-xs text-gray-400">{t(acc.accountType)}</td>
                       <td
                         className={`text-right font-mono font-bold ${
                           acc.cachedBalance < 0 ? 'text-rose-400' : 'text-emerald-400'

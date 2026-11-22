@@ -9,6 +9,7 @@ import {
   InvestmentProject,
   InvestmentReturn,
   Member,
+  MemberExitSettlement,
   MonthlyLedger,
   Payment,
   PaymentAllocation,
@@ -18,6 +19,8 @@ import {
   AccountType,
   AllocationType,
   CustodyChannel,
+  MemberExitStatus,
+  MemberStatus,
   MonthlyLedgerStatus,
   MovementSourceType,
   MovementType,
@@ -129,10 +132,13 @@ export class HistoricalSyncService {
   /**
    * Ensures Standard Core Users and Custody Accounts exist
    */
-  private static async ensureCoreActorsAndCustody() {
-    const moinUser = await User.findOne({
+  private static async ensureCoreActorsAndCustody(actor?: any) {
+    let moinUser = await User.findOne({
       $or: [{ name: /moin/i }, { email: /admin@nsfoundation\.org/i }, { role: 'SUPER_ADMIN' }],
     });
+    if (!moinUser && actor) {
+      moinUser = actor;
+    }
     const samratUser = await User.findOne({
       $or: [{ name: /samrat/i }, { email: /assistant@nsfoundation\.org/i }, { role: 'ACCOUNTANT' }],
     });
@@ -268,7 +274,7 @@ export class HistoricalSyncService {
       samratNagadCustody,
       moinCashCustody,
       samratCashCustody,
-    } = await this.ensureCoreActorsAndCustody();
+    } = await this.ensureCoreActorsAndCustody(actor);
 
     const wb = XLSX.readFile(excelPath);
 
@@ -280,6 +286,7 @@ export class HistoricalSyncService {
 
     for (const r of memberData) {
       const code = String(r[0]).trim();
+      const isDropped = code === 'NSF007' || code === 'NSF032';
       let m = await Member.findOne({ memberId: code });
       if (!m && !dryRun) {
         const rawName = String(r[1] || code).trim();
@@ -289,10 +296,14 @@ export class HistoricalSyncService {
           name: cleanName,
           phone: String(r[3] || '01700000000').trim(),
           email: `${code.toLowerCase()}@nsfoundation.org`,
-          status: 'ACTIVE',
+          status: isDropped ? MemberStatus.DROPPED : MemberStatus.ACTIVE,
           shares: Number(r[2] || 1),
           joinDate: new Date('2024-01-01'),
+          cashoutDue: 0,
         });
+      } else if (m && !dryRun) {
+        m.status = isDropped ? MemberStatus.DROPPED : MemberStatus.ACTIVE;
+        await m.save();
       }
       if (m) memberIdMap.set(code, m);
     }
@@ -423,6 +434,109 @@ export class HistoricalSyncService {
     }
 
     if (!dryRun) {
+      // Process departed member exit settlements & bKash custody deductions
+      // NSF032 (Ahsan Ul Tanvir): ৳1,802 on 11/01/2026 via bKash
+      const m32 = memberIdMap.get('NSF032') || (await Member.findOne({ memberId: 'NSF032' }));
+      if (m32) {
+        let mov32 = await CustodyMovement.findOne({
+          custodyAccountId: moinBkashCustody._id,
+          amount: 1802,
+          sourceType: MovementSourceType.FINAL_DISTRIBUTION,
+        });
+        if (!mov32) {
+          mov32 = await CustodyMovement.create({
+            custodyAccountId: moinBkashCustody._id,
+            date: new Date('2026-01-11'),
+            amount: 1802,
+            movementType: MovementType.OUT,
+            sourceType: MovementSourceType.FINAL_DISTRIBUTION,
+            description: 'Member Exit Refund for Ahsan Ul Tanvir (NSF032) via bKash by Accountant Moin Uddin',
+            performedBy: moinUser._id,
+          });
+        }
+
+        let exit32 = await MemberExitSettlement.findOne({ memberId: m32._id });
+        if (!exit32) {
+          await MemberExitSettlement.create({
+            memberId: m32._id,
+            eligibleAmount: 2000,
+            deductionRate: 9.9,
+            deductionAmount: 198,
+            netAmount: 1802,
+            installmentAmount: 1802,
+            installments: [
+              {
+                dueDate: new Date('2026-01-11'),
+                amount: 1802,
+                paidAmount: 1802,
+                paidAt: new Date('2026-01-11'),
+                custodyMovementId: mov32._id,
+              },
+            ],
+            status: MemberExitStatus.SETTLED,
+            requestedBy: moinUser._id,
+            approvedBy: moinUser._id,
+            paymentMethod: 'BKASH',
+            transactionRef: 'BKASH-REF-20260111-NSF032',
+            authorizerName: 'Moin Uddin',
+            documentName: 'Refund_Voucher_NSF032_Tanvir.pdf',
+            receiptNumber: 'RCPT-EXIT-NSF032',
+            notes: 'Refunded ৳1,802 via bKash on 11/01/2026 by Accountant Moin Uddin (deducted from bKash custody). Member exited and settled.',
+          });
+        }
+      }
+
+      // NSF007 (Bayzid Hasan): ৳1,000 on 15/01/2026 via bKash
+      const m7 = memberIdMap.get('NSF007') || (await Member.findOne({ memberId: 'NSF007' }));
+      if (m7) {
+        let mov7 = await CustodyMovement.findOne({
+          custodyAccountId: moinBkashCustody._id,
+          amount: 1000,
+          sourceType: MovementSourceType.FINAL_DISTRIBUTION,
+        });
+        if (!mov7) {
+          mov7 = await CustodyMovement.create({
+            custodyAccountId: moinBkashCustody._id,
+            date: new Date('2026-01-15'),
+            amount: 1000,
+            movementType: MovementType.OUT,
+            sourceType: MovementSourceType.FINAL_DISTRIBUTION,
+            description: 'Member Exit Refund for Bayzid Hasan (NSF007) via bKash by Accountant Moin Uddin',
+            performedBy: moinUser._id,
+          });
+        }
+
+        let exit7 = await MemberExitSettlement.findOne({ memberId: m7._id });
+        if (!exit7) {
+          await MemberExitSettlement.create({
+            memberId: m7._id,
+            eligibleAmount: 1500,
+            deductionRate: 33.33,
+            deductionAmount: 500,
+            netAmount: 1000,
+            installmentAmount: 1000,
+            installments: [
+              {
+                dueDate: new Date('2026-01-15'),
+                amount: 1000,
+                paidAmount: 1000,
+                paidAt: new Date('2026-01-15'),
+                custodyMovementId: mov7._id,
+              },
+            ],
+            status: MemberExitStatus.SETTLED,
+            requestedBy: moinUser._id,
+            approvedBy: moinUser._id,
+            paymentMethod: 'BKASH',
+            transactionRef: 'BKASH-REF-20260115-NSF007',
+            authorizerName: 'Moin Uddin',
+            documentName: 'Refund_Voucher_NSF007_Bayzid.pdf',
+            receiptNumber: 'RCPT-EXIT-NSF007',
+            notes: 'Refunded ৳1,000 via bKash on 15/01/2026 by Accountant Moin Uddin (deducted from bKash custody). Member exited and settled.',
+          });
+        }
+      }
+
       await this.rebalanceAllCustody();
       await PaymentService.ensureMonthlyLedgersUpToDate();
       await AuditLog.create({
