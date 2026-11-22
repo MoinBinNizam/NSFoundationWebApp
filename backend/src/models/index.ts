@@ -31,3 +31,4 @@ export * from './MemberExitSettlement.js';
 export * from './JobRecord.js';
 export * from './PaymentReceipt.js';
 export * from './ModulePermission.js';
+export * from './GoverningBodyMember.js';

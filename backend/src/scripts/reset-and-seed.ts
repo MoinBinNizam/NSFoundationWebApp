@@ -171,7 +171,6 @@ export async function resetAndSeedDatabase(): Promise<void> {
   const samratMember = insertedMembersMap.get('NSF004');
   const nayemMember = insertedMembersMap.get('NSF005');
   const hannanMember = insertedMembersMap.get('NSF006');
-  const bayzidMember = insertedMembersMap.get('NSF007');
 
   const defaultPasswordHash = await bcrypt.hash('Admin@123456', 10);
   const directorPasswordHash = await bcrypt.hash('Director@123456', 10);
@@ -196,14 +195,14 @@ export async function resetAndSeedDatabase(): Promise<void> {
   });
 
   const shuvoUser = await User.create({
-    name: 'Salah Uddin Shuvo',
+    name: 'Salah Uddin Shuvo (Admin)',
     email: 'director@nsfoundation.org',
     phone: shuvoMember?.phone || '+8801521-213224',
     passwordHash: directorPasswordHash,
     role: UserRole.ADMIN,
     accountantType: null,
     designation: MemberDesignation.DIRECTOR,
-    memberId: shuvoMember?._id,
+    memberId: null,
     status: UserStatus.ACTIVE,
     sessionVersion: 1,
   });
@@ -261,14 +260,14 @@ export async function resetAndSeedDatabase(): Promise<void> {
   });
 
   const memberDemoUser = await User.create({
-    name: 'Bayzid Hasan',
+    name: 'Salah Uddin Shuvo',
     email: 'member@nsfoundation.org',
-    phone: bayzidMember?.phone || '+8801737-612640',
+    phone: shuvoMember?.phone || '+8801521-213224',
     passwordHash: memberPasswordHash,
     role: UserRole.MEMBER,
     accountantType: null,
-    designation: MemberDesignation.GENERAL_MEMBER,
-    memberId: bayzidMember?._id,
+    designation: MemberDesignation.DIRECTOR,
+    memberId: shuvoMember?._id,
     status: UserStatus.ACTIVE,
     sessionVersion: 1,
   });
@@ -280,7 +279,7 @@ export async function resetAndSeedDatabase(): Promise<void> {
   console.log(` - Assistant Accountant: ${samratUser.email} (Nurul Amin Samrat)`);
   console.log(` - General Secretary: ${nayemUser.email} (Nayem Islam)`);
   console.log(` - Convener: ${hannanUser.email} (Abdul Hannan Khan)`);
-  console.log(` - Member Demo: ${memberDemoUser.email} (Bayzid Hasan)`);
+  console.log(` - Member Demo: ${memberDemoUser.email} (Salah Uddin Shuvo)`);
 
   // 5. Seed custody account structure only. Financial balances must begin at
   // zero and may change only through an authorized financial transaction.

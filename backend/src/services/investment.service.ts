@@ -646,12 +646,13 @@ export class InvestmentService {
         query.status = filters.status;
       }
     }
-    if (filters?.category) {
-      query.category = filters.category;
+    if (filters?.category && filters.category.trim()) {
+      query.category = { $regex: filters.category.trim(), $options: 'i' };
     }
     const orgTarget = filters?.org || filters?.externalEntity;
     if (orgTarget && orgTarget.trim()) {
-      query.externalEntity = { $regex: orgTarget.trim(), $options: 'i' };
+      const escaped = orgTarget.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      query.externalEntity = { $regex: escaped, $options: 'i' };
     }
     if (filters?.search && filters.search.trim()) {
       const term = filters.search.trim();

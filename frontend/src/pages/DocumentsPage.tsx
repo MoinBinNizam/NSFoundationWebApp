@@ -144,7 +144,8 @@ export const DocumentsPage: React.FC = () => {
         const list = membersRes.data || [];
         setMembers(list);
         if (list.length > 0 && !selectedMemberId) {
-          setSelectedMemberId(list[0]._id);
+          const salah = list.find((m) => (m.memberId === 'NSF001' || /salah/i.test(m.name)) && m.status !== 'DROPPED');
+          setSelectedMemberId(salah?._id || list[0]._id);
         }
         const sig = sigRes?.data?.signatureImage || sigRes?.data?.signature;
         if (sig) setAccountantSignature(sig);

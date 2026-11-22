@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { apiRequest } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
@@ -41,6 +42,7 @@ import {
   Landmark,
   Key,
   Crown,
+  ArrowRight,
 } from 'lucide-react';
 import { downloadMemberReportImage } from '../utils/report-image';
 import { ReceiptOcrManager } from '../components/ReceiptOcrManager';
@@ -355,6 +357,17 @@ export const PaymentsPage: React.FC = () => {
   const [stats, setStats] = useState<PaymentStats | null>(null);
   const [loadingStats, setLoadingStats] = useState<boolean>(false);
   const [analyticsNotice, setAnalyticsNotice] = useState<string | null>(null);
+  const [boardList, setBoardList] = useState<any[]>([]);
+
+  useEffect(() => {
+    apiRequest<any[]>('/members/governing-body')
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          setBoardList(res.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Payments Ledger Data
   const [payments, setPayments] = useState<PaymentItem[]>([]);
@@ -2054,9 +2067,20 @@ export const PaymentsPage: React.FC = () => {
                               ? 'কার্যনির্বাহী পরিচালনা পর্ষদ (Governing Body) পদবি ও দায়িত্ব কাঠামো'
                               : 'Governing Body Executive Roles & Structure'}
                           </h4>
-                          <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded border border-white/5">
-                            ৬ জন সদস্য (Board of 6)
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded border border-white/5">
+                              {boardList.length > 0
+                                ? `${boardList.filter((b) => b.status === 'ACTIVE').length} জন সদস্য`
+                                : '৬ জন সদস্য (Board of 6)'}
+                            </span>
+                            <Link
+                              to="/members?tab=GOVERNING_BODY"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-500/15 text-indigo-300 hover:text-white hover:bg-indigo-500/25 border border-indigo-500/30 transition-colors"
+                            >
+                              <span>{language === 'bn' ? 'সদস্য মডিউলে পর্ষদ পরিচালনা করুন' : 'Manage Structure in Members'}</span>
+                              <ArrowRight size={11} />
+                            </Link>
+                          </div>
                         </div>
                         <p className="text-[11px] text-slate-400 leading-relaxed mb-3">
                           {language === 'bn'
@@ -2065,65 +2089,82 @@ export const PaymentsPage: React.FC = () => {
                         </p>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                          {/* 1. Director */}
-                          <div className="p-2 rounded-lg bg-slate-900/90 border border-purple-500/20 text-center">
-                            <span className="text-[10px] font-bold text-purple-300 block truncate">
-                              {language === 'bn' ? 'সালাউদ্দিন শুভ' : 'Salahuddin Shuvo'}
-                            </span>
-                            <span className="text-[9px] font-semibold text-purple-400/90 uppercase block mt-0.5">
-                              {language === 'bn' ? 'পরিচালক (Director)' : 'Director / Advisor'}
-                            </span>
-                          </div>
+                          {boardList.length > 0 ? (
+                            boardList.map((bm: any) => {
+                              const borderClass = bm.role === 'ACCOUNTANT'
+                                ? 'border-blue-500/40 ring-1 ring-blue-500/30'
+                                : bm.role === 'ASSISTANT_ACCOUNTANT'
+                                ? 'border-purple-500/40 ring-1 ring-purple-500/30'
+                                : bm.role === 'DIRECTOR'
+                                ? 'border-purple-500/20'
+                                : bm.role === 'PRESIDENT'
+                                ? 'border-emerald-500/20'
+                                : 'border-indigo-500/20';
 
-                          {/* 2. President */}
-                          <div className="p-2 rounded-lg bg-slate-900/90 border border-emerald-500/20 text-center">
-                            <span className="text-[10px] font-bold text-emerald-300 block truncate">
-                              {language === 'bn' ? 'মো: শহিদুল ইসলাম' : 'Md. Shahidul Islam'}
-                            </span>
-                            <span className="text-[9px] font-semibold text-emerald-400/90 uppercase block mt-0.5">
-                              {language === 'bn' ? 'সভাপতি (President)' : 'President'}
-                            </span>
-                          </div>
-
-                          {/* 3. Primary Accountant */}
-                          <div className="p-2 rounded-lg bg-slate-900/90 border border-blue-500/40 text-center ring-1 ring-blue-500/30">
-                            <span className="text-[10px] font-bold text-blue-300 block truncate">
-                              {language === 'bn' ? 'মঈন উদ্দীন' : 'Moin Uddin'}
-                            </span>
-                            <span className="text-[9px] font-extrabold text-blue-400 uppercase block mt-0.5">
-                              {language === 'bn' ? 'প্রধান হিসাবরক্ষক' : 'Primary Accountant'}
-                            </span>
-                          </div>
-
-                          {/* 4. Assistant Accountant */}
-                          <div className="p-2 rounded-lg bg-slate-900/90 border border-purple-500/40 text-center ring-1 ring-purple-500/30">
-                            <span className="text-[10px] font-bold text-purple-300 block truncate">
-                              {language === 'bn' ? 'নুরুল ইসলাম সম্রাট' : 'Nurul Islam Samrat'}
-                            </span>
-                            <span className="text-[9px] font-extrabold text-purple-400 uppercase block mt-0.5">
-                              {language === 'bn' ? 'সহকারী হিসাবরক্ষক' : 'Assistant Accountant'}
-                            </span>
-                          </div>
-
-                          {/* 5. General Secretary */}
-                          <div className="p-2 rounded-lg bg-slate-900/90 border border-indigo-500/20 text-center">
-                            <span className="text-[10px] font-bold text-indigo-300 block truncate">
-                              {language === 'bn' ? 'নাঈম ইসলাম' : 'Nayem Islam'}
-                            </span>
-                            <span className="text-[9px] font-semibold text-indigo-400/90 uppercase block mt-0.5">
-                              {language === 'bn' ? 'সাধারণ সম্পাদক (GS)' : 'General Secretary (GS)'}
-                            </span>
-                          </div>
-
-                          {/* 6. Convener */}
-                          <div className="p-2 rounded-lg bg-slate-900/90 border border-amber-500/20 text-center">
-                            <span className="text-[10px] font-bold text-amber-300 block truncate">
-                              {language === 'bn' ? 'আব্দুল মান্নান খান' : 'Abdul Mannan Khan'}
-                            </span>
-                            <span className="text-[9px] font-semibold text-amber-400/90 uppercase block mt-0.5">
-                              {language === 'bn' ? 'আহ্বায়ক (Convener)' : 'Convener'}
-                            </span>
-                          </div>
+                              return (
+                                <div key={bm._id} className={`p-2 rounded-lg bg-slate-900/90 border text-center ${borderClass}`}>
+                                  <span className="text-[10px] font-bold text-white block truncate">
+                                    {bm.memberId?.name || bm.titleEn}
+                                  </span>
+                                  <span className="text-[9px] font-semibold text-indigo-300 uppercase block mt-0.5">
+                                    {language === 'bn' ? bm.titleBn : bm.titleEn}
+                                  </span>
+                                </div>
+                              );
+                            })
+                          ) : (
+                            <>
+                              {/* Fallback Static Cards */}
+                              <div className="p-2 rounded-lg bg-slate-900/90 border border-purple-500/20 text-center">
+                                <span className="text-[10px] font-bold text-purple-300 block truncate">
+                                  {language === 'bn' ? 'সালাউদ্দিন শুভ' : 'Salahuddin Shuvo'}
+                                </span>
+                                <span className="text-[9px] font-semibold text-purple-400/90 uppercase block mt-0.5">
+                                  {language === 'bn' ? 'পরিচালক (Director)' : 'Director / Advisor'}
+                                </span>
+                              </div>
+                              <div className="p-2 rounded-lg bg-slate-900/90 border border-emerald-500/20 text-center">
+                                <span className="text-[10px] font-bold text-emerald-300 block truncate">
+                                  {language === 'bn' ? 'মো: শহিদুল ইসলাম' : 'Md. Shahidul Islam'}
+                                </span>
+                                <span className="text-[9px] font-semibold text-emerald-400/90 uppercase block mt-0.5">
+                                  {language === 'bn' ? 'সভাপতি (President)' : 'President'}
+                                </span>
+                              </div>
+                              <div className="p-2 rounded-lg bg-slate-900/90 border border-blue-500/40 text-center ring-1 ring-blue-500/30">
+                                <span className="text-[10px] font-bold text-blue-300 block truncate">
+                                  {language === 'bn' ? 'মঈন উদ্দীন' : 'Moin Uddin'}
+                                </span>
+                                <span className="text-[9px] font-extrabold text-blue-400 uppercase block mt-0.5">
+                                  {language === 'bn' ? 'প্রধান হিসাবরক্ষক' : 'Primary Accountant'}
+                                </span>
+                              </div>
+                              <div className="p-2 rounded-lg bg-slate-900/90 border border-purple-500/40 text-center ring-1 ring-purple-500/30">
+                                <span className="text-[10px] font-bold text-purple-300 block truncate">
+                                  {language === 'bn' ? 'নুরুল ইসলাম সম্রাট' : 'Nurul Islam Samrat'}
+                                </span>
+                                <span className="text-[9px] font-extrabold text-purple-400 uppercase block mt-0.5">
+                                  {language === 'bn' ? 'সহকারী হিসাবরক্ষক' : 'Assistant Accountant'}
+                                </span>
+                              </div>
+                              <div className="p-2 rounded-lg bg-slate-900/90 border border-indigo-500/20 text-center">
+                                <span className="text-[10px] font-bold text-indigo-300 block truncate">
+                                  {language === 'bn' ? 'নাঈম ইসলাম' : 'Nayem Islam'}
+                                </span>
+                                <span className="text-[9px] font-semibold text-indigo-400/90 uppercase block mt-0.5">
+                                  {language === 'bn' ? 'সাধারণ সম্পাদক (GS)' : 'General Secretary (GS)'}
+                                </span>
+                              </div>
+                              <div className="p-2 rounded-lg bg-slate-900/90 border border-amber-500/20 text-center">
+                                <span className="text-[10px] font-bold text-amber-300 block truncate">
+                                  {language === 'bn' ? 'আব্দুল মান্নান খান' : 'Abdul Mannan Khan'}
+                                </span>
+                                <span className="text-[9px] font-semibold text-amber-400/90 uppercase block mt-0.5">
+                                  {language === 'bn' ? 'আহ্বায়ক (Convener)' : 'Convener'}
+                                </span>
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

@@ -12,9 +12,39 @@ import { authenticate, requireRole, requireModuleAccess } from '../middlewares/a
 import { UserRole } from '../types/models.js';
 import multer from 'multer';
 import { previewCsvImportHandler, saveCsvImportHandler } from '../controllers/member.controller.js';
+import {
+  getGoverningBodyHandler,
+  addGoverningBodyHandler,
+  updateGoverningBodyHandler,
+  deleteGoverningBodyHandler,
+} from '../controllers/governing-body.controller.js';
 
 const router = Router();
 const csvUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 2 * 1024 * 1024 }, fileFilter: (_req, file, callback) => callback(null, file.mimetype.includes('csv') || file.originalname.toLowerCase().endsWith('.csv')) });
+
+// Governing Body Executive Roles & Structure routes
+router.get('/governing-body', authenticate, requireModuleAccess('MEMBERS', 'view'), getGoverningBodyHandler);
+router.post(
+  '/governing-body',
+  authenticate,
+  requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  requireModuleAccess('MEMBERS', 'edit'),
+  addGoverningBodyHandler
+);
+router.put(
+  '/governing-body/:id',
+  authenticate,
+  requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  requireModuleAccess('MEMBERS', 'edit'),
+  updateGoverningBodyHandler
+);
+router.delete(
+  '/governing-body/:id',
+  authenticate,
+  requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  requireModuleAccess('MEMBERS', 'edit'),
+  deleteGoverningBodyHandler
+);
 
 // Stats and sequence helper (defined before /:id parameterized routes)
 router.get('/stats', authenticate, getMemberStatsHandler);

@@ -32,10 +32,10 @@ async function seed() {
         status: UserStatus.ACTIVE,
       },
       {
-        name: 'NS Foundation Member Demo',
+        name: 'Salah Uddin Shuvo (Member Demo)',
         email: 'member@nsfoundation.org',
         password: process.env.SEED_MEMBER_PASSWORD || 'Member@123456',
-        phone: '+8801700000003',
+        phone: '+8801521213224',
         role: UserRole.MEMBER,
         accountantType: null,
         status: UserStatus.ACTIVE,

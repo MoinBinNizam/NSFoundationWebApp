@@ -248,8 +248,9 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
   // Handlers for Modals
   const handleOpenAdjust = (m?: MemberShareItem) => {
     setFormError(null);
+    const defaultMember = membersShares.find((x) => (x.memberId === 'NSF001' || /salah/i.test(x.name)) && x.status !== 'DROPPED') || membersShares.find((x) => x.status !== 'DROPPED') || membersShares[0];
     setAdjustData({
-      memberId: m ? m._id : membersShares[0]?._id || '',
+      memberId: m ? m._id : defaultMember?._id || '',
       effectiveMonth: '2024-12',
       shareCount: m ? m.currentShares : 1,
       eventType: 'ANNUAL_FINALIZATION',
@@ -261,8 +262,9 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
 
   const handleOpenTransfer = (seller?: MemberShareItem) => {
     setFormError(null);
-    const sellerId = seller ? seller._id : membersShares[0]?._id || '';
-    const availableBuyers = membersShares.filter((m) => m._id !== sellerId);
+    const defaultSeller = membersShares.find((x) => (x.memberId === 'NSF001' || /salah/i.test(x.name)) && x.status !== 'DROPPED') || membersShares.find((x) => x.status !== 'DROPPED') || membersShares[0];
+    const sellerId = seller ? seller._id : defaultSeller?._id || '';
+    const availableBuyers = membersShares.filter((m) => m._id !== sellerId && m.status !== 'DROPPED');
     setTransferData({
       fromMemberId: sellerId,
       toMemberId: availableBuyers[0]?._id || '',
@@ -275,8 +277,9 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
 
   const handleOpenReconcile = (m?: MemberShareItem) => {
     setFormError(null);
+    const defaultMember = membersShares.find((x) => (x.memberId === 'NSF001' || /salah/i.test(x.name)) && x.status !== 'DROPPED') || membersShares.find((x) => x.status !== 'DROPPED') || membersShares[0];
     setReconcileData({
-      memberId: m ? m._id : membersShares[0]?._id || '',
+      memberId: m ? m._id : defaultMember?._id || '',
       year: selectedYear,
     });
     setShowReconcileModal(true);
@@ -1197,7 +1200,7 @@ export const SharesPage: React.FC<{ initialTab?: 'positions' | 'dues' | 'annual'
                   onChange={(e) => setTransferData({ ...transferData, toMemberId: e.target.value })}
                 >
                   {membersShares
-                    .filter((m) => m._id !== transferData.fromMemberId)
+                    .filter((m) => m._id !== transferData.fromMemberId && m.status !== 'DROPPED')
                     .map((m) => (
                       <option key={m._id} value={m._id}>
                         {m.memberId} — {m.name} ({t('Current Shares')}: {m.currentShares})

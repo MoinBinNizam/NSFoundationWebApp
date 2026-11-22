@@ -30,17 +30,120 @@ import {
   ShieldCheck,
   Pencil,
   ExternalLink,
+  Award,
 } from 'lucide-react';
 
 export const DESIGNATION_CONFIG: Record<string, { label: string; badgeClass: string }> = {
   DIRECTOR: { label: 'Director', badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/30' },
   PRESIDENT: { label: 'President', badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30' },
+  VICE_PRESIDENT: { label: 'Vice President', badgeClass: 'bg-teal-500/15 text-teal-300 border-teal-500/30' },
   ACCOUNTANT: { label: 'Accountant', badgeClass: 'bg-blue-500/15 text-blue-300 border-blue-500/30' },
   ASSISTANT_ACCOUNTANT: { label: 'Assistant Accountant', badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30' },
   GENERAL_SECRETARY: { label: 'General Secretary', badgeClass: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30' },
+  TREASURER: { label: 'Treasurer', badgeClass: 'bg-sky-500/15 text-sky-300 border-sky-500/30' },
   CONVENER: { label: 'Convener', badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30' },
+  EXECUTIVE_MEMBER: { label: 'Executive Member', badgeClass: 'bg-violet-500/15 text-violet-300 border-violet-500/30' },
   GENERAL_MEMBER: { label: 'General Member', badgeClass: 'bg-gray-500/15 text-gray-300 border-gray-500/20' },
 };
+
+export interface GoverningBodyItem {
+  _id: string;
+  memberId: {
+    _id: string;
+    memberId: string;
+    name: string;
+    phone: string;
+    linkedPhones?: string[];
+    email?: string;
+    status: string;
+    joinDate: string;
+    designation: string;
+    address?: string;
+    cashoutDue?: number;
+  };
+  role: string;
+  titleEn: string;
+  titleBn: string;
+  responsibilitiesEn?: string;
+  responsibilitiesBn?: string;
+  status: 'ACTIVE' | 'INACTIVE' | 'FORMER';
+  order: number;
+  termStart?: string;
+  termEnd?: string | null;
+  notes?: string;
+}
+
+export const BOARD_ROLE_PRESETS: {
+  role: string;
+  titleEn: string;
+  titleBn: string;
+  responsibilitiesEn: string;
+  responsibilitiesBn: string;
+}[] = [
+  {
+    role: 'DIRECTOR',
+    titleEn: 'Director / Advisor',
+    titleBn: 'পরিচালক (Director)',
+    responsibilitiesEn: 'Oversee organizational policies, strategic planning, board resolutions, and high-level governance.',
+    responsibilitiesBn: 'সংগঠনের নীতি নির্ধারণ, কৌশলগত পরিকল্পনা, বোর্ড সিদ্ধান্ত এবং সামগ্রিক শাসন ব্যবস্থা তদারকি।',
+  },
+  {
+    role: 'PRESIDENT',
+    titleEn: 'President',
+    titleBn: 'সভাপতি (President)',
+    responsibilitiesEn: 'Preside over general assemblies, executive committee meetings, and represent society governance.',
+    responsibilitiesBn: 'সাধারণ সভা ও কার্যনির্বাহী কমিটির সভায় সভাপতিত্ব এবং সমবায় সমিতির প্রতিনিধিত্ব।',
+  },
+  {
+    role: 'VICE_PRESIDENT',
+    titleEn: 'Vice President',
+    titleBn: 'সহ-সভাপতি',
+    responsibilitiesEn: 'Assist the President in executive coordination, chair meetings in President absence, and oversee committee operations.',
+    responsibilitiesBn: 'কার্যনির্বাহী সমন্বয়ে সভাপতিকে সহায়তা, সভাপতির অনুপস্থিতিতে সভায় সভাপতিত্ব ও কমিটি তদারকি।',
+  },
+  {
+    role: 'GENERAL_SECRETARY',
+    titleEn: 'General Secretary (GS)',
+    titleBn: 'সাধারণ সম্পাদক (GS)',
+    responsibilitiesEn: 'Secretarial administration, documentation of official minutes, member correspondence, and notices.',
+    responsibilitiesBn: 'দাপ্তরিক ও সচিবালয় প্রশাসন, সভার কার্যবিবরণী নথিবদ্ধকরণ, সদস্য যোগাযোগ এবং অফিশিয়াল নোটিশ প্রদান।',
+  },
+  {
+    role: 'ACCOUNTANT',
+    titleEn: 'Primary Accountant',
+    titleBn: 'প্রধান হিসাবরক্ষক',
+    responsibilitiesEn: 'Chief financial custody, monthly subscription collection management, accounting ledgers, and official disbursement records.',
+    responsibilitiesBn: 'প্রধান আর্থিক হেফাজত, মাসিক চাঁদা আদায় ব্যবস্থাপনা, হিসাবরক্ষণ লেজার ও অফিশিয়াল অর্থ লেনদেন নথিভুক্তকরণ।',
+  },
+  {
+    role: 'ASSISTANT_ACCOUNTANT',
+    titleEn: 'Assistant Accountant',
+    titleBn: 'সহকারী হিসাবরক্ষক',
+    responsibilitiesEn: 'Assistant custody management, member ledger reconciliation, digital gateway verification, and collection tracking.',
+    responsibilitiesBn: 'সহকারী তহবিল হেফাজত, সদস্য লেজার সমন্বয়, ডিজিটাল গেটওয়ে যাচাই এবং কালেকশন পর্যবেক্ষণ।',
+  },
+  {
+    role: 'TREASURER',
+    titleEn: 'Treasurer',
+    titleBn: 'কোষাধ্যক্ষ',
+    responsibilitiesEn: 'Monitor financial accounts, verify fund movements, assist audit procedures, and oversee society treasuries.',
+    responsibilitiesBn: 'আর্থিক হিসাব তদারকি, তহবিল চলাচল নিরীক্ষা, অডিট প্রক্রিয়ায় সহায়তা এবং তহবিলের হেফাজত পর্যবেক্ষণ।',
+  },
+  {
+    role: 'CONVENER',
+    titleEn: 'Convener',
+    titleBn: 'আহ্বায়ক (Convener)',
+    responsibilitiesEn: 'Sub-committee coordination, member mobilization, assembly convening, and cooperative welfare oversight.',
+    responsibilitiesBn: 'সাব-কমিটি সমন্বয়, সদস্য সংহতি বৃদ্ধি, সাংগঠনিক সমাবেশ আহ্বান এবং কল্যাণমূলক কার্যক্রম তদারকি।',
+  },
+  {
+    role: 'EXECUTIVE_MEMBER',
+    titleEn: 'Executive Member',
+    titleBn: 'কার্যনির্বাহী সদস্য',
+    responsibilitiesEn: 'Participate in executive decision-making, support sub-committees, and uphold cooperative resolutions.',
+    responsibilitiesBn: 'কার্যনির্বাহী সিদ্ধান্ত গ্রহণে অংশগ্রহণ, উপকমিটি কার্যক্রমে সহায়তা এবং সাংগঠনিক সিদ্ধান্ত বাস্তবায়ন।',
+  },
+];
 
 interface MemberData {
   _id: string;
@@ -135,21 +238,22 @@ export const MembersPage: React.FC = () => {
   const canDelete = canAccess('MEMBERS', 'edit') && (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN');
   const canManageGovernance = user?.role === 'SUPER_ADMIN' || user?.role === 'ADMIN';
 
-  // Navigation tab: ROSTER vs EXITS (synced with ?tab=EXITS)
-  const [activeTab, setActiveTab] = useState<'ROSTER' | 'EXITS'>(() => {
+  // Navigation tab: ROSTER vs GOVERNING_BODY vs EXITS (synced with ?tab=...)
+  const [activeTab, setActiveTab] = useState<'ROSTER' | 'GOVERNING_BODY' | 'EXITS'>(() => {
     if (typeof window !== 'undefined') {
       const urlTab = new URLSearchParams(window.location.search).get('tab');
+      if (urlTab === 'GOVERNING_BODY') return 'GOVERNING_BODY';
       if (urlTab === 'EXITS') return 'EXITS';
     }
     return 'ROSTER';
   });
 
-  const handleTabChange = (tab: 'ROSTER' | 'EXITS') => {
+  const handleTabChange = (tab: 'ROSTER' | 'GOVERNING_BODY' | 'EXITS') => {
     setActiveTab(tab);
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
-      if (tab === 'EXITS') url.searchParams.set('tab', 'EXITS');
-      else url.searchParams.delete('tab');
+      if (tab === 'ROSTER') url.searchParams.delete('tab');
+      else url.searchParams.set('tab', tab);
       window.history.replaceState({}, '', url.toString());
     }
   };
@@ -157,12 +261,34 @@ export const MembersPage: React.FC = () => {
   useEffect(() => {
     const handlePopState = () => {
       const urlTab = new URLSearchParams(window.location.search).get('tab');
-      if (urlTab === 'EXITS') setActiveTab('EXITS');
-      else if (urlTab === 'ROSTER') setActiveTab('ROSTER');
+      if (urlTab === 'GOVERNING_BODY') setActiveTab('GOVERNING_BODY');
+      else if (urlTab === 'EXITS') setActiveTab('EXITS');
+      else setActiveTab('ROSTER');
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
+
+  // Governing Body Executive Structure State
+  const [governingBody, setGoverningBody] = useState<GoverningBodyItem[]>([]);
+  const [loadingGoverningBody, setLoadingGoverningBody] = useState<boolean>(false);
+  const [isAddBoardModalOpen, setIsAddBoardModalOpen] = useState<boolean>(false);
+  const [editingBoardMember, setEditingBoardMember] = useState<GoverningBodyItem | null>(null);
+  const [deletingBoardMember, setDeletingBoardMember] = useState<GoverningBodyItem | null>(null);
+  const [submittingBoard, setSubmittingBoard] = useState<boolean>(false);
+  const [boardNotice, setBoardNotice] = useState<string | null>(null);
+
+  // Form states for Add / Edit board member
+  const [boardFormMemberId, setBoardFormMemberId] = useState('');
+  const [boardFormRole, setBoardFormRole] = useState('EXECUTIVE_MEMBER');
+  const [boardFormTitleEn, setBoardFormTitleEn] = useState('');
+  const [boardFormTitleBn, setBoardFormTitleBn] = useState('');
+  const [boardFormRespEn, setBoardFormRespEn] = useState('');
+  const [boardFormRespBn, setBoardFormRespBn] = useState('');
+  const [boardFormOrder, setBoardFormOrder] = useState<number>(1);
+  const [boardFormStatus, setBoardFormStatus] = useState<'ACTIVE' | 'INACTIVE'>('ACTIVE');
+  const [boardFormTermStart, setBoardFormTermStart] = useState(new Date().toISOString().split('T')[0]);
+  const [boardFormNotes, setBoardFormNotes] = useState('');
 
   // Member Directory State
   const [members, setMembers] = useState<MemberData[]>([]);
@@ -298,18 +424,20 @@ export const MembersPage: React.FC = () => {
         status: statusFilter,
       });
 
-      const [membersRes, statsRes, shareSettingRes, exitsRes, custodyRes] = await Promise.all([
+      const [membersRes, statsRes, shareSettingRes, exitsRes, custodyRes, govBodyRes] = await Promise.all([
         apiRequest<MemberData[]>(`/members?${queryParams.toString()}`),
         apiRequest<MemberStats>('/members/stats'),
         apiRequest<{ value: number }>('/settings/share-amount'),
         apiRequest<ExitRecord[]>('/governance/exits').catch(() => ({ data: [] })),
         apiRequest<CustodyAcc[]>('/payments/custody-accounts').catch(() => ({ data: [] })),
+        apiRequest<GoverningBodyItem[]>('/members/governing-body').catch(() => ({ data: [] })),
       ]);
 
       setMembers(membersRes.data || []);
       setStats(statsRes.data || { total: 0, active: 0, inactive: 0, dropped: 0, totalShares: 0 });
       setShareAmount(Number(shareSettingRes.data?.value) || 500);
       setExits(exitsRes.data || []);
+      setGoverningBody(govBodyRes.data || []);
 
       const rawAccounts = custodyRes.data || [];
       setCustodyAccounts(rawAccounts);
@@ -326,6 +454,153 @@ export const MembersPage: React.FC = () => {
       setLoading(false);
     }
   }, [debouncedSearch, statusFilter]);
+
+  const refreshGoverningBody = async () => {
+    setLoadingGoverningBody(true);
+    try {
+      const res = await apiRequest<GoverningBodyItem[]>('/members/governing-body');
+      setGoverningBody(res.data || []);
+    } catch (err) {
+      console.error('Error refreshing governing body:', err);
+    } finally {
+      setLoadingGoverningBody(false);
+    }
+  };
+
+  const openAddBoardModal = () => {
+    const nextOrder = (governingBody.length > 0 ? Math.max(...governingBody.map((g) => g.order || 0)) : 0) + 1;
+    const defaultPreset = BOARD_ROLE_PRESETS.find((p) => p.role === 'EXECUTIVE_MEMBER') || BOARD_ROLE_PRESETS[0];
+    const existingIds = new Set(governingBody.map((g) => g.memberId?._id));
+    const activeMembers = members.filter((m) => m.status === 'ACTIVE');
+    const salah = activeMembers.find((m) => m.memberId === 'NSF001' || /salah/i.test(m.name));
+    const available = (salah && !existingIds.has(salah._id))
+      ? salah
+      : (activeMembers.find((m) => !existingIds.has(m._id)) || salah || activeMembers[0]);
+
+    setBoardFormMemberId(available?._id || '');
+    setBoardFormRole(defaultPreset.role);
+    setBoardFormTitleEn(defaultPreset.titleEn);
+    setBoardFormTitleBn(defaultPreset.titleBn);
+    setBoardFormRespEn(defaultPreset.responsibilitiesEn);
+    setBoardFormRespBn(defaultPreset.responsibilitiesBn);
+    setBoardFormOrder(nextOrder);
+    setBoardFormStatus('ACTIVE');
+    setBoardFormTermStart(new Date().toISOString().split('T')[0]);
+    setBoardFormNotes('');
+    setIsAddBoardModalOpen(true);
+  };
+
+  const openEditBoardModal = (item: GoverningBodyItem) => {
+    setEditingBoardMember(item);
+    setBoardFormMemberId(item.memberId?._id || '');
+    setBoardFormRole(item.role);
+    setBoardFormTitleEn(item.titleEn);
+    setBoardFormTitleBn(item.titleBn);
+    setBoardFormRespEn(item.responsibilitiesEn || '');
+    setBoardFormRespBn(item.responsibilitiesBn || '');
+    setBoardFormOrder(item.order);
+    setBoardFormStatus(item.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE');
+    setBoardFormTermStart(item.termStart ? item.termStart.split('T')[0] : new Date().toISOString().split('T')[0]);
+    setBoardFormNotes(item.notes || '');
+  };
+
+  const handleRolePresetSelect = (selectedRole: string) => {
+    setBoardFormRole(selectedRole);
+    const preset = BOARD_ROLE_PRESETS.find((p) => p.role === selectedRole);
+    if (preset) {
+      setBoardFormTitleEn(preset.titleEn);
+      setBoardFormTitleBn(preset.titleBn);
+      setBoardFormRespEn(preset.responsibilitiesEn);
+      setBoardFormRespBn(preset.responsibilitiesBn);
+    }
+  };
+
+  const handleSaveAddBoard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!boardFormMemberId) {
+      alert(t('Please select a member.'));
+      return;
+    }
+    setSubmittingBoard(true);
+    try {
+      await apiRequest('/members/governing-body', {
+        method: 'POST',
+        body: JSON.stringify({
+          memberId: boardFormMemberId,
+          role: boardFormRole,
+          titleEn: boardFormTitleEn,
+          titleBn: boardFormTitleBn,
+          responsibilitiesEn: boardFormRespEn,
+          responsibilitiesBn: boardFormRespBn,
+          order: Number(boardFormOrder) || 1,
+          status: boardFormStatus,
+          termStart: boardFormTermStart,
+          notes: boardFormNotes,
+        }),
+      });
+      setIsAddBoardModalOpen(false);
+      setBoardNotice(t('Executive role saved successfully.'));
+      setTimeout(() => setBoardNotice(null), 4000);
+      await Promise.all([fetchData(), refreshGoverningBody()]);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to add board member');
+    } finally {
+      setSubmittingBoard(false);
+    }
+  };
+
+  const handleSaveEditBoard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingBoardMember) return;
+    if (!boardFormMemberId) {
+      alert(t('Please select a member.'));
+      return;
+    }
+    setSubmittingBoard(true);
+    try {
+      await apiRequest(`/members/governing-body/${editingBoardMember._id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          memberId: boardFormMemberId,
+          role: boardFormRole,
+          titleEn: boardFormTitleEn,
+          titleBn: boardFormTitleBn,
+          responsibilitiesEn: boardFormRespEn,
+          responsibilitiesBn: boardFormRespBn,
+          order: Number(boardFormOrder) || 1,
+          status: boardFormStatus,
+          termStart: boardFormTermStart,
+          notes: boardFormNotes,
+        }),
+      });
+      setEditingBoardMember(null);
+      setBoardNotice(t('Executive role saved successfully.'));
+      setTimeout(() => setBoardNotice(null), 4000);
+      await Promise.all([fetchData(), refreshGoverningBody()]);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to update board member');
+    } finally {
+      setSubmittingBoard(false);
+    }
+  };
+
+  const handleConfirmDeleteBoard = async () => {
+    if (!deletingBoardMember) return;
+    setSubmittingBoard(true);
+    try {
+      await apiRequest(`/members/governing-body/${deletingBoardMember._id}`, {
+        method: 'DELETE',
+      });
+      setDeletingBoardMember(null);
+      setBoardNotice(t('Executive role removed successfully.'));
+      setTimeout(() => setBoardNotice(null), 4000);
+      await Promise.all([fetchData(), refreshGoverningBody()]);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete executive role');
+    } finally {
+      setSubmittingBoard(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -1234,15 +1509,25 @@ export const MembersPage: React.FC = () => {
               </button>
             </>
           )}
+
+          {activeTab === 'GOVERNING_BODY' && canEdit && (
+            <button
+              onClick={openAddBoardModal}
+              className="btn btn-primary btn-sm flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider shrink-0 bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30"
+            >
+              <Plus size={16} />
+              <span>{isBn ? 'পর্ষদ সদস্য যোগ করুন' : 'Add Board Member'}</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* 2. TAB NAVIGATION (ROSTER vs DROPPED EXITS) */}
-      <div className="flex items-center gap-2 border-b border-white/10 pb-1">
+      {/* 2. TAB NAVIGATION (ROSTER vs GOVERNING BODY vs DROPPED EXITS) */}
+      <div className="flex items-center gap-2 border-b border-white/10 pb-1 overflow-x-auto">
         <button
           type="button"
           onClick={() => handleTabChange('ROSTER')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === 'ROSTER'
               ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/25 border border-blue-400/40'
               : 'text-gray-400 hover:text-white bg-slate-900/50 hover:bg-slate-800/60 border border-white/5'
@@ -1257,8 +1542,24 @@ export const MembersPage: React.FC = () => {
 
         <button
           type="button"
+          onClick={() => handleTabChange('GOVERNING_BODY')}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
+            activeTab === 'GOVERNING_BODY'
+              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 border border-indigo-400/40'
+              : 'text-gray-400 hover:text-white bg-slate-900/50 hover:bg-slate-800/60 border border-white/5'
+          }`}
+        >
+          <Award size={16} className={activeTab === 'GOVERNING_BODY' ? 'text-white' : 'text-indigo-400'} />
+          <span>{isBn ? 'কার্যনির্বাহী পরিচালনা পর্ষদ ও দায়িত্ব' : 'Governing Body & Structure'}</span>
+          <span className="ml-1 px-2 py-0.5 rounded-full text-[10px] bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 font-mono">
+            {governingBody.filter((g) => g.status === 'ACTIVE').length || 6}
+          </span>
+        </button>
+
+        <button
+          type="button"
           onClick={() => handleTabChange('EXITS')}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all ${
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === 'EXITS'
               ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/25 border border-rose-400/40'
               : 'text-gray-400 hover:text-white bg-slate-900/50 hover:bg-slate-800/60 border border-white/5'
@@ -1586,7 +1887,228 @@ export const MembersPage: React.FC = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* TAB 2: DROPPED MEMBERS & EXIT REFUND SETTLEMENTS                          */}
+      {/* TAB 2: GOVERNING BODY EXECUTIVE ROLES & STRUCTURE                         */}
+      {/* ========================================================================= */}
+      {activeTab === 'GOVERNING_BODY' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Sub-module Header & Overview Banner */}
+          <div className="glass-card p-6 border border-indigo-500/20 bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-indigo-950/20 shadow-xl rounded-2xl">
+            <div className="flex items-start justify-between flex-wrap gap-4">
+              <div className="flex items-start gap-4">
+                <div className="p-3.5 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 shadow-inner shrink-0 mt-0.5">
+                  <Award size={26} />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="font-bold text-white text-base sm:text-lg">
+                      {isBn
+                        ? 'কার্যনির্বাহী পরিচালনা পর্ষদ পদবি ও দায়িত্ব কাঠামো'
+                        : 'Governing Body Executive Roles & Structure'}
+                    </h2>
+                    <span className="badge text-[11px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold px-2.5 py-0.5">
+                      {governingBody.filter((g) => g.status === 'ACTIVE').length} {isBn ? 'জন সক্রিয় পর্ষদ সদস্য' : 'Active Board Members'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-300 max-w-3xl leading-relaxed">
+                    {isBn
+                      ? 'এনএস ফাউন্ডেশনের সাংগঠনিক গঠনতন্ত্র অনুসারে কার্যনির্বাহী পরিষদের সদস্যরা সাধারণ প্রশাসন ও নীতি নির্ধারণে দায়িত্ব পালন করেন। আর্থিক আদায় ও কাস্টডি হেফাজত শুধুমাত্র প্রধান হিসাবরক্ষক ও সহকারী হিসাবরক্ষকের দ্বারা পরিচালিত হয়।'
+                      : 'Per organizational governance, Executive Committee members oversee policy, audits, and administration, while financial collections and custody are exclusively maintained by designated accountants.'}
+                  </p>
+                </div>
+              </div>
+
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={openAddBoardModal}
+                  className="btn btn-primary btn-sm flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-semibold shadow-lg shadow-indigo-600/25 px-4 py-2 shrink-0"
+                >
+                  <Plus size={16} />
+                  <span>{isBn ? 'পর্ষদে নতুন সদস্য যোগ করুন' : 'Add Board Member'}</span>
+                </button>
+              )}
+            </div>
+
+            {boardNotice && (
+              <div className="mt-4 p-3 rounded-xl bg-emerald-950/50 border border-emerald-500/40 text-emerald-300 text-xs flex items-center gap-2 animate-fadeIn">
+                <CheckCircle2 size={16} />
+                <span>{boardNotice}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Executive Members Cards Grid */}
+          {loadingGoverningBody ? (
+            <div className="p-12 text-center text-gray-400">
+              <RefreshCw size={24} className="animate-spin mx-auto mb-2 text-indigo-400" />
+              <span className="text-xs">{t('Loading...')}</span>
+            </div>
+          ) : governingBody.length === 0 ? (
+            <div className="glass-card p-12 text-center text-gray-400">
+              <Award size={36} className="mx-auto mb-3 text-gray-600" />
+              <p className="text-sm font-semibold">{t('No executive board members found.')}</p>
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={openAddBoardModal}
+                  className="mt-4 btn btn-primary btn-sm inline-flex items-center gap-1.5"
+                >
+                  <Plus size={14} />
+                  <span>{t('Add Board Member')}</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {governingBody.map((item) => {
+                const config = DESIGNATION_CONFIG[item.role] || DESIGNATION_CONFIG.EXECUTIVE_MEMBER;
+                const member = item.memberId;
+                const initials = (member?.name || 'NS')
+                  .split(' ')
+                  .map((n) => n[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase();
+
+                return (
+                  <div
+                    key={item._id}
+                    className={`glass-card p-5 rounded-2xl border transition-all hover:border-indigo-500/40 hover:shadow-xl flex flex-col justify-between ${
+                      item.status === 'INACTIVE'
+                        ? 'border-gray-800 bg-slate-950/40 opacity-75'
+                        : 'border-white/10 bg-slate-900/60'
+                    }`}
+                  >
+                    <div>
+                      {/* Top Bar with Sequence & Role Badge */}
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-slate-800 border border-slate-700 text-[11px] font-bold text-gray-300 flex items-center justify-center font-mono">
+                            #{item.order}
+                          </span>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${config?.badgeClass || 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30'}`}
+                          >
+                            {isBn ? item.titleBn : item.titleEn}
+                          </span>
+                        </div>
+
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                            item.status === 'ACTIVE'
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                              : 'bg-gray-500/15 text-gray-400 border-gray-500/30'
+                          }`}
+                        >
+                          {isBn
+                            ? item.status === 'ACTIVE'
+                              ? 'সক্রিয়'
+                              : 'নিষ্ক্রিয়'
+                            : item.status}
+                        </span>
+                      </div>
+
+                      {/* Member Identity Details */}
+                      <div className="flex items-start gap-3.5 mb-4">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 via-purple-500/15 to-blue-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-300 font-bold text-base shrink-0 shadow-inner">
+                          {initials}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h3 className="text-sm font-extrabold text-white truncate">
+                              {member?.name || t('Unassigned')}
+                            </h3>
+                            {member?.memberId && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 border border-slate-700">
+                                {member.memberId}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-indigo-300 font-semibold mt-0.5">
+                            {isBn ? item.titleBn : item.titleEn}
+                          </div>
+                          {item.titleBn !== item.titleEn && (
+                            <div className="text-[11px] text-gray-400">
+                              {isBn ? item.titleEn : item.titleBn}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Contact & Status Details */}
+                      <div className="space-y-1.5 text-xs text-gray-300 border-t border-white/5 pt-3 mb-3">
+                        {member?.phone && (
+                          <div className="flex items-center gap-2">
+                            <Phone size={12} className="text-gray-400 shrink-0" />
+                            <span className="font-mono text-[11px] text-gray-300">{member.phone}</span>
+                          </div>
+                        )}
+                        {member?.email && (
+                          <div className="flex items-center gap-2">
+                            <Mail size={12} className="text-gray-400 shrink-0" />
+                            <span className="text-[11px] text-gray-300 truncate">{member.email}</span>
+                          </div>
+                        )}
+                        {item.termStart && (
+                          <div className="flex items-center gap-2 text-[11px] text-gray-400">
+                            <Calendar size={12} className="text-gray-400 shrink-0" />
+                            <span>
+                              {isBn ? 'কার্যকাল শুরু:' : 'Appointed:'}{' '}
+                              <span className="text-gray-300">
+                                {new Date(item.termStart).toLocaleDateString()}
+                              </span>
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Responsibilities Section */}
+                      <div className="rounded-xl bg-slate-950/50 border border-slate-800/80 p-3 mb-4">
+                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1">
+                          <ShieldCheck size={12} className="text-indigo-400" />
+                          <span>{isBn ? 'দায়িত্ব ও কার্যপরিধি' : 'Executive Responsibilities'}</span>
+                        </div>
+                        <p className="text-xs text-gray-300 leading-relaxed">
+                          {isBn
+                            ? item.responsibilitiesBn || item.responsibilitiesEn || '—'
+                            : item.responsibilitiesEn || item.responsibilitiesBn || '—'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons */}
+                    {canEdit && (
+                      <div className="flex items-center justify-end gap-2 pt-3 border-t border-white/10">
+                        <button
+                          type="button"
+                          onClick={() => openEditBoardModal(item)}
+                          className="btn btn-secondary btn-sm px-3 py-1.5 text-xs flex items-center gap-1.5 text-blue-300 hover:text-white border-blue-500/30 hover:bg-blue-500/20"
+                          title={t('Edit Executive Role')}
+                        >
+                          <Edit2 size={13} />
+                          <span>{t('Edit')}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeletingBoardMember(item)}
+                          className="btn btn-danger btn-sm px-2.5 py-1.5 text-xs flex items-center gap-1 text-rose-300 hover:text-white border-rose-500/30 hover:bg-rose-500/20"
+                          title={t('Remove from Board')}
+                        >
+                          <Trash2 size={13} />
+                          <span>{t('Remove')}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* TAB 3: DROPPED MEMBERS & EXIT REFUND SETTLEMENTS                          */}
       {/* ========================================================================= */}
       {activeTab === 'EXITS' && (
         <div className="space-y-6 animate-fadeIn">
@@ -3297,6 +3819,549 @@ export const MembersPage: React.FC = () => {
                   onError={() => setPreviewDocError(true)}
                 />
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ADD BOARD MEMBER / EXECUTIVE ROLE MODAL                                   */}
+      {/* ========================================================================= */}
+      {isAddBoardModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="glass-card max-w-xl w-full p-6 space-y-4 border border-indigo-500/30 shadow-2xl rounded-2xl max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <Award size={18} />
+                </div>
+                <h3 className="text-base font-bold text-white">
+                  {isBn ? 'পরিচালনা পর্ষদে নতুন সদস্য ও পদবি যোগ করুন' : 'Add Board Member / Executive Role'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddBoardModalOpen(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAddBoard} className="space-y-4">
+              {/* Member Selection from Current Members Registry */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
+                  {t('Select Member')} *
+                </label>
+                <select
+                  value={boardFormMemberId}
+                  onChange={(e) => setBoardFormMemberId(e.target.value)}
+                  required
+                  className="form-input text-xs w-full bg-slate-900 border-gray-700 text-white rounded-lg focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">{t('Choose a member from registry...')}</option>
+                  {members
+                    .filter((m) => m.status === 'ACTIVE')
+                    .map((m) => (
+                    <option key={m._id} value={m._id}>
+                      {m.memberId} — {m.name} ({m.phone}) {m.designation && m.designation !== 'GENERAL_MEMBER' ? `• [${t(m.designation)}]` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Selected Member Preview Card */}
+                {(() => {
+                  const selected = members.find((m) => m._id === boardFormMemberId);
+                  if (!selected) return null;
+                  return (
+                    <div className="mt-2 p-3 rounded-xl bg-slate-950/80 border border-indigo-500/20 text-xs flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-white flex items-center gap-2">
+                          <span>{selected.name}</span>
+                          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 border border-slate-700">
+                            {selected.memberId}
+                          </span>
+                        </div>
+                        <div className="text-gray-400 text-[11px] mt-1">
+                          {selected.phone} • {selected.email || t('No email')}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="badge text-[10px] bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                          {selected.shareCount} {t('Shares')}
+                        </span>
+                        <div className="text-[10px] text-gray-400 mt-1">
+                          {t(DESIGNATION_CONFIG[selected.designation || 'GENERAL_MEMBER']?.label || selected.designation || 'General Member')}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Role Preset Selector */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
+                  {t('Role / Designation')} *
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+                  {BOARD_ROLE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.role}
+                      type="button"
+                      onClick={() => handleRolePresetSelect(preset.role)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all text-left truncate ${
+                        boardFormRole === preset.role
+                          ? 'bg-indigo-600 text-white border-indigo-400 shadow-sm'
+                          : 'bg-slate-900/60 text-gray-400 border-gray-700 hover:text-white hover:border-gray-600'
+                      }`}
+                    >
+                      {isBn ? preset.titleBn : preset.titleEn}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Title En & Bn */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                    {t('English Title')} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={boardFormTitleEn}
+                    onChange={(e) => setBoardFormTitleEn(e.target.value)}
+                    placeholder="e.g. Director / Advisor"
+                    className="form-input text-xs w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                    {t('Bengali Title')} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={boardFormTitleBn}
+                    onChange={(e) => setBoardFormTitleBn(e.target.value)}
+                    placeholder="যেমন: পরিচালক (Director)"
+                    className="form-input text-xs w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Responsibilities En */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                  {t('Responsibilities (English)')}
+                </label>
+                <textarea
+                  rows={2}
+                  value={boardFormRespEn}
+                  onChange={(e) => setBoardFormRespEn(e.target.value)}
+                  placeholder="Outline executive duties and oversight responsibilities in English..."
+                  className="form-input text-xs w-full"
+                />
+              </div>
+
+              {/* Responsibilities Bn */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                  {t('Responsibilities (Bengali)')}
+                </label>
+                <textarea
+                  rows={2}
+                  value={boardFormRespBn}
+                  onChange={(e) => setBoardFormRespBn(e.target.value)}
+                  placeholder="দায়িত্ব ও কার্যপরিধি বাংলায় লিখুন..."
+                  className="form-input text-xs w-full"
+                />
+              </div>
+
+              {/* Display Order, Term Start & Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                    {t('Display Order')}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={boardFormOrder}
+                    onChange={(e) => setBoardFormOrder(Number(e.target.value))}
+                    className="form-input text-xs w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                    {t('Term Start Date')}
+                  </label>
+                  <input
+                    type="date"
+                    value={boardFormTermStart}
+                    onChange={(e) => setBoardFormTermStart(e.target.value)}
+                    className="form-input text-xs w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                    {t('Status')}
+                  </label>
+                  <select
+                    value={boardFormStatus}
+                    onChange={(e) => setBoardFormStatus(e.target.value as 'ACTIVE' | 'INACTIVE')}
+                    className="form-input text-xs w-full"
+                  >
+                    <option value="ACTIVE">{isBn ? 'সক্রিয় (Active)' : 'Active'}</option>
+                    <option value="INACTIVE">{isBn ? 'নিষ্ক্রিয় (Inactive)' : 'Inactive'}</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                  {t('Notes')} ({t('Optional')})
+                </label>
+                <input
+                  type="text"
+                  value={boardFormNotes}
+                  onChange={(e) => setBoardFormNotes(e.target.value)}
+                  placeholder="e.g. Ratified in Board Resolution #2024-01"
+                  className="form-input text-xs w-full"
+                />
+              </div>
+
+              {/* Form Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setIsAddBoardModalOpen(false)}
+                  className="btn btn-secondary text-xs"
+                >
+                  {t('Cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingBoard}
+                  className="btn btn-primary text-xs flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30"
+                >
+                  {submittingBoard ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>{t('Saving...')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={15} />
+                      <span>{t('Save')}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* EDIT BOARD MEMBER / EXECUTIVE ROLE MODAL                                  */}
+      {/* ========================================================================= */}
+      {editingBoardMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="glass-card max-w-xl w-full p-6 space-y-4 border border-indigo-500/30 shadow-2xl rounded-2xl max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <Pencil size={18} />
+                </div>
+                <h3 className="text-base font-bold text-white">
+                  {isBn ? 'কার্যনির্বাহী পদবি ও দায়িত্ব কাঠামো সম্পাদনা' : 'Edit Executive Role & Responsibilities'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingBoardMember(null)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditBoard} className="space-y-4">
+              {/* Member Selection (allows re-assigning or keeping same) */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
+                  {t('Select Member')} *
+                </label>
+                <select
+                  value={boardFormMemberId}
+                  onChange={(e) => setBoardFormMemberId(e.target.value)}
+                  required
+                  className="form-input text-xs w-full bg-slate-900 border-gray-700 text-white rounded-lg focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">{t('Choose a member from registry...')}</option>
+                  {members
+                    .filter((m) => m.status === 'ACTIVE')
+                    .map((m) => (
+                    <option key={m._id} value={m._id}>
+                      {m.memberId} — {m.name} ({m.phone}) {m.designation && m.designation !== 'GENERAL_MEMBER' ? `• [${t(m.designation)}]` : ''}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Selected Member Preview Card */}
+                {(() => {
+                  const selected = members.find((m) => m._id === boardFormMemberId);
+                  if (!selected) return null;
+                  return (
+                    <div className="mt-2 p-3 rounded-xl bg-slate-950/80 border border-indigo-500/20 text-xs flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-white flex items-center gap-2">
+                          <span>{selected.name}</span>
+                          <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 border border-slate-700">
+                            {selected.memberId}
+                          </span>
+                        </div>
+                        <div className="text-gray-400 text-[11px] mt-1">
+                          {selected.phone} • {selected.email || t('No email')}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="badge text-[10px] bg-blue-500/15 text-blue-300 border border-blue-500/30">
+                          {selected.shareCount} {t('Shares')}
+                        </span>
+                        <div className="text-[10px] text-gray-400 mt-1">
+                          {t(DESIGNATION_CONFIG[selected.designation || 'GENERAL_MEMBER']?.label || selected.designation || 'General Member')}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Role Preset Selector */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1.5">
+                  {t('Role / Designation')} *
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-2">
+                  {BOARD_ROLE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.role}
+                      type="button"
+                      onClick={() => handleRolePresetSelect(preset.role)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all text-left truncate ${
+                        boardFormRole === preset.role
+                          ? 'bg-indigo-600 text-white border-indigo-400 shadow-sm'
+                          : 'bg-slate-900/60 text-gray-400 border-gray-700 hover:text-white hover:border-gray-600'
+                      }`}
+                    >
+                      {isBn ? preset.titleBn : preset.titleEn}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Title En & Bn */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                    {t('English Title')} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={boardFormTitleEn}
+                    onChange={(e) => setBoardFormTitleEn(e.target.value)}
+                    className="form-input text-xs w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                    {t('Bengali Title')} *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={boardFormTitleBn}
+                    onChange={(e) => setBoardFormTitleBn(e.target.value)}
+                    className="form-input text-xs w-full"
+                  />
+                </div>
+              </div>
+
+              {/* Responsibilities En */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                  {t('Responsibilities (English)')}
+                </label>
+                <textarea
+                  rows={2}
+                  value={boardFormRespEn}
+                  onChange={(e) => setBoardFormRespEn(e.target.value)}
+                  placeholder="Outline executive duties and oversight responsibilities in English..."
+                  className="form-input text-xs w-full"
+                />
+              </div>
+
+              {/* Responsibilities Bn */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                  {t('Responsibilities (Bengali)')}
+                </label>
+                <textarea
+                  rows={2}
+                  value={boardFormRespBn}
+                  onChange={(e) => setBoardFormRespBn(e.target.value)}
+                  placeholder="দায়িত্ব ও কার্যপরিধি বাংলায় লিখুন..."
+                  className="form-input text-xs w-full"
+                />
+              </div>
+
+              {/* Display Order, Term Start & Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                    {t('Display Order')}
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={boardFormOrder}
+                    onChange={(e) => setBoardFormOrder(Number(e.target.value))}
+                    className="form-input text-xs w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                    {t('Term Start Date')}
+                  </label>
+                  <input
+                    type="date"
+                    value={boardFormTermStart}
+                    onChange={(e) => setBoardFormTermStart(e.target.value)}
+                    className="form-input text-xs w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                    {t('Status')}
+                  </label>
+                  <select
+                    value={boardFormStatus}
+                    onChange={(e) => setBoardFormStatus(e.target.value as 'ACTIVE' | 'INACTIVE')}
+                    className="form-input text-xs w-full"
+                  >
+                    <option value="ACTIVE">{isBn ? 'সক্রিয় (Active)' : 'Active'}</option>
+                    <option value="INACTIVE">{isBn ? 'নিষ্ক্রিয় (Inactive)' : 'Inactive'}</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider mb-1">
+                  {t('Notes')} ({t('Optional')})
+                </label>
+                <input
+                  type="text"
+                  value={boardFormNotes}
+                  onChange={(e) => setBoardFormNotes(e.target.value)}
+                  placeholder="e.g. Ratified in Board Resolution #2024-01"
+                  className="form-input text-xs w-full"
+                />
+              </div>
+
+              {/* Form Buttons */}
+              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => setEditingBoardMember(null)}
+                  className="btn btn-secondary text-xs"
+                >
+                  {t('Cancel')}
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingBoard}
+                  className="btn btn-primary text-xs flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/30"
+                >
+                  {submittingBoard ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      <span>{t('Updating...')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={15} />
+                      <span>{t('Update')}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* DELETE / REMOVE BOARD MEMBER MODAL                                        */}
+      {/* ========================================================================= */}
+      {deletingBoardMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
+          <div className="glass-card max-w-md w-full p-6 space-y-4 border border-rose-500/30 shadow-2xl rounded-2xl">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center shrink-0">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  {t('Remove from Board')}
+                </h3>
+                <p className="text-xs text-rose-300/80">
+                  {deletingBoardMember.titleEn} — {deletingBoardMember.memberId?.name}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-300 leading-relaxed">
+              {t('Are you sure you want to remove this member from the Governing Body?')}
+            </p>
+            <p className="text-[11px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5">
+              {t('This will set their society designation back to General Member.')}
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                disabled={submittingBoard}
+                onClick={() => setDeletingBoardMember(null)}
+                className="btn btn-secondary text-xs"
+              >
+                {t('Cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={submittingBoard}
+                onClick={handleConfirmDeleteBoard}
+                className="btn btn-danger text-xs flex items-center gap-1.5"
+              >
+                {submittingBoard ? (
+                  <>
+                    <RefreshCw size={13} className="animate-spin" />
+                    <span>{t('Removing...')}</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={13} />
+                    <span>{t('Confirm and Remove')}</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

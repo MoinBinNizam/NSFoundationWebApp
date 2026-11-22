@@ -34,12 +34,14 @@ export class InvestmentController {
    */
   static async listProjects(req: Request, res: Response, next: NextFunction) {
     try {
-      const { status, category, externalEntity, search, page, limit, asOfDate } = req.query;
+      const { status, category, externalEntity, org, search, page, limit, asOfDate } = req.query;
+      const targetOrg = org || externalEntity;
 
       const result = await InvestmentService.getProjects({
         status: status ? String(status) : undefined,
         category: category ? String(category) : undefined,
-        externalEntity: externalEntity ? String(externalEntity) : undefined,
+        externalEntity: targetOrg ? String(targetOrg) : undefined,
+        org: targetOrg ? String(targetOrg) : undefined,
         search: search ? String(search) : undefined,
         page: page !== undefined ? Number(page) : undefined,
         limit: limit !== undefined ? Number(limit) : undefined,

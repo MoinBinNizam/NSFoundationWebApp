@@ -297,7 +297,7 @@ const MonthYearPicker: React.FC<MonthYearPickerProps> = ({
               onClick={() => setViewYear((y) => Math.max(minYear, y - 1))}
               disabled={viewYear <= minYear}
               className="p-1 rounded hover:bg-white/10 text-gray-300 hover:text-white disabled:opacity-30"
-              title="Previous Year"
+              title={t("Previous Year")}
             >
               <ChevronLeft size={16} />
             </button>
@@ -319,7 +319,7 @@ const MonthYearPicker: React.FC<MonthYearPickerProps> = ({
               onClick={() => setViewYear((y) => Math.min(maxYear, y + 1))}
               disabled={viewYear >= maxYear}
               className="p-1 rounded hover:bg-white/10 text-gray-300 hover:text-white disabled:opacity-30"
-              title="Next Year"
+              title={t("Next Year")}
             >
               <ChevronRight size={16} />
             </button>
@@ -434,6 +434,7 @@ export const SettingsPage: React.FC = () => {
     member: StaffMember;
   } | null>(null);
   const [staffCandidates, setStaffCandidates] = useState<StaffCandidate[]>([]);
+  const [memberList, setMemberList] = useState<Array<{ _id: string; memberId: string; name: string; phone?: string; email?: string }>>([]);
   const [custodyAccounts, setCustodyAccounts] = useState<
     CustodyAccountOption[]
   >([]);
@@ -485,6 +486,7 @@ export const SettingsPage: React.FC = () => {
         custodyRes,
         permRes,
         transparencyRes,
+        membersRes,
       ] = await Promise.all([
         apiRequest<ShareSetting>("/settings/share-amount"),
         apiRequest<PenaltyRule[]>("/settings/penalty-rules"),
@@ -500,6 +502,9 @@ export const SettingsPage: React.FC = () => {
           () => ({ data: [] }),
         ),
         apiRequest<MemberTransparency>("/settings/member-transparency"),
+        apiRequest<Array<{ _id: string; memberId: string; name: string; phone?: string; email?: string }>>("/payments/collection-members").catch(
+          () => ({ data: [] }),
+        ),
       ]);
       const loadedSetting = shareRes.data;
       setSetting(loadedSetting);
@@ -510,6 +515,7 @@ export const SettingsPage: React.FC = () => {
       setOperationalEndYear(String(endYearRes.data?.value || 2028));
       setStaff(staffRes.data || []);
       setStaffCandidates(candidatesRes.data || []);
+      setMemberList(membersRes.data || []);
       setCustodyAccounts(custodyRes.data || []);
       setPermissionsList(permRes.data || []);
       setMemberTransparency(transparencyRes.data);
@@ -821,7 +827,7 @@ export const SettingsPage: React.FC = () => {
         <ShieldCheck className="mx-auto text-blue-400 mb-3" size={34} />
         <h1 className="text-xl font-bold text-white">{t("Settings")}</h1>
         <p className="text-sm text-gray-400 mt-2">
-          Only organization administrators can view and change society rules.
+          {t("Only organization administrators can view and change society rules.")}
         </p>
       </div>
     );
@@ -845,7 +851,7 @@ export const SettingsPage: React.FC = () => {
           </p>
         </div>
         <span className="badge badge-active self-start sm:self-auto">
-          <ShieldCheck size={13} /> Admin only
+          <ShieldCheck size={13} /> {t("Admin only")}
         </span>
       </header>
 
@@ -881,7 +887,7 @@ export const SettingsPage: React.FC = () => {
           className="mt-5 grid grid-cols-1 sm:grid-cols-[minmax(0,260px)_1fr_auto] gap-3 sm:items-end"
         >
           <div className="form-group mb-0">
-            <label className="form-label">Amount per share (BDT)</label>
+            <label className="form-label">{t("Amount per share (BDT)")}</label>
             <input
               className="form-input"
               type="number"
@@ -894,7 +900,7 @@ export const SettingsPage: React.FC = () => {
             />
           </div>
           <div className="rounded-xl bg-slate-900/65 border border-white/10 px-4 py-3 text-sm">
-            <span className="text-gray-400">Preview:</span>
+            <span className="text-gray-400">{t("Preview:")}</span>
             <strong className="text-emerald-300 ml-2">
               1 share = {money.format(Number(shareAmount) || 0)} / month
             </strong>
@@ -905,7 +911,7 @@ export const SettingsPage: React.FC = () => {
             type="submit"
           >
             <Save size={16} />
-            {saving ? "Saving..." : "Save amount"}
+            {saving ? t("Saving...") : t("Save amount")}
           </button>
         </form>
         <p className="text-xs text-gray-500 mt-3">
@@ -932,11 +938,11 @@ export const SettingsPage: React.FC = () => {
                 </h2>
                 {isSuperAdmin ? (
                   <span className="badge badge-active text-[10px] py-0.5">
-                    Super Admin Control
+                    {t("Super Admin Control")}
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                    View Only
+                    {t("View Only")}
                   </span>
                 )}
               </div>
@@ -960,8 +966,8 @@ export const SettingsPage: React.FC = () => {
             >
               <Save size={16} />
               {savingPermissions
-                ? "Saving..."
-                : `Save ${selectedRoleKey.replace(/_/g, " ")} Permissions`}
+                ? t("Saving...")
+                : `${t("Save")} ${t(selectedRoleKey)} ${t("Permissions")}`}
             </button>
           )}
         </div>
@@ -972,10 +978,13 @@ export const SettingsPage: React.FC = () => {
             "SUPER_ADMIN",
             "DIRECTOR",
             "PRESIDENT",
+            "VICE_PRESIDENT",
             "ACCOUNTANT",
             "ASSISTANT_ACCOUNTANT",
             "GENERAL_SECRETARY",
+            "TREASURER",
             "CONVENER",
+            "EXECUTIVE_MEMBER",
             "GENERAL_MEMBER",
             "ADMIN",
             "MEMBER",
@@ -992,7 +1001,7 @@ export const SettingsPage: React.FC = () => {
                     : "bg-slate-900/60 text-gray-400 hover:text-white border border-white/5"
                 }`}
               >
-                {key.replace(/_/g, " ")}
+                {t(key)}
               </button>
             );
           })}
@@ -1003,10 +1012,10 @@ export const SettingsPage: React.FC = () => {
           <table className="data-table min-w-[700px]">
             <thead>
               <tr>
-                <th className="w-1/4">Module Name</th>
-                <th className="w-1/2">Module Description</th>
-                <th className="w-1/8 text-center">Can View</th>
-                <th className="w-1/8 text-center">Can Edit</th>
+                <th className="w-1/4">{t("Module Name")}</th>
+                <th className="w-1/2">{t("Module Description")}</th>
+                <th className="w-1/8 text-center">{t("Can View")}</th>
+                <th className="w-1/8 text-center">{t("Can Edit")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1030,7 +1039,7 @@ export const SettingsPage: React.FC = () => {
                     >
                       <td>
                         <span className="font-semibold text-white text-sm">
-                          {def.label}
+                          {t(def.label)}
                         </span>
                         <code className="block text-[10px] text-gray-500 mt-0.5">
                           {def.key}
@@ -1038,11 +1047,11 @@ export const SettingsPage: React.FC = () => {
                       </td>
                       <td>
                         <span className="text-xs text-gray-400">
-                          {def.desc}
+                          {t(def.desc)}
                         </span>
                         {isSuperAdminRow && (
                           <span className="block text-[11px] text-amber-400/90 font-medium mt-0.5">
-                            * Super Admin access is permanently unrestricted.
+                            {t("* Super Admin access is permanently unrestricted.")}
                           </span>
                         )}
                       </td>
@@ -1193,24 +1202,22 @@ export const SettingsPage: React.FC = () => {
         </div>
         {!canManageMemberTransparency && (
           <p className="text-xs text-gray-500 mt-4">
-            Only an administrator can change these organization disclosure
-            permissions.
+            {t("Only an administrator can change these organization disclosure permissions.")}
           </p>
         )}
       </section>
 
       <section className="glass-card p-5 sm:p-6">
-        <h2 className="font-bold text-white">Final Disbursement Window</h2>
+        <h2 className="font-bold text-white">{t("Final Disbursement Window")}</h2>
         <p className="text-sm text-gray-400 mt-1">
-          Final payouts always start from 2024 and use the January 2025 final
-          share position. Extend this end year only after member consensus.
+          {t("Final payouts always start from 2024 and use the January 2025 final share position. Extend this end year only after member consensus.")}
         </p>
         <form
           onSubmit={saveEndYear}
           className="flex flex-col sm:flex-row gap-3 sm:items-end mt-4"
         >
           <div className="form-group mb-0 max-w-xs">
-            <label className="form-label">Approved operational end year</label>
+            <label className="form-label">{t("Approved operational end year")}</label>
             <input
               className="form-input"
               type="number"
@@ -1221,7 +1228,7 @@ export const SettingsPage: React.FC = () => {
             />
           </div>
           <button className="btn btn-primary" disabled={saving}>
-            Save end year
+            {saving ? t("Saving...") : t("Save end year")}
           </button>
         </form>
       </section>
@@ -1238,9 +1245,9 @@ export const SettingsPage: React.FC = () => {
               )}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-row flex-wrap gap-2 shrink-0">
             <button
-              className="btn btn-secondary"
+              className="btn bg-blue-600 hover:bg-blue-500 border-blue-400/30 text-white shadow-lg shadow-blue-900/20"
               onClick={() => {
                 setAppointmentForm({
                   userId: "",
@@ -1256,7 +1263,7 @@ export const SettingsPage: React.FC = () => {
               {t("Appoint member")}
             </button>
             <button
-              className="btn btn-secondary"
+              className="btn bg-violet-600 hover:bg-violet-500 border-violet-400/30 text-white shadow-lg shadow-violet-900/20"
               onClick={() => {
                 setStaffForm({
                   name: "",
@@ -1384,11 +1391,9 @@ export const SettingsPage: React.FC = () => {
 
       <section className="glass-card p-5 sm:p-6">
         <div>
-          <h2 className="font-bold text-white">Gateway Cash-out Rules</h2>
+          <h2 className="font-bold text-white">{t("Gateway Cash-out Rules")}</h2>
           <p className="text-sm text-gray-400 mt-1">
-            Configure the charge applied when a member pays into each receiving
-            channel. The payment screen rounds the calculated charge upward
-            using this rule.
+            {t("Configure the charge applied when a member pays into each receiving channel. The payment screen rounds the calculated charge upward using this rule.")}
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
@@ -1489,8 +1494,8 @@ export const SettingsPage: React.FC = () => {
                     <td className="font-semibold text-rose-300">
                       {money.format(rule.ratePerShare)} / {t("share")}
                     </td>
-                    <td>{rule.graceDayOfMonth}th of month</td>
-                    <td>{rule.description || "—"}</td>
+                    <td>{rule.graceDayOfMonth} {t("th of month")}</td>
+                    <td>{rule.description ? t(rule.description.replace(/\s+/g, ' ').trim()) : "—"}</td>
                     <td>
                       <div className="flex items-center justify-end gap-1.5">
                         <button
@@ -1510,9 +1515,9 @@ export const SettingsPage: React.FC = () => {
                                 ],
                                 [
                                   "Grace deadline",
-                                  `${rule.graceDayOfMonth}th of month`,
+                                  `${rule.graceDayOfMonth} ${t("th of month")}`,
                                 ],
-                                ["Description", rule.description || "—"],
+                                ["Description", rule.description ? t(rule.description.replace(/\s+/g, ' ').trim()) : "—"],
                               ],
                             })
                           }
@@ -1613,7 +1618,7 @@ export const SettingsPage: React.FC = () => {
                           : waiver.memberId?.memberId || t("Specific member")}
                       </span>
                     </td>
-                    <td>{waiver.reason}</td>
+                    <td>{waiver.reason ? t(waiver.reason.replace(/\s+/g, ' ').trim()) : "—"}</td>
                     <td>
                       <div className="flex items-center justify-end gap-1.5">
                         <button
@@ -1632,7 +1637,7 @@ export const SettingsPage: React.FC = () => {
                                     ? "All members"
                                     : waiver.memberId?.name || "Specific member",
                                 ],
-                                ["Reason", waiver.reason],
+                                ["Reason", waiver.reason ? t(waiver.reason.replace(/\s+/g, ' ').trim()) : "—"],
                               ],
                             })
                           }
@@ -1916,7 +1921,7 @@ export const SettingsPage: React.FC = () => {
                     className="flex justify-between items-center py-2.5 text-sm first:pt-0 last:pb-0"
                   >
                     <span className="text-gray-400">{t(label)}</span>
-                    <span className="font-medium text-white">{val}</span>
+                    <span className="font-medium text-white">{t(String(val))}</span>
                   </div>
                 ))}
               </div>
@@ -1993,10 +1998,10 @@ export const SettingsPage: React.FC = () => {
             <div className="p-5 border-b border-white/10 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-white">
-                  Edit {editingGateway.channel} fee rule
+                  {t("Edit")} {editingGateway.channel} {t("fee rule")}
                 </h3>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Used automatically by payment previews and receipts.
+                  {t("Used automatically by payment previews and receipts.")}
                 </p>
               </div>
               <button
@@ -2009,7 +2014,7 @@ export const SettingsPage: React.FC = () => {
             <form onSubmit={saveGatewayRate} className="p-5 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="form-group mb-0">
-                  <label className="form-label">Rate percentage</label>
+                  <label className="form-label">{t("Rate percentage")}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -2027,7 +2032,7 @@ export const SettingsPage: React.FC = () => {
                   />
                 </div>
                 <div className="form-group mb-0">
-                  <label className="form-label">Fixed fee (BDT)</label>
+                  <label className="form-label">{t("Fixed fee (BDT)")}</label>
                   <input
                     type="number"
                     step="0.01"
@@ -2045,7 +2050,7 @@ export const SettingsPage: React.FC = () => {
                 </div>
               </div>
               <div className="form-group mb-0">
-                <label className="form-label">Round charge up to (BDT)</label>
+                <label className="form-label">{t("Round charge up to (BDT)")}</label>
                 <input
                   type="number"
                   min="0"
@@ -2062,12 +2067,11 @@ export const SettingsPage: React.FC = () => {
                   }
                 />
                 <p className="text-[11px] text-gray-500 mt-1">
-                  Set 0 for no rounding. For example, BDT 10 turns a bKash fee
-                  of BDT 9.25 into BDT 10.
+                  {t("Set 0 for no rounding. For example, BDT 10 turns a bKash fee of BDT 9.25 into BDT 10.")}
                 </p>
               </div>
               <div className="form-group mb-0">
-                <label className="form-label">Rule description</label>
+                <label className="form-label">{t("Rule description")}</label>
                 <textarea
                   className="form-textarea"
                   rows={3}
@@ -2086,14 +2090,14 @@ export const SettingsPage: React.FC = () => {
                   className="btn btn-secondary"
                   onClick={() => setEditingGateway(null)}
                 >
-                  Cancel
+                  {t("Cancel")}
                 </button>
                 <button
                   type="submit"
                   className="btn btn-primary"
                   disabled={saving}
                 >
-                  Save rule
+                  {saving ? t("Saving...") : t("Save rule")}
                 </button>
               </div>
             </form>
@@ -2192,7 +2196,7 @@ export const SettingsPage: React.FC = () => {
                           })
                         }
                       />
-                      {channel}
+                      {t(channel)}
                     </label>
                   ))}
                 </div>
@@ -2378,7 +2382,7 @@ export const SettingsPage: React.FC = () => {
                           })
                         }
                       />
-                      {channel}
+                      {t(channel)}
                     </label>
                   ))}
                 </div>
@@ -2462,10 +2466,49 @@ export const SettingsPage: React.FC = () => {
             <form onSubmit={provisionStaff} className="p-5 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="form-group mb-0">
-                  <label className="form-label">{t("Full name")}</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="form-label mb-0">{t("Full name")}</label>
+                    <span className="text-[11px] text-indigo-400 font-medium">
+                      {t("Select from members or type")}
+                    </span>
+                  </div>
+                  {memberList.length > 0 && (
+                    <select
+                      className="form-select mb-2 text-xs"
+                      defaultValue=""
+                      onChange={(e) => {
+                        const selectedId = e.target.value;
+                        if (!selectedId) return;
+                        const m = memberList.find(
+                          (item) => item._id === selectedId || item.memberId === selectedId
+                        );
+                        if (m) {
+                          setStaffForm((prev) => ({
+                            ...prev,
+                            name: m.name,
+                            phone: m.phone || prev.phone,
+                            email:
+                              m.email ||
+                              prev.email ||
+                              `${(m.memberId || 'staff').toLowerCase().replace(/\s+/g, '')}@nsfoundation.org`,
+                          }));
+                        }
+                      }}
+                    >
+                      <option value="">{t("Choose a registered member to auto-fill...")}</option>
+                      {memberList
+                        .filter((m: any) => m.status !== 'DROPPED')
+                        .map((m) => (
+                        <option key={m._id} value={m._id}>
+                          {m.memberId} — {m.name} {m.phone ? `(${m.phone})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   <input
                     className="form-input"
                     required
+                    placeholder={t("Full name")}
                     value={staffForm.name}
                     onChange={(e) =>
                       setStaffForm({ ...staffForm, name: e.target.value })
@@ -2553,7 +2596,7 @@ export const SettingsPage: React.FC = () => {
                           })
                         }
                       />
-                      {channel}
+                      {t(channel)}
                     </label>
                   ))}
                 </div>

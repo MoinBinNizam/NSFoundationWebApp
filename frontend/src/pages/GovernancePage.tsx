@@ -330,7 +330,40 @@ export const GovernancePage: React.FC = () => {
 
         </section>
 
-      {/* 3. MEMBER EXIT SETTLEMENTS CONSOLIDATION BANNER */}
+      {/* 3. GOVERNING BODY EXECUTIVE ROLES TRANSFER BANNER */}
+      <section className="glass-card p-6 border border-indigo-500/20 bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-indigo-950/20 shadow-xl rounded-2xl">
+        <div className="flex items-center justify-between flex-wrap gap-5">
+          <div className="flex items-start gap-4">
+            <div className="p-3.5 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 shadow-inner shrink-0 mt-0.5">
+              <BookOpenCheck size={26} />
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <h2 className="font-bold text-white text-base">
+                  {language === 'bn' ? 'কার্যনির্বাহী পরিচালনা পর্ষদ পদবি ও দায়িত্ব কাঠামো (একীভূত)' : 'Governing Body Executive Roles & Structure (Consolidated)'}
+                </h2>
+                <span className="badge text-[10px] bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold px-2 py-0.5">
+                  {language === 'bn' ? 'সদস্য ব্যবস্থাপনা মডিউল' : 'In Members Module'}
+                </span>
+              </div>
+              <p className="text-xs text-gray-300 max-w-2xl leading-relaxed">
+                {language === 'bn'
+                  ? 'কার্যনির্বাহী পরিষদ সদস্যদের পদবি, দায়িত্ব ও কার্যপরিধি নির্ধারণ, নতুন পর্ষদ সদস্য অন্তর্ভুক্তি এবং দায়িত্ব সম্পাদনা এখন সম্পূর্ণ ডায়নামিক্যালি সদস্য ব্যবস্থাপনা মডিউলে স্থানান্তর করা হয়েছে।'
+                  : 'Executive board appointments, role designations, responsibility definitions, and dynamic governance structure are now centralized and dynamically managed in the Member Management module.'}
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/members?tab=GOVERNING_BODY"
+            className="btn btn-primary btn-sm flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-semibold shadow-lg shadow-indigo-600/25 px-4 py-2"
+          >
+            <span>{language === 'bn' ? 'পরিচালনা পর্ষদে যান' : 'Go to Governing Body'}</span>
+            <ArrowRight size={16} />
+          </Link>
+        </div>
+      </section>
+
+      {/* 4. MEMBER EXIT SETTLEMENTS CONSOLIDATION BANNER */}
       <section className="glass-card p-6 border border-rose-500/20 bg-gradient-to-br from-slate-900/90 via-slate-900/60 to-rose-950/20 shadow-xl rounded-2xl">
         <div className="flex items-center justify-between flex-wrap gap-5">
           <div className="flex items-start gap-4">

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePreferences } from '../context/PreferencesContext';
 import { groupCustodyAccounts } from '../utils/custodyUtils';
 import { ModuleGuide } from '../components/ModuleGuide';
+import { TableScrollControls } from '../components/TableScrollControls';
 import {
   TrendingUp,
   Plus,
@@ -317,12 +318,11 @@ export const InvestmentsPage: React.FC = () => {
   const [custodyAccounts, setCustodyAccounts] = useState<CustodyAccountOption[]>([]);
   const groupedCustody = useMemo(() => groupCustodyAccounts(custodyAccounts), [custodyAccounts]);
 
-  // Pagination & Search States (Server-Side)
+  // Search & Scroll States (Server-Side)
   const [page, setPage] = useState(1);
-  const [limit] = useState(12);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
+  const [limit] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const portfolioTableRef = useRef<HTMLDivElement>(null);
 
   // Loading and Alert States
   const [loading, setLoading] = useState(true);
@@ -451,9 +451,12 @@ export const InvestmentsPage: React.FC = () => {
         if (search.trim()) params.append('search', search.trim());
         if (status) params.append('status', status);
         if (cat) params.append('category', cat);
-        if (org) params.append('org', org);
-        params.append('page', String(p));
-        params.append('limit', String(limit));
+        if (org) {
+          params.append('org', org);
+          params.append('externalEntity', org);
+        }
+        params.append('page', String(p || 1));
+        params.append('limit', '0');
 
         const res = await apiRequest<InvestmentProjectItem[]>(
           `/investments/projects?${params.toString()}`,
@@ -461,10 +464,6 @@ export const InvestmentsPage: React.FC = () => {
         );
 
         setProjects(res.data || []);
-        if (res.pagination) {
-          setTotalPages(res.pagination.totalPages || 1);
-          setTotalCount(res.pagination.total || 0);
-        }
       } catch (err: unknown) {
         if ((err as Error)?.name === 'AbortError') return;
         console.error('Failed to load investment projects:', err);
@@ -505,12 +504,6 @@ export const InvestmentsPage: React.FC = () => {
   useEffect(() => {
     fetchOverviewData();
   }, [fetchOverviewData]);
-
-  // Page change handler
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-    fetchProjects(newPage, searchFilter, statusFilter, categoryFilter, orgFilter);
-  };
 
   // Fetch drill-down details for a project
   const openProjectDrillDown = async (project: InvestmentProjectItem) => {
@@ -1311,34 +1304,39 @@ export const InvestmentsPage: React.FC = () => {
           </button>
         </div>
 
-        {/* View Mode Toggle: Table View (Spreadsheet, Default) vs Grid View */}
-        <div className="flex items-center gap-1.5 p-1 bg-gray-900 border border-gray-800 rounded-lg">
-          <button
-            type="button"
-            onClick={() => handleViewModeChange('table')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              viewMode === 'table'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
-            }`}
-            title={t('Spreadsheet Layout')}
-          >
-            <Table className="w-3.5 h-3.5" />
-            {t('Table View')}
-          </button>
-          <button
-            type="button"
-            onClick={() => handleViewModeChange('cards')}
-            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
-              viewMode === 'cards'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
-            }`}
-            title={t('Cards Layout')}
-          >
-            <LayoutGrid className="w-3.5 h-3.5" />
-            {t('Grid View')}
-          </button>
+        {/* View Mode Toggle & Horizontal Scroll Controls */}
+        <div className="flex items-center gap-2.5">
+          {viewMode === 'table' && (
+            <TableScrollControls containerRef={portfolioTableRef} />
+          )}
+          <div className="flex items-center gap-1.5 p-1 bg-gray-900 border border-gray-800 rounded-lg">
+            <button
+              type="button"
+              onClick={() => handleViewModeChange('table')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                viewMode === 'table'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+              }`}
+              title={t('Spreadsheet Layout')}
+            >
+              <Table className="w-3.5 h-3.5" />
+              {t('Table View')}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleViewModeChange('cards')}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                viewMode === 'cards'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800/60'
+              }`}
+              title={t('Cards Layout')}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              {t('Grid View')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -1400,12 +1398,11 @@ export const InvestmentsPage: React.FC = () => {
               className="w-full bg-[#1F2937] border border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <option value="">{t('All Categories')}</option>
-              <option value="Agriculture">{t('Agriculture')}</option>
+              <option value="Agro">{t('Agriculture / Agro')}</option>
+              <option value="Land Trading">{t('Agro / Land Trading')}</option>
               <option value="Livestock">{t('Livestock')}</option>
-              <option value="Trading">{t('Trading')}</option>
-              <option value="Real Estate">{t('Real Estate')}</option>
-              <option value="Restaurant">{t('Restaurant')}</option>
               <option value="Fisheries">{t('Fisheries')}</option>
+              <option value="Trade">{t('Trade / Restaurant')}</option>
             </select>
           </div>
 
@@ -1597,9 +1594,9 @@ export const InvestmentsPage: React.FC = () => {
               LAYOUT 1: SPREADSHEET TABLE VIEW (DEFAULT - Mirrors NS Foundation Investments.xlsx)
               ========================================================================= */}
           {viewMode === 'table' ? (
-            <div className="overflow-x-auto rounded-xl border border-gray-800 bg-[#111827] shadow-xl">
+            <div ref={portfolioTableRef} className="overflow-x-auto rounded-xl border border-gray-800 bg-[#111827] shadow-xl max-h-[70vh] overflow-y-auto overscroll-contain">
               <table className="w-full text-left text-xs whitespace-nowrap">
-                <thead className="bg-[#172033] text-gray-300 font-semibold uppercase tracking-wider text-[11px] border-b border-gray-800">
+                <thead className="bg-[#172033] text-gray-300 font-semibold uppercase tracking-wider text-[11px] border-b border-gray-800 sticky top-0 z-10">
                   <tr>
                     <th className="py-3 px-3 w-12 text-center">{t('SL')}</th>
                     <th className="py-3 px-4 min-w-[220px]">{t('Project Name')} &amp; {t('Invoice')}</th>
@@ -1638,7 +1635,7 @@ export const InvestmentsPage: React.FC = () => {
                       >
                         {/* SL No */}
                         <td className="py-3 px-3 text-center font-mono text-gray-400">
-                          {(page - 1) * limit + idx + 1}
+                          {idx + 1}
                         </td>
 
                         {/* Project Name & Invoices */}
@@ -1831,7 +1828,7 @@ export const InvestmentsPage: React.FC = () => {
             /* =========================================================================
                 LAYOUT 2: CARDS GRID VIEW
                 ========================================================================= */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 max-h-[75vh] overflow-y-auto overscroll-contain pr-1 custom-scrollbar">
               {projects.map((prj) => {
                 const isSelected = selectedProject?._id === prj._id;
                 const fundingPercent = Math.min(
@@ -1860,47 +1857,46 @@ export const InvestmentsPage: React.FC = () => {
                     }`}
                   >
                     <div>
-                      {/* Top Tags & Invoice */}
-                      <div className="flex items-center justify-between gap-2 flex-wrap">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                      {/* Top Badges Header Bar: Project ID, Invoice, Org, Status, Funding Source side-by-side */}
+                      <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2.5 border-b border-gray-800/80">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-sm sm:text-base font-extrabold text-emerald-400 bg-emerald-500/15 px-2.5 py-1 rounded-lg border border-emerald-500/30 shadow-sm">
                             {prj.projectId}
                           </span>
                           {prj.invoiceNo && (
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
+                            <span className="text-xs sm:text-sm font-bold px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-300 border border-amber-500/30 font-mono shadow-sm">
                               {t('Invoice')}: {prj.invoiceNo}
                             </span>
                           )}
                           {prj.externalEntity && (
-                            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                            <span className="text-xs sm:text-sm font-bold px-2.5 py-1 rounded-lg bg-blue-500/15 text-blue-300 border border-blue-500/30 shadow-sm">
                               {prj.externalEntity}
                             </span>
                           )}
                         </div>
 
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${statusBadge.style}`}>
-                          {statusBadge.label}
-                        </span>
-                      </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`text-xs sm:text-sm font-bold px-2.5 py-1 rounded-lg border shadow-sm ${statusBadge.style}`}>
+                            {statusBadge.label}
+                          </span>
 
-                      {/* Funding Source & Reinvestment Badge */}
-                      <div className="mt-2 flex items-center gap-1.5 flex-wrap">
-                        {m.fundingSourceType === 'REINVESTMENT' ? (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                            <Wallet className="w-3 h-3" />
-                            {t('Wallet Reinvested')} ({formatMoney(prj.walletReinvestedAmount || prj.totalFunded)})
-                          </span>
-                        ) : m.fundingSourceType === 'MIXED' ? (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
-                            <Layers className="w-3 h-3" />
-                            {t('Mixed')}: {formatMoney(prj.walletReinvestedAmount || 0)} (W) + {formatMoney(prj.accountantFundedAmount || 0)} (Acc)
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30 flex items-center gap-1">
-                            <Coins className="w-3 h-3" />
-                            {t('Accountant Funded')} ({formatMoney(prj.accountantFundedAmount || prj.totalFunded)})
-                          </span>
-                        )}
+                          {m.fundingSourceType === 'REINVESTMENT' ? (
+                            <span className="text-xs sm:text-sm font-bold px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm">
+                              <Wallet className="w-3.5 h-3.5" />
+                              <span>{t('Wallet Reinvested')} ({formatMoney(prj.walletReinvestedAmount || prj.totalFunded)})</span>
+                            </span>
+                          ) : m.fundingSourceType === 'MIXED' ? (
+                            <span className="text-xs sm:text-sm font-bold px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 flex items-center gap-1.5 shadow-sm">
+                              <Layers className="w-3.5 h-3.5" />
+                              <span>{t('Mixed')}: {formatMoney(prj.walletReinvestedAmount || 0)} (W) + {formatMoney(prj.accountantFundedAmount || 0)} (Acc)</span>
+                            </span>
+                          ) : (
+                            <span className="text-xs sm:text-sm font-bold px-2.5 py-1 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/40 flex items-center gap-1.5 shadow-sm">
+                              <Coins className="w-3.5 h-3.5" />
+                              <span>{t('Accountant Funded')} ({formatMoney(prj.accountantFundedAmount || prj.totalFunded)})</span>
+                            </span>
+                          )}
+                        </div>
                       </div>
 
                       {/* Hungry Birds Special Installments Banner */}
@@ -1942,12 +1938,12 @@ export const InvestmentsPage: React.FC = () => {
                       )}
 
                       {/* Project Name */}
-                      <div className="mt-3">
-                        <h3 className="text-base font-semibold text-white group-hover:text-emerald-400 transition-colors">
+                      <div className="mt-3.5">
+                        <h3 className="text-lg font-bold text-white group-hover:text-emerald-400 transition-colors">
                           {prj.name}
                         </h3>
-                        <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5 flex-wrap">
-                          <span className="text-gray-300 font-medium">{t('Category')}: {t(prj.category)}</span>
+                        <p className="text-xs sm:text-sm text-gray-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                          <span className="text-gray-300 font-semibold">{t('Category')}: {t(prj.category)}</span>
                           {prj.plannedDuration && (
                             <>
                               <span>•</span>
@@ -2030,115 +2026,92 @@ export const InvestmentsPage: React.FC = () => {
                     </div>
 
                     {/* Card Actions */}
-                    <div className="mt-4 pt-3 border-t border-gray-800 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => openProjectDrillDown(prj)}
-                        className="flex-1 px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-medium transition-colors border border-gray-700 flex items-center justify-center gap-1"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        {t('Details')}
-                      </button>
+                    <div className="mt-4 pt-3 border-t border-gray-800" onClick={(e) => e.stopPropagation()}>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => openProjectDrillDown(prj)}
+                          className={`${
+                            isAccountant && prj.status !== 'CLOSED' && prj.status !== 'FULLY_SETTLED' ? '' : 'col-span-2'
+                          } px-2.5 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs font-medium transition-colors border border-gray-700 flex items-center justify-center gap-1.5`}
+                        >
+                          <Eye className="w-3.5 h-3.5 text-blue-400" />
+                          <span>{t('Details')}</span>
+                        </button>
 
-                      {isAccountant && prj.status !== 'CLOSED' && prj.status !== 'FULLY_SETTLED' && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setInstallmentForm({
-                                projectId: prj._id,
-                                installmentNumber: '',
-                                batchTitle: '',
-                                date: new Date().toISOString().split('T')[0],
-                                amount: '',
-                                principalReturned: '',
-                                actualProfit: '',
-                                actualLoss: '0',
-                                paymentMethod: 'BANK_TRANSFER',
-                                senderName: prj.projectId === 'PRJ-2024-5' ? 'Abu Bakar Rohan' : '',
-                                receiverId: '',
-                                destinationCustodyAccountId: '',
-                                notes: '',
-                              });
-                              setShowInstallmentModal(true);
-                            }}
-                            className="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-                            title={t('Record Installment Return')}
-                          >
-                            <Receipt className="w-3.5 h-3.5" />
-                            {t('Installment')}
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setFundForm({
-                                projectId: prj._id,
-                                date: new Date().toISOString().split('T')[0],
-                                fundings: [{ custodyAccountId: '', amount: '', notes: '' }],
-                              });
-                              setShowFundModal(true);
-                            }}
-                            className="px-2.5 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-                            title={t('Fund Project')}
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            {t('Fund Project')}
-                          </button>
-
-                          {(prj.totalFunded > 0 || prj.targetPrincipal > 0) && (
+                        {isAccountant && prj.status !== 'CLOSED' && prj.status !== 'FULLY_SETTLED' && (
+                          <>
                             <button
                               onClick={() => {
-                                setReturnForm({
+                                setInstallmentForm({
                                   projectId: prj._id,
-                                  maturityDate: new Date().toISOString().split('T')[0],
-                                  principalReturned: outstandingPrincipal.toString(),
+                                  installmentNumber: '',
+                                  batchTitle: '',
+                                  date: new Date().toISOString().split('T')[0],
+                                  amount: '',
+                                  principalReturned: '',
                                   actualProfit: '',
                                   actualLoss: '0',
-                                  destinationType: 'ACCOUNTANT_CUSTODY',
+                                  paymentMethod: 'BANK_TRANSFER',
+                                  senderName: prj.projectId === 'PRJ-2024-5' ? 'Abu Bakar Rohan' : '',
+                                  receiverId: '',
                                   destinationCustodyAccountId: '',
                                   notes: '',
-                                  transactionRef: '',
                                 });
-                                setShowReturnModal(true);
+                                setShowInstallmentModal(true);
                               }}
-                              className="px-2.5 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded-lg text-xs font-medium transition-colors"
-                              title={t('Record Maturity Return')}
+                              className="px-2.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+                              title={t('Record Installment Return')}
                             >
-                              {t('Return')}
+                              <Receipt className="w-3.5 h-3.5 text-amber-400" />
+                              <span>{t('Installment')}</span>
                             </button>
-                          )}
-                        </>
-                      )}
+
+                            <button
+                              onClick={() => {
+                                setFundForm({
+                                  projectId: prj._id,
+                                  date: new Date().toISOString().split('T')[0],
+                                  fundings: [{ custodyAccountId: '', amount: '', notes: '' }],
+                                });
+                                setShowFundModal(true);
+                              }}
+                              className="px-2.5 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+                              title={t('Fund Project')}
+                            >
+                              <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>{t('Fund')}</span>
+                            </button>
+
+                            {(prj.totalFunded > 0 || prj.targetPrincipal > 0) && (
+                              <button
+                                onClick={() => {
+                                  setReturnForm({
+                                    projectId: prj._id,
+                                    maturityDate: new Date().toISOString().split('T')[0],
+                                    principalReturned: outstandingPrincipal.toString(),
+                                    actualProfit: '',
+                                    actualLoss: '0',
+                                    destinationType: 'ACCOUNTANT_CUSTODY',
+                                    destinationCustodyAccountId: '',
+                                    notes: '',
+                                    transactionRef: '',
+                                  });
+                                  setShowReturnModal(true);
+                                }}
+                                className="px-2.5 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+                                title={t('Record Maturity Return')}
+                              >
+                                <ArrowUpRight className="w-3.5 h-3.5 text-purple-400" />
+                                <span>{t('Return')}</span>
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
-            </div>
-          )}
-
-          {/* Server-Side Pagination Bar */}
-          {totalPages > 1 && (
-            <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-gray-800 pt-4">
-              <div className="text-xs text-gray-400">
-                {t('Page')} <span className="text-white font-semibold">{page}</span> / <span className="text-white font-semibold">{totalPages}</span> ({t('Total')} <span className="text-emerald-400 font-semibold">{totalCount}</span> {t('projects')})
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  disabled={page <= 1}
-                  onClick={() => handlePageChange(page - 1)}
-                  className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs text-gray-300 rounded-lg border border-gray-700 font-medium transition-colors"
-                >
-                  {t('Previous')}
-                </button>
-                <span className="text-xs px-2 text-gray-400 font-mono">
-                  {page} / {totalPages}
-                </span>
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => handlePageChange(page + 1)}
-                  className="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs text-gray-300 rounded-lg border border-gray-700 font-medium transition-colors"
-                >
-                  {t('Next')}
-                </button>
-              </div>
             </div>
           )}
         </>
@@ -3148,7 +3121,7 @@ export const InvestmentsPage: React.FC = () => {
                     </span>
                   </h2>
                   <p className="text-xs text-gray-400">
-                    Partner: {selectedProjectForDetail.externalEntity || 'Direct'} • Category: {selectedProjectForDetail.category}
+                    {t('Partner')}: {selectedProjectForDetail.externalEntity || t('Direct')} • {t('Category')}: {t(selectedProjectForDetail.category)}
                   </p>
                 </div>
               </div>
@@ -3446,7 +3419,7 @@ export const InvestmentsPage: React.FC = () => {
                 }}
                 className="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 rounded-lg text-xs font-semibold transition-colors"
               >
-                Close
+                {t('Close')}
               </button>
             </div>
           </div>
