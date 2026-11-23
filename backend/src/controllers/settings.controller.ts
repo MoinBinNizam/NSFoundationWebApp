@@ -20,6 +20,7 @@ import {
 import { CustodyChannel, UserRole } from '../types/models.js';
 import { SystemConfig } from '../models/SystemConfig.js';
 import { User } from '../models/User.js';
+import { HistoricalSyncService } from '../services/historicalSync.service.js';
 
 export class SettingsController {
   static async getOrganizationLogo(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
@@ -219,5 +220,25 @@ export class SettingsController {
       const settings = await saveMemberTransparencySettings(req.body, req.user, { ip: req.ip, userAgent: req.headers['user-agent'] });
       res.status(200).json({ success: true, message: 'Member transparency settings updated.', data: settings });
     } catch (error) { next(error); }
+  }
+
+  static async getMigrationModuleVisibility(_req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await HistoricalSyncService.getModuleVisibility();
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async setMigrationModuleVisibility(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const enabled = Boolean(req.body.enabled);
+      const data = await HistoricalSyncService.setModuleVisibility(enabled, req.user);
+      res.status(200).json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
   }
 }

@@ -13,6 +13,8 @@ import {
   MonthlyLedger,
   Payment,
   PaymentAllocation,
+  ShareHistory,
+  SystemConfig,
   User,
 } from '../models/index.js';
 import {
@@ -26,6 +28,7 @@ import {
   MovementType,
   PaymentMethod,
   PaymentStatus,
+  ShareEventType,
 } from '../types/models.js';
 import { PaymentService } from './payment.service.js';
 import { InvestmentService } from './investment.service.js';
@@ -67,6 +70,7 @@ export class HistoricalSyncService {
       projectsList,
       returnsList,
       custodyAccounts,
+      moduleConfig,
     ] = await Promise.all([
       Member.countDocuments(),
       Payment.find({ paymentDate: { $gte: start2024, $lte: end2024 }, status: { $ne: PaymentStatus.CANCELLED } }).lean(),
@@ -77,6 +81,7 @@ export class HistoricalSyncService {
       InvestmentProject.find().lean(),
       InvestmentReturn.find().lean(),
       CustodyAccount.find({ isActive: true }).lean(),
+      SystemConfig.findOne({ key: 'HISTORICAL_MIGRATION_ENABLED' }).lean(),
     ]);
 
     const total2024Amount = payments2024.reduce((s, p) => s + (p.totalAmount || 0), 0);
@@ -87,6 +92,11 @@ export class HistoricalSyncService {
 
     return {
       membersCount,
+      members: {
+        status: membersCount >= 35 ? 'SYNCED' : membersCount > 0 ? 'PARTIAL' : 'PENDING',
+        count: membersCount,
+        expectedCount: 35,
+      },
       year2024: {
         status: payments2024.length >= 304 ? 'SYNCED' : payments2024.length > 0 ? 'PARTIAL' : 'PENDING',
         paymentsCount: payments2024.length,
@@ -126,6 +136,7 @@ export class HistoricalSyncService {
         accountType: a.accountType,
         cachedBalance: a.cachedBalance || 0,
       })),
+      isModuleEnabled: moduleConfig ? Boolean(moduleConfig.value) : true,
     };
   }
 
@@ -257,12 +268,141 @@ export class HistoricalSyncService {
   }
 
   /**
-   * Action 1: Synchronize 2024 Historical Data (35 Members, 12 Months Payments, Ledgers, Custody)
+   * Step 1: Synchronize 35 Sorted Members & Baseline Shares
    */
-  static async sync2024(dryRun = false, actor: any) {
+  static async syncMembers(dryRun = false, actor: any, force = false) {
     const excelPath = getDocsPath('updated-payments-files/Updated-NS FOUNDATION 2024.xlsx');
     if (!fs.existsSync(excelPath)) {
       throw new Error(`Workbook file not found at ${excelPath}`);
+    }
+
+    const currentCount = await Member.countDocuments();
+    if (!dryRun && !force && currentCount >= 35) {
+      return {
+        alreadySynced: true,
+        scope: 'Step 1: Members',
+        count: currentCount,
+        message: 'সদস্য তালিকা ইতিমধ্যেই ডাটাবেজে সম্পূর্ণভাবে সংরক্ষিত রয়েছে (৩৫ জন সদস্য)। ডুপ্লিকেশন প্রতিরোধে পুনরায় ইমপোর্ট ব্লক করা হয়েছে।',
+      };
+    }
+
+    if (!dryRun && force) {
+      await this.purgeMembers(actor);
+    }
+
+    const wb = XLSX.readFile(excelPath);
+    const membersSheet = wb.Sheets['Sorted Members'];
+    const memberRows = XLSX.utils.sheet_to_json(membersSheet, { header: 1 }) as any[][];
+    const memberData = memberRows.slice(1).filter((r) => r && r[0] && String(r[0]).startsWith('NSF'));
+
+    let createdCount = 0;
+    let updatedCount = 0;
+
+    for (const r of memberData) {
+      const code = String(r[0]).trim();
+      const isDropped = code === 'NSF007' || code === 'NSF032';
+      const rawName = String(r[1] || code).trim();
+      const cleanName = rawName.replace(/\s*-[A-Za-z0-9.\s]+$/, '').trim();
+      let phone = String(r[3] || '01700000000').trim();
+      if (phone && !phone.startsWith('+')) phone = '+' + phone;
+      const shares = Number(r[2] || 1);
+
+      let m = await Member.findOne({ memberId: code });
+      if (!m) {
+        createdCount++;
+        if (!dryRun) {
+          m = await Member.create({
+            memberId: code,
+            name: cleanName,
+            phone,
+            email: `${code.toLowerCase()}@nsfoundation.org`,
+            status: isDropped ? MemberStatus.DROPPED : MemberStatus.ACTIVE,
+            joinDate: new Date('2024-01-01'),
+            cashoutDue: 0,
+          });
+        }
+      } else {
+        updatedCount++;
+        if (!dryRun) {
+          m.name = cleanName;
+          m.phone = phone;
+          m.status = isDropped ? MemberStatus.DROPPED : MemberStatus.ACTIVE;
+          await m.save();
+        }
+      }
+
+      if (!dryRun && m) {
+        let sh = await ShareHistory.findOne({ memberId: m._id });
+        if (!sh) {
+          await ShareHistory.create({
+            memberId: m._id,
+            shareCount: shares,
+            previousShareCount: 0,
+            effectiveMonth: '2024-01',
+            eventType: ShareEventType.INITIAL_ALLOCATION,
+            changedBy: actor._id,
+            notes: '2024 Baseline Share Allocation',
+          });
+        }
+      }
+    }
+
+    if (!dryRun) {
+      await AuditLog.create({
+        performedBy: actor._id,
+        action: 'SYNC_HISTORICAL_MEMBERS',
+        entityName: 'HistoricalMigration',
+        reason: 'Synchronized 35 sorted members from workbook.',
+        afterState: { totalMembers: memberData.length, createdCount, updatedCount },
+      });
+    }
+
+    return {
+      dryRun,
+      scope: 'Step 1: Members',
+      totalMembers: memberData.length,
+      createdCount,
+      updatedCount,
+      status: 'SUCCESS',
+      message: dryRun
+        ? `প্রিভিউ: ৩৫ জন সদস্যের প্রোফাইল (যোগদানের তারিখ ও প্রারম্ভিক শেয়ার) প্রস্তুত রয়েছে।`
+        : `সফলভাবে ৩৫ জন সদস্য প্রোফাইল ডাটাবেজে সিঙ্ক সম্পন্ন হয়েছে।`,
+    };
+  }
+
+  /**
+   * Step 2: Synchronize 2024 Historical Data (35 Members, 12 Months Payments, Ledgers, Custody)
+   */
+  static async sync2024(dryRun = false, actor: any, force = false) {
+    const excelPath = getDocsPath('updated-payments-files/Updated-NS FOUNDATION 2024.xlsx');
+    if (!fs.existsSync(excelPath)) {
+      throw new Error(`Workbook file not found at ${excelPath}`);
+    }
+
+    const start2024 = new Date(Date.UTC(2024, 0, 1, 0, 0, 0));
+    const end2024 = new Date(Date.UTC(2024, 11, 31, 23, 59, 59, 999));
+    const existing2024Count = await Payment.countDocuments({
+      paymentDate: { $gte: start2024, $lte: end2024 },
+      status: { $ne: PaymentStatus.CANCELLED },
+    });
+
+    if (!dryRun && !force && existing2024Count >= 304) {
+      const existingPayments = await Payment.find({
+        paymentDate: { $gte: start2024, $lte: end2024 },
+        status: { $ne: PaymentStatus.CANCELLED },
+      }).lean();
+      const existingSum = existingPayments.reduce((s, p) => s + (p.totalAmount || 0), 0);
+      return {
+        alreadySynced: true,
+        scope: 'Step 2: 2024 Historical Data',
+        count: existing2024Count,
+        totalAmount: existingSum,
+        message: `২০২৪ সালের কিস্তি ডাটা ইতিমধ্যেই ডাটাবেজে সম্পূর্ণভাবে সংরক্ষিত রয়েছে (${existing2024Count}টি পেমেন্ট, ৳${existingSum.toLocaleString()})। ডুপ্লিকেশন প্রতিরোধে পুনরায় সরাসরি ইমপোর্ট ব্লক করা হয়েছে।`,
+      };
+    }
+
+    if (!dryRun && force) {
+      await this.purge2024(actor);
     }
 
     const {
@@ -297,7 +437,6 @@ export class HistoricalSyncService {
           phone: String(r[3] || '01700000000').trim(),
           email: `${code.toLowerCase()}@nsfoundation.org`,
           status: isDropped ? MemberStatus.DROPPED : MemberStatus.ACTIVE,
-          shares: Number(r[2] || 1),
           joinDate: new Date('2024-01-01'),
           cashoutDue: 0,
         });
@@ -563,9 +702,35 @@ export class HistoricalSyncService {
   }
 
   /**
-   * Action 2: Synchronize 2025 Historical Staged Months (Jan, Feb, Mar, Apr 2025)
+   * Step 3: Synchronize 2025 Historical Staged Months (Jan, Feb, Mar, Apr 2025)
    */
-  static async sync2025(dryRun = false, actor: any) {
+  static async sync2025(dryRun = false, actor: any, force = false) {
+    const start2025 = new Date(Date.UTC(2025, 0, 1, 0, 0, 0));
+    const end2025 = new Date(Date.UTC(2025, 11, 31, 23, 59, 59, 999));
+    const existing2025Count = await Payment.countDocuments({
+      paymentDate: { $gte: start2025, $lte: end2025 },
+      status: { $ne: PaymentStatus.CANCELLED },
+    });
+
+    if (!dryRun && !force && existing2025Count >= 60) {
+      const existingPayments = await Payment.find({
+        paymentDate: { $gte: start2025, $lte: end2025 },
+        status: { $ne: PaymentStatus.CANCELLED },
+      }).lean();
+      const existingSum = existingPayments.reduce((s, p) => s + (p.totalAmount || 0), 0);
+      return {
+        alreadySynced: true,
+        scope: 'Step 3: 2025 Staged Months',
+        count: existing2025Count,
+        totalAmount: existingSum,
+        message: `২০২৫ সালের কিস্তি ডাটা ইতিমধ্যেই ডাটাবেজে সংরক্ষিত রয়েছে (${existing2025Count}টি পেমেন্ট, ৳${existingSum.toLocaleString()})। ডুপ্লিকেশন প্রতিরোধে পুনরায় সরাসরি ইমপোর্ট ব্লক করা হয়েছে।`,
+      };
+    }
+
+    if (!dryRun && force) {
+      await this.purge2025(actor);
+    }
+
     const manifestsDir = getDocsPath('import-historical-evidence/normalized-manifests');
     const months = [
       { key: '2025-01', folder: 'january-2025-staging' },
@@ -736,15 +901,32 @@ export class HistoricalSyncService {
   }
 
   /**
-   * Action 3: Synchronize Historical Expenses (Operational Vouchers)
+   * Step 4: Synchronize Historical Expenses (Operational Vouchers)
    */
-  static async syncExpenses(dryRun = false, actor: any) {
+  static async syncExpenses(dryRun = false, actor: any, force = false) {
+    const existingExpCount = await Expense.countDocuments({ expenseNumber: { $regex: '^EXP-2024-' } });
+    if (!dryRun && !force && existingExpCount >= 5) {
+      const exps = await Expense.find({ expenseNumber: { $regex: '^EXP-2024-' } }).lean();
+      const sum = exps.reduce((s, e) => s + (e.amount || 0), 0);
+      return {
+        alreadySynced: true,
+        scope: 'Step 4: Historical Expenses',
+        count: existingExpCount,
+        totalAmount: sum,
+        message: `ঐতিহাসিক পরিচালন ব্যয় ভাউচার ইতিমধ্যেই সংরক্ষিত রয়েছে (${existingExpCount}টি ভাউচার, ৳${sum.toLocaleString()})। ডুপ্লিকেশন প্রতিরোধে পুনরায় সরাসরি ইমপোর্ট ব্লক করা হয়েছে।`,
+      };
+    }
+
+    if (!dryRun && force) {
+      await this.purgeExpenses(actor);
+    }
+
     const excelPath = getDocsPath('updated-payments-files/Updated-NS FOUNDATION 2024.xlsx');
     if (!fs.existsSync(excelPath)) {
       throw new Error(`Workbook file not found at ${excelPath}`);
     }
 
-    const { moinUser, moinBkashCustody } = await this.ensureCoreActorsAndCustody();
+    const { moinUser, moinBkashCustody } = await this.ensureCoreActorsAndCustody(actor);
     const wb = XLSX.readFile(excelPath);
     const expensesSheet = wb.Sheets['Expenses'];
     if (!expensesSheet) throw new Error('Expenses sheet not found in workbook.');
@@ -829,11 +1011,257 @@ export class HistoricalSyncService {
   }
 
   /**
-   * Action 4: Synchronize Historical Investments & Project Returns
+   * Step 5: Synchronize Historical Investments & Project Returns
    * Reads authoritative docs/updated-payments-files/NS Foundation Investments.xlsx
    */
-  static async syncInvestments(dryRun = false, actor: any) {
+  static async syncInvestments(dryRun = false, actor: any, force = false) {
+    const existingProjectsCount = await InvestmentProject.countDocuments();
+    if (!dryRun && !force && existingProjectsCount >= 20) {
+      const projs = await InvestmentProject.find().lean();
+      const sum = projs.reduce((s, p) => s + (p.totalFunded || 0), 0);
+      return {
+        alreadySynced: true,
+        scope: 'Step 5: Historical Investments',
+        count: existingProjectsCount,
+        totalAmount: sum,
+        message: `ঐতিহাসিক বিনিয়োগ প্রকল্প ইতিমধ্যেই সংরক্ষিত রয়েছে (${existingProjectsCount}টি প্রকল্প, ৳${sum.toLocaleString()})। ডুপ্লিকেশন প্রতিরোধে পুনরায় সরাসরি ইমপোর্ট ব্লক করা হয়েছে।`,
+      };
+    }
+
+    if (!dryRun && force) {
+      await this.purgeInvestments(actor);
+    }
+
     return InvestmentService.syncAuthoritativeInvestments(dryRun, actor);
+  }
+
+  /**
+   * ─── PURGE OPERATIONS (SAFE DATA DELETION TO PREVENT DUPLICATION) ───
+   */
+  static async purgeMembers(actor: any) {
+    const paymentCount = await Payment.countDocuments();
+    if (paymentCount > 0) {
+      throw new Error(`পেমেন্ট রেকর্ড (${paymentCount}টি) বিদ্যমান থাকা অবস্থায় সদস্যদের মুছে ফেলা যাবে না। অনুগ্রহ করে প্রথমে পেমেন্ট ডাটা পার্জ (Purge) করুন।`);
+    }
+
+    const membersCount = await Member.countDocuments();
+    await ShareHistory.deleteMany({});
+    await Member.deleteMany({});
+
+    await AuditLog.create({
+      performedBy: actor._id,
+      action: 'PURGE_HISTORICAL_MEMBERS',
+      entityName: 'HistoricalMigration',
+      reason: `Purged ${membersCount} members safely.`,
+      afterState: { purgedMembersCount: membersCount },
+    });
+
+    return {
+      status: 'SUCCESS',
+      purgedMembersCount: membersCount,
+      message: `${membersCount} জন সদস্য সফলভাবে ডাটাবেজ থেকে মুছে ফেলা হয়েছে।`,
+    };
+  }
+
+  static async purge2024(actor: any) {
+    const start2024 = new Date(Date.UTC(2024, 0, 1, 0, 0, 0));
+    const end2024 = new Date(Date.UTC(2024, 11, 31, 23, 59, 59, 999));
+
+    const payments = await Payment.find({
+      paymentDate: { $gte: start2024, $lte: end2024 },
+    }).lean();
+    const paymentIds = payments.map((p) => p._id);
+
+    await PaymentAllocation.deleteMany({ paymentId: { $in: paymentIds } });
+    await CustodyMovement.deleteMany({ sourceRefId: { $in: paymentIds } });
+    await MonthlyLedger.deleteMany({ month: { $regex: '^2024-' } });
+    await Payment.deleteMany({ _id: { $in: paymentIds } });
+
+    // Departed member settlements and movements
+    const exitSettlements = await MemberExitSettlement.find().lean();
+    const exitIds = exitSettlements.map((e) => e._id);
+    await CustodyMovement.deleteMany({
+      $or: [
+        { sourceRefId: { $in: exitIds } },
+        { description: { $regex: 'Member Exit Refund for (Bayzid|Tanvir|Ahsan Ul Tanvir)' } },
+      ],
+    });
+    await MemberExitSettlement.deleteMany({});
+
+    await this.rebalanceAllCustody();
+
+    await AuditLog.create({
+      performedBy: actor._id,
+      action: 'PURGE_HISTORICAL_2024',
+      entityName: 'HistoricalMigration',
+      reason: `Purged 2024 historical records: ${paymentIds.length} payments, allocations, ledgers, and exit settlements removed safely.`,
+      afterState: { purgedPaymentsCount: paymentIds.length },
+    });
+
+    return {
+      status: 'SUCCESS',
+      purgedPaymentsCount: paymentIds.length,
+      message: `২০২৪ সালের ${paymentIds.length}টি পেমেন্ট, লেজার ও সংশ্লিষ্ট রেকর্ডসমূহ সফলভাবে মুছে ফেলা হয়েছে এবং কাস্টডি রিব্যালেন্স করা হয়েছে।`,
+    };
+  }
+
+  static async purge2025(actor: any) {
+    const start2025 = new Date(Date.UTC(2025, 0, 1, 0, 0, 0));
+    const end2025 = new Date(Date.UTC(2025, 11, 31, 23, 59, 59, 999));
+
+    const payments = await Payment.find({
+      paymentDate: { $gte: start2025, $lte: end2025 },
+    }).lean();
+    const paymentIds = payments.map((p) => p._id);
+
+    await PaymentAllocation.deleteMany({ paymentId: { $in: paymentIds } });
+    await CustodyMovement.deleteMany({ sourceRefId: { $in: paymentIds } });
+    await MonthlyLedger.deleteMany({ month: { $regex: '^2025-(01|02|03|04)' } });
+    await Payment.deleteMany({ _id: { $in: paymentIds } });
+
+    await this.rebalanceAllCustody();
+
+    await AuditLog.create({
+      performedBy: actor._id,
+      action: 'PURGE_HISTORICAL_2025',
+      entityName: 'HistoricalMigration',
+      reason: `Purged 2025 historical staged records: ${paymentIds.length} payments removed safely.`,
+      afterState: { purgedPaymentsCount: paymentIds.length },
+    });
+
+    return {
+      status: 'SUCCESS',
+      purgedPaymentsCount: paymentIds.length,
+      message: `২০২৫ সালের ${paymentIds.length}টি পেমেন্ট, লেজার ও সংশ্লিষ্ট রেকর্ডসমূহ সফলভাবে মুছে ফেলা হয়েছে এবং কাস্টডি রিব্যালেন্স করা হয়েছে।`,
+    };
+  }
+
+  static async purgeExpenses(actor: any) {
+    const expenses = await Expense.find({ expenseNumber: { $regex: '^EXP-2024-' } }).lean();
+    const expIds = expenses.map((e) => e._id);
+
+    await CustodyMovement.deleteMany({ sourceRefId: { $in: expIds } });
+    await Expense.deleteMany({ _id: { $in: expIds } });
+
+    await this.rebalanceAllCustody();
+
+    await AuditLog.create({
+      performedBy: actor._id,
+      action: 'PURGE_HISTORICAL_EXPENSES',
+      entityName: 'HistoricalMigration',
+      reason: `Purged ${expIds.length} historical operational expense vouchers.`,
+      afterState: { purgedExpensesCount: expIds.length },
+    });
+
+    return {
+      status: 'SUCCESS',
+      purgedExpensesCount: expIds.length,
+      message: `${expIds.length}টি ঐতিহাসিক ব্যয় ভাউচার সফলভাবে মুছে ফেলা হয়েছে এবং কাস্টডি রিব্যালেন্স করা হয়েছে।`,
+    };
+  }
+
+  static async purgeInvestments(actor: any) {
+    const projects = await InvestmentProject.find().lean();
+    const projIds = projects.map((p) => p._id);
+
+    const returns = await InvestmentReturn.find({ projectId: { $in: projIds } }).lean();
+    const returnIds = returns.map((r) => r._id);
+
+    await CustodyMovement.deleteMany({
+      $or: [
+        { sourceRefId: { $in: projIds } },
+        { sourceRefId: { $in: returnIds } },
+        { sourceType: { $in: [MovementSourceType.INVESTMENT_FUNDING, MovementSourceType.INVESTMENT_RETURN] } },
+      ],
+    });
+
+    await InvestmentReturn.deleteMany({ _id: { $in: returnIds } });
+    await InvestmentProject.deleteMany({ _id: { $in: projIds } });
+
+    await CustodyAccount.updateMany(
+      { accountType: AccountType.EXTERNAL_WALLET },
+      { $set: { cachedBalance: 0 } }
+    );
+
+    await this.rebalanceAllCustody();
+
+    await AuditLog.create({
+      performedBy: actor._id,
+      action: 'PURGE_HISTORICAL_INVESTMENTS',
+      entityName: 'HistoricalMigration',
+      reason: `Purged ${projIds.length} historical investment projects and returns.`,
+      afterState: { purgedProjectsCount: projIds.length },
+    });
+
+    return {
+      status: 'SUCCESS',
+      purgedProjectsCount: projIds.length,
+      message: `${projIds.length}টি ঐতিহাসিক বিনিয়োগ প্রকল্প ও রিটার্ন সফলভাবে মুছে ফেলা হয়েছে এবং ওয়ালেট রিব্যালেন্স করা হয়েছে।`,
+    };
+  }
+
+  /**
+   * ─── AUDIT TRAIL / SYNC HISTORY ───
+   */
+  static async getHistory() {
+    const logs = await AuditLog.find({
+      action: { $regex: '^(SYNC_HISTORICAL_|PURGE_HISTORICAL_|TOGGLE_HISTORICAL_)' },
+    })
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .populate('performedBy', 'name email role')
+      .lean();
+
+    return logs.map((log) => ({
+      id: log._id,
+      action: log.action,
+      performedBy: (log.performedBy as any)?.name || 'System Admin',
+      reason: log.reason,
+      createdAt: log.createdAt,
+      details: log.afterState || {},
+    }));
+  }
+
+  /**
+   * ─── MODULE VISIBILITY SETTINGS ───
+   */
+  static async getModuleVisibility() {
+    const config = await SystemConfig.findOne({ key: 'HISTORICAL_MIGRATION_ENABLED' }).lean();
+    return {
+      enabled: config ? Boolean(config.value) : true,
+    };
+  }
+
+  static async setModuleVisibility(enabled: boolean, actor: any) {
+    const before = await SystemConfig.findOne({ key: 'HISTORICAL_MIGRATION_ENABLED' }).lean();
+    const config = await SystemConfig.findOneAndUpdate(
+      { key: 'HISTORICAL_MIGRATION_ENABLED' },
+      {
+        value: enabled,
+        description: 'Global visibility toggle for the Historical Migration & Database Sync module.',
+        updatedBy: actor._id,
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    await AuditLog.create({
+      performedBy: actor._id,
+      action: 'TOGGLE_HISTORICAL_MIGRATION_MODULE',
+      entityName: 'SystemConfig',
+      entityId: config._id,
+      beforeState: before || null,
+      afterState: { enabled },
+      reason: enabled
+        ? 'Historical Migration module enabled and made visible.'
+        : 'Historical Migration module marked complete and hidden from navigation.',
+    });
+
+    return {
+      enabled,
+      message: enabled
+        ? 'হিস্টোরিক্যাল মাইগ্রেশন মডিউল সফলভাবে সক্রিয় করা হয়েছে।'
+        : 'হিস্টোরিক্যাল মাইগ্রেশন মডিউল সফলভাবে নিষ্ক্রিয়/লুকানো হয়েছে।',
+    };
   }
 }
 

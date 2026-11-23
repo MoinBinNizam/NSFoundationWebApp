@@ -2014,6 +2014,107 @@ export const bangla: Record<string, string> = {
   'totalProfitRealized': 'মোট অর্জিত মুনাফা',
   'totalInstallments': 'মোট কিস্তি',
   'withdrawalRequests': 'উত্তোলন অনুরোধ',
+
+  // Historical Migration Sequence & Best Practice Guideline
+  'Production Historical Data Migration Sequence & Best Practice Guideline': 'প্রোডাকশন হিস্টোরিক্যাল ডেটা মাইগ্রেশন ক্রম ও গাইডলাইন',
+  'To maintain database referential integrity, accurate share balances, and audit custody reconciliation, follow this strict sequential import order. Each step validates pre-requisites and prevents duplicate records.': 'ডাটাবেসের রেফারেন্সিয়াল অখণ্ডতা, সঠিক শেয়ার ব্যালেন্স এবং কাস্টডি রিকনসিলিয়েশন বজায় রাখতে এই কঠোর অনুক্রমিক ইমপোর্ট ক্রম অনুসরণ করুন। প্রতিটি ধাপ প্রয়োজনীয় শর্ত যাচাই করে এবং ডুপ্লিকেট তথ্য প্রতিরোধ করে।',
+  'Step 1: Members': 'ধাপ ১: সদস্যবৃন্দ',
+  '35 members profiles & 2024 baseline shares. Prerequisite for all financial links.': '৩৫ জন সদস্যের প্রোফাইল ও ২০২৪ সালের প্রারম্ভিক শেয়ার। সকল আর্থিক লিংকের জন্য পূর্বশর্ত।',
+  'Step 2: 2024 Payments': 'ধাপ ২: ২০২৪ পেমেন্ট',
+  '304 payments, 12 monthly ledgers, and departed member settlements (Bayzid, Tanvir).': '৩০৪টি পেমেন্ট, ১২টি মাসিক লেজার এবং বিদায়ী সদস্যদের নিষ্পত্তি (বায়জিদ, তানভীর)।',
+  'Step 3: 2025 Payments': 'ধাপ ৩: ২০২৫ পেমেন্ট',
+  '60 approved payments for Jan-Apr 2025 with accountant custody movements.': 'জানু-এপ্রিল ২০২৫-এর ৬০টি অনুমোদিত পেমেন্ট ও হিসাবরক্ষক কাস্টডি মুভমেন্ট।',
+  'Step 4: Expenses': 'ধাপ ৪: পরিচালন ব্যয়',
+  '5 operational vouchers (EXP-2024-001 to 005) & personal bKash adjustments.': '৫টি পরিচালন ভাউচার (EXP-2024-001 হতে 005) ও ব্যক্তিগত বিকাশ সমন্বয়।',
+  'Step 5: Investments': 'ধাপ ৫: বিনিয়োগ প্রকল্প',
+  '20 projects, partner wallets, 5 Hungry Birds dues, and Zayn withdrawal.': '২০টি প্রকল্প, অংশীদার ওয়ালেট, হাংরি বার্ডসের ৫টি কিস্তি এবং জেইনের প্রত্যাহার।',
+
+  '1. Members & Shares': '১. সদস্য ও শেয়ার',
+  '2. 2024 Payments': '২. ২০২৪ পেমেন্ট',
+  '3. 2025 Payments': '৩. ২০২৫ পেমেন্ট',
+  '4. Historical Expenses': '৪. ঐতিহাসিক পরিচালন ব্যয়',
+  '5. Investments': '৫. বিনিয়োগ ও রিটার্ন',
+
+  'Step 1 of 5': 'ধাপ ১ / ৫',
+  'Step 2 of 5': 'ধাপ ২ / ৫',
+  'Step 3 of 5': 'ধাপ ৩ / ৫',
+  'Step 4 of 5': 'ধাপ ৪ / ৫',
+  'Step 5 of 5': 'ধাপ ৫ / ৫',
+
+  '1. Member Profiles & Baseline Shares': '১. সদস্য প্রোফাইল ও বেসলাইন শেয়ার',
+  'Synchronizes all 35 official members, initializes member numbers (MEM-001 to MEM-035), assigns phone numbers, sets 2024 baseline share allocations, and provisions accountant permissions for Moin Uddin & Salah Uddin.': 'সকল ৩৫ জন সদস্যকে সিঙ্ক করে, সদস্য নম্বর (MEM-001 থেকে MEM-035) নির্ধারণ করে, ফোন নম্বর সেট করে, ২০২৪ সালের প্রারম্ভিক শেয়ার বরাদ্দ নিশ্চিত করে এবং মঈন উদ্দিন ও সালাউদ্দিনের হিসাবরক্ষক পারমিশন তৈরি করে।',
+  'Dry Run only (Preview count)': 'শুধুমাত্র ড্রাই রান (কাউন্ট প্রিভিউ)',
+  'Sync Members': 'সদস্য তথ্য সিঙ্ক করুন',
+  'Purge and delete imported members': 'আমদানিকৃত সদস্যদের তথ্য নিরাপদে মুছে ফেলুন',
+
+  '2. 2024 Payments & Exit Refunds': '২. ২০২৪ পেমেন্ট ও বিদায়ী সদস্যদের ফেরত',
+  'Imports 304 contribution payments across 12 monthly sheets (Jan-Dec 2024), 12 monthly ledgers, custody receipts, and records exit refunds for Bayzid Hasan (৳24,000) and Tanvir Hossain (৳12,000).': '১২টি মাসিক শিটে (জানু-ডিসে ২০২৪) ৩০৪টি কিস্তি পেমেন্ট, ১২টি মাসিক লেজার, কাস্টডি প্রাপ্তি এবং বায়েজিদ হাসান (৳২৪,০০০) ও তানভীর হোসেনের (৳১২,০০০) এক্সিট রিফান্ড রেকর্ড করে।',
+  'Sync 2024 Data': '২০২৪ ডেটা সিঙ্ক করুন',
+  'Purge and delete imported 2024 data': 'আমদানিকৃত ২০২৪-এর ডেটা মুছে ফেলুন',
+
+  '3. 2025 Staged Months Contributions': '৩. ২০২৫ স্টেজড মাসের কিস্তি পেমেন্ট',
+  'Imports verified historical contribution manifests for Jan, Feb, Mar, and Apr 2025 (60 payments) into live Payments, PaymentAllocations, MonthlyLedgers, and CustodyMovements with accountant custody routing.': 'জানু, ফেব্রু, মার্চ ও এপ্রিল ২০২৫-এর যাচাইকৃত কিস্তি ম্যানিফেস্ট (৬০টি পেমেন্ট) লাইভ পেমেন্ট, পেমেন্ট অ্যালোকেশন, মাসিক লেজার ও কাস্টডি মুভমেন্টে হিসাবরক্ষক কাস্টডি রাউটিং সহ আমদানি করে।',
+  'Sync 2025 Data': '২০২৫ ডেটা সিঙ্ক করুন',
+  'Purge and delete imported 2025 data': 'আমদানিকৃত ২০২৫-এর ডেটা মুছে ফেলুন',
+
+  'Purge and delete imported expenses': 'আমদানিকৃত ব্যয়ের তথ্য মুছে ফেলুন',
+
+  'Purge and delete imported investments': 'আমদানিকৃত বিনিয়োগের তথ্য মুছে ফেলুন',
+
+  // History Tab & Audit
+  'Execution & Purge Audit History': 'সিঙ্ক ও মোছার অডিট হিস্টোরি',
+  'Historical Migration Audit Trail & Execution History': 'ঐতিহাসিক মাইগ্রেশন অডিট ট্রেইল ও কার্যবিবরণী হিস্টোরি',
+  'Immutable audit records tracking all historical data synchronizations, scoped purges, idempotency checks, and module visibility changes.': 'সকল ঐতিহাসিক তথ্য সিনক্রোনাইজেশন, নির্দিষ্ট স্কোপের ডাটা মোছা, ডুপ্লিকেট প্রতিরোধ যাচাই এবং মডিউল দৃশ্যমানতা পরিবর্তনের অপরিবর্তনীয় অডিট রেকর্ড।',
+  'Refresh Logs': 'লগ রিফ্রেশ করুন',
+  'Action Type': 'কাজের ধরন',
+  'Scope / Category': 'স্কোপ / ক্যাটাগরি',
+  'Summary & Details': 'সারসংক্ষেপ ও বিস্তারিত',
+  'No historical migration actions logged yet.': 'এখনও কোনো ঐতিহাসিক মাইগ্রেশন লগ রেকর্ড হয়নি।',
+
+  // Visibility Decommissioning
+  'Mark Migration Done & Hide Module': 'মাইগ্রেশন সম্পন্ন ও মডিউল নিষ্ক্রিয় করুন',
+  'Re-enable Module in Sidebar': 'সাইডবারে মডিউল দৃশ্যমান করুন',
+  'Toggle visibility of this migration module in navigation': 'নেভিগেশনে এই মাইগ্রেশন মডিউলের দৃশ্যমানতা পরিবর্তন করুন',
+  'System Modules & Production Decommissioning': 'সিস্টেম মডিউল ও প্রোডাকশন ডিকমিশনিং',
+  'Historical Migration & Database Sync Module': 'ঐতিহাসিক মাইগ্রেশন ও ডাটাবেজ সিঙ্ক মডিউল',
+  'When historical data for 2024 and 2025 has been fully imported into production, disable this module to declutter the navigation sidebar for regular users. You can re-enable it at any time.': 'যখন ২০২৪ এবং ২০২৫ সালের ঐতিহাসিক ডেটা প্রোডাকশনে সম্পূর্ণ আমদানি করা সম্পন্ন হবে, তখন নিয়মিত ব্যবহারকারীদের জন্য সাইডবার পরিচ্ছন্ন রাখতে এই মডিউলটি বন্ধ করুন। আপনি যেকোনো সময় এখান থেকে পুনরায় চালু করতে পারেন।',
+  'Visible in Sidebar': 'সাইডবারে দৃশ্যমান',
+  'Hidden from Sidebar': 'সাইডবারে লুকানো',
+  'Deactivate & Hide Module': 'নিষ্ক্রিয় ও মডিউল লুকান',
+  'Activate & Show Module': 'সক্রিয় ও মডিউল দেখান',
+
+  // Alerts & Notices
+  'Already Synchronized (Notice)': 'ইতিমধ্যেই সিনক্রোনাইজড (বিজ্ঞপ্তি)',
+  'Duplicate Warning': 'ডুপ্লিকেট সতর্কতা',
+  'is already completely imported in the database': 'ইতিমধ্যেই ডাটাবেজে সম্পূর্ণভাবে সংরক্ষিত রয়েছে',
+  'To prevent duplicate records, direct re-import is blocked. Do you want to safely DELETE (Purge) the previous data and re-sync from scratch?': 'ডুপ্লিকেট এড়াতে সরাসরি পুনঃআমদানি ব্লক করা হয়েছে। আপনি কি পূর্ববর্তী ডেটা নিরাপদে মুছে (Purge) নতুন করে পুনরায় সিঙ্ক করতে চান?',
+  'purged successfully.': 'সফলভাবে মুছে ফেলা হয়েছে।',
+  'Are you sure all historical data has been imported? Deactivating this module will remove it from the sidebar navigation to keep regular operations clean and user-friendly. You can re-enable it anytime from System Settings.': 'আপনি কি নিশ্চিত যে সকল ঐতিহাসিক ডেটা আমদানি করা হয়েছে? এই মডিউলটি নিষ্ক্রিয় করলে তা সাইডবার নেভিগেশন থেকে অদৃশ্য হয়ে যাবে যাতে সাধারণ কার্যক্রম পরিচ্ছন্ন ও ইউজার-ফ্রেন্ডলি থাকে। সিস্টেম সেটিংস থেকে এটি যেকোনো সময় পুনরায় চালু করা যাবে।',
+  'Do you want to re-enable the Historical Migration module in sidebar navigation?': 'আপনি কি সাইডবার নেভিগেশনে ঐতিহাসিক মাইগ্রেশন মডিউল পুনরায় চালু করতে চান?',
+  'Historical Migration module is now hidden from navigation sidebar. You can turn it back ON anytime from Settings.': 'ঐতিহাসিক মাইগ্রেশন মডিউল এখন সাইডবার থেকে লুকানো হয়েছে। সেটিংস থেকে এটি যেকোনো সময় পুনরায় চালু করতে পারবেন।',
+  'Historical Migration module is now visible in the navigation sidebar.': 'ঐতিহাসিক মাইগ্রেশন মডিউল এখন সাইডবার নেভিগেশনে দৃশ্যমান হয়েছে।',
+  'Historical Migration module has been safely hidden from the navigation sidebar.': 'ঐতিহাসিক মাইগ্রেশন মডিউল সফলভাবে সাইডবার নেভিগেশন থেকে লুকানো হয়েছে।',
+  'Module visibility updated successfully.': 'মডিউলের দৃশ্যমানতা সফলভাবে আপডেট করা হয়েছে।',
+  'This data is already synchronized in the database.': 'এই ডেটা ইতিমধ্যে ডাটাবেজে সিনক্রোনাইজ করা হয়েছে।',
+  'Warning': 'সতর্কতা',
+  'Are you sure you want to DELETE and purge all imported records for': 'আপনি কি নিশ্চিত যে আপনি এর সমস্ত আমদানিকৃত রেকর্ড মুছে ফেলতে চান:',
+  'This will safely remove records for this scope and rebalance custody accounts. This action is audit logged.': 'এটি এই স্কোপের রেকর্ডগুলি নিরাপদে মুছে ফেলবে এবং কাস্টডি অ্যাকাউন্টগুলি পুনরায় সমন্বয় করবে। এই কাজটি অডিট লগে সংরক্ষিত হবে।',
+
+  // Metrics & Stats
+  'Members Profiles Synced': 'সদস্য প্রোফাইল সিঙ্ককৃত',
+  '35 Initial Shares Baseline': '৩৫ জনের প্রারম্ভিক শেয়ার বেসলাইন',
+  'Jan-Dec 2024': 'জানু-ডিসে ২০২৪',
+  'Jan, Feb, Mar, Apr 2025': 'জানু, ফেব্রু, মার্চ, এপ্রিল ২০২৫',
+  'EXP-2024-001 to 005': 'EXP-2024-001 হতে 005',
+  'Wallets, Dues & Profit': 'ওয়ালেট, কিস্তি ও লাভ',
+
+  // Audit Action names
+  'HISTORICAL_DATA_SYNC': 'ঐতিহাসিক তথ্য সিঙ্ক',
+  'HISTORICAL_DATA_PURGE': 'তথ্য অপসারণ (Purge)',
+  'MEMBERS_HISTORICAL': 'সদস্য প্রোফাইল ও শেয়ার',
+  'EXPENSES_HISTORICAL': 'পরিচালন ব্যয়',
+  'INVESTMENTS_HISTORICAL': 'বিনিয়োগ ও রিটার্ন',
+  'HISTORICAL_MIGRATION_DECOMMISSION': 'মাইগ্রেশন মডিউল দৃশ্যমানতা পরিবর্তন',
 };
 
 export const englishFromBangla = Object.fromEntries(Object.entries(bangla).map(([english, bengali]) => [bengali, english]));
@@ -2141,6 +2242,14 @@ export function translateText(value: string, language: Language): string {
     [/^Partner: (.+) • Category: (.+)$/, (_whole, partner, category) => `অংশীদার: ${partner} • বিভাগ: ${bangla[category] || category}`],
 
     // Historical Migration dynamic patterns
+    [/^Preview: (\d+) official members found\. Ready to sync\.$/, (_whole, count) => `প্রিভিউ: ${count} জন অনুমোদিত সদস্য পাওয়া গেছে। সিঙ্ক করার জন্য প্রস্তুত।`],
+    [/^Successfully synchronized (\d+) member profiles and initial share allocations\.$/, (_whole, count) => `সফলভাবে ${count} জন সদস্যের প্রোফাইল ও প্রারম্ভিক শেয়ার বরাদ্দ সিঙ্ক সম্পন্ন হয়েছে।`],
+    [/^Purged members and initial share allocations\.$/, () => `সদস্যদের প্রোফাইল ও প্রারম্ভিক শেয়ার বরাদ্দ নিরাপদে মুছে ফেলা হয়েছে।`],
+    [/^Purged 2024 historical contributions and rebalanced custody\.$/, () => `২০২৪ সালের সকল কিস্তি পেমেন্ট মুছে ফেলা হয়েছে এবং কাস্টডি রিব্যালেন্স করা হয়েছে।`],
+    [/^Purged 2025 historical payments and rebalanced custody\.$/, () => `২০২৫ সালের কিস্তি পেমেন্ট মুছে ফেলা হয়েছে এবং কাস্টডি রিব্যালেন্স করা হয়েছে।`],
+    [/^Purged historical operational expenses and adjusted custody\.$/, () => `ঐতিহাসিক পরিচালন ব্যয় মুছে ফেলা হয়েছে এবং কাস্টডি সমন্বয় করা হয়েছে।`],
+    [/^Purged historical investment records and rebalanced partner wallets\.$/, () => `ঐতিহাসিক বিনিয়োগের তথ্য মুছে ফেলা হয়েছে এবং পার্টনার ওয়ালেট রিব্যালেন্স করা হয়েছে।`],
+    [/^Historical migration records for (.+) have already been imported into the production database \((\d+) records(?:, ৳([\d,.]+))?\)\. Direct re-sync is blocked to prevent duplication\.$/, (_whole, scope, count, amt) => `${scope}-এর ঐতিহাসিক তথ্য ইতিমধ্যে প্রোডাকশন ডাটাবেজে সংরক্ষিত রয়েছে (${count}টি রেকর্ড${amt ? `, ৳${amt}` : ''})। তথ্য ডুপ্লিকেশন রোধে সরাসরি পুনরায় সিঙ্ক ব্লক করা হয়েছে।`],
     [/^Preview: 2024 contains (\d+) payments \(৳([\d,.]+)\) across (\d+) monthly sheets\. Ready to sync\.$/, (_whole, count, amt, sheets) => `প্রিভিউ: ২০২৪ সালে ${sheets}টি মাসিক শিটে ${count}টি পেমেন্ট (৳${amt}) রয়েছে। সিঙ্ক করার জন্য প্রস্তুত।`],
     [/^Successfully synchronized 2024 historical records: (\d+) payments \(৳([\d,.]+)\) and custody accounts rebalanced\.$/, (_whole, count, amt) => `সফলভাবে ২০২৪ সালের তথ্য সিঙ্ক সম্পন্ন হয়েছে: ${count}টি পেমেন্ট (৳${amt}) এবং কাস্টডি অ্যাকাউন্ট সমন্বয় করা হয়েছে।`],
     [/^Preview: 2025 contains (\d+) payments \(৳([\d,.]+)\) across (\d+) approved months\. Ready to sync\.$/, (_whole, count, amt, months) => `প্রিভিউ: ২০২৫ সালে ${months}টি অনুমোদিত মাসে ${count}টি পেমেন্ট (৳${amt}) রয়েছে। সিঙ্ক করার জন্য প্রস্তুত।`],

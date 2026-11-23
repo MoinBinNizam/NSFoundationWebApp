@@ -76,11 +76,24 @@ export class MigrationController {
     }
   }
 
+  static async syncMembers(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const dryRun = Boolean(req.body.dryRun);
+      const force = Boolean(req.body.force);
+      const result = await HistoricalSyncService.syncMembers(dryRun, req.user, force);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async sync2024(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       if (!req.user) return next(createError('Authentication required.', 401));
       const dryRun = Boolean(req.body.dryRun);
-      const result = await HistoricalSyncService.sync2024(dryRun, req.user);
+      const force = Boolean(req.body.force);
+      const result = await HistoricalSyncService.sync2024(dryRun, req.user, force);
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -91,7 +104,8 @@ export class MigrationController {
     try {
       if (!req.user) return next(createError('Authentication required.', 401));
       const dryRun = Boolean(req.body.dryRun);
-      const result = await HistoricalSyncService.sync2025(dryRun, req.user);
+      const force = Boolean(req.body.force);
+      const result = await HistoricalSyncService.sync2025(dryRun, req.user, force);
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -102,7 +116,8 @@ export class MigrationController {
     try {
       if (!req.user) return next(createError('Authentication required.', 401));
       const dryRun = Boolean(req.body.dryRun);
-      const result = await HistoricalSyncService.syncExpenses(dryRun, req.user);
+      const force = Boolean(req.body.force);
+      const result = await HistoricalSyncService.syncExpenses(dryRun, req.user, force);
       res.json({ success: true, data: result });
     } catch (error) {
       next(error);
@@ -113,8 +128,88 @@ export class MigrationController {
     try {
       if (!req.user) return next(createError('Authentication required.', 401));
       const dryRun = Boolean(req.body.dryRun);
-      const result = await HistoricalSyncService.syncInvestments(dryRun, req.user);
+      const force = Boolean(req.body.force);
+      const result = await HistoricalSyncService.syncInvestments(dryRun, req.user, force);
       res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async purgeMembers(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const result = await HistoricalSyncService.purgeMembers(req.user);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async purge2024(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const result = await HistoricalSyncService.purge2024(req.user);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async purge2025(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const result = await HistoricalSyncService.purge2025(req.user);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async purgeExpenses(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const result = await HistoricalSyncService.purgeExpenses(req.user);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async purgeInvestments(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const result = await HistoricalSyncService.purgeInvestments(req.user);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async history(_req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const logs = await HistoricalSyncService.getHistory();
+      res.json({ success: true, data: logs });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getModuleVisibility(_req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const data = await HistoricalSyncService.getModuleVisibility();
+      res.json({ success: true, data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async setModuleVisibility(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      if (!req.user) return next(createError('Authentication required.', 401));
+      const enabled = Boolean(req.body.enabled);
+      const data = await HistoricalSyncService.setModuleVisibility(enabled, req.user);
+      res.json({ success: true, data });
     } catch (error) {
       next(error);
     }

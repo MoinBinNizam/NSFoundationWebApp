@@ -12,6 +12,7 @@ import {
   Lock,
   Check,
   Eye,
+  EyeOff,
   Pencil,
   Trash2,
   Calendar,
@@ -382,7 +383,7 @@ const MonthYearPicker: React.FC<MonthYearPickerProps> = ({
 
 export const SettingsPage: React.FC = () => {
   const { t } = usePreferences();
-  const { user, canAccess } = useAuth();
+  const { user, canAccess, refreshPermissions } = useAuth();
   const isAdmin = canAccess("SETTINGS", "view");
   const isSuperAdmin = user?.role === "SUPER_ADMIN";
   const canManageMemberTransparency =
@@ -398,6 +399,8 @@ export const SettingsPage: React.FC = () => {
   const [waivers, setWaivers] = useState<PenaltyWaiver[]>([]);
   const [gatewayRates, setGatewayRates] = useState<GatewayRate[]>([]);
   const [operationalEndYear, setOperationalEndYear] = useState("2028");
+  const [migrationModuleEnabled, setMigrationModuleEnabled] = useState(true);
+  const [updatingMigrationVisibility, setUpdatingMigrationVisibility] = useState(false);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [permissionsList, setPermissionsList] = useState<
     RoleModulePermissions[]
@@ -487,6 +490,7 @@ export const SettingsPage: React.FC = () => {
         permRes,
         transparencyRes,
         membersRes,
+        migrationRes,
       ] = await Promise.all([
         apiRequest<ShareSetting>("/settings/share-amount"),
         apiRequest<PenaltyRule[]>("/settings/penalty-rules"),
@@ -505,6 +509,9 @@ export const SettingsPage: React.FC = () => {
         apiRequest<Array<{ _id: string; memberId: string; name: string; phone?: string; email?: string }>>("/payments/collection-members").catch(
           () => ({ data: [] }),
         ),
+        apiRequest<{ enabled: boolean }>("/settings/migration-module-visibility").catch(
+          () => ({ data: { enabled: true } }),
+        ),
       ]);
       const loadedSetting = shareRes.data;
       setSetting(loadedSetting);
@@ -519,6 +526,7 @@ export const SettingsPage: React.FC = () => {
       setCustodyAccounts(custodyRes.data || []);
       setPermissionsList(permRes.data || []);
       setMemberTransparency(transparencyRes.data);
+      setMigrationModuleEnabled(migrationRes.data?.enabled ?? true);
     } catch (requestError) {
       setError((requestError as Error).message);
     } finally {
@@ -566,6 +574,29 @@ export const SettingsPage: React.FC = () => {
       setError((requestError as Error).message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const toggleMigrationVisibility = async () => {
+    const nextState = !migrationModuleEnabled;
+    setUpdatingMigrationVisibility(true);
+    setError(null);
+    try {
+      await apiRequest("/settings/migration-module-visibility", {
+        method: "PUT",
+        body: JSON.stringify({ enabled: nextState }),
+      });
+      setMigrationModuleEnabled(nextState);
+      setNotice(
+        nextState
+          ? t("Historical Migration module is now visible in the navigation sidebar.")
+          : t("Historical Migration module has been safely hidden from the navigation sidebar.")
+      );
+      await refreshPermissions();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setUpdatingMigrationVisibility(false);
     }
   };
 
@@ -1231,6 +1262,54 @@ export const SettingsPage: React.FC = () => {
             {saving ? t("Saving...") : t("Save end year")}
           </button>
         </form>
+      </section>
+
+      {/* Production Historical Migration Module Visibility & Decommissioning */}
+      <section className="glass-card p-5 sm:p-6 border border-emerald-500/25">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+              <ShieldCheck size={16} />
+              <span>{t("System Modules & Production Decommissioning")}</span>
+            </div>
+            <h2 className="text-lg font-bold text-white mt-1">
+              {t("Historical Migration & Database Sync Module")}
+            </h2>
+            <p className="text-sm text-gray-300 mt-1 max-w-2xl leading-relaxed">
+              {t(
+                "When historical data for 2024 and 2025 has been fully imported into production, disable this module to declutter the navigation sidebar for regular users. You can re-enable it at any time."
+              )}
+            </p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0">
+            <span
+              className={`badge ${
+                migrationModuleEnabled ? "badge-active" : "badge-inactive"
+              }`}
+            >
+              {migrationModuleEnabled ? t("Visible in Sidebar") : t("Hidden from Sidebar")}
+            </span>
+            <button
+              type="button"
+              onClick={toggleMigrationVisibility}
+              disabled={updatingMigrationVisibility}
+              className={`btn flex items-center gap-2 ${
+                migrationModuleEnabled
+                  ? "bg-amber-600 hover:bg-amber-500 text-white"
+                  : "bg-emerald-600 hover:bg-emerald-500 text-white"
+              }`}
+            >
+              {migrationModuleEnabled ? <EyeOff size={16} /> : <Eye size={16} />}
+              <span>
+                {updatingMigrationVisibility
+                  ? t("Updating...")
+                  : migrationModuleEnabled
+                  ? t("Deactivate & Hide Module")
+                  : t("Activate & Show Module")}
+              </span>
+            </button>
+          </div>
+        </div>
       </section>
 
       <section className="glass-card p-5 sm:p-6">

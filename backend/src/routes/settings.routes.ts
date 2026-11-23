@@ -37,4 +37,7 @@ router.put('/permissions', requireRole(UserRole.SUPER_ADMIN), SettingsController
 // Retained temporarily for older browser sessions that still submit POST.
 router.post('/permissions', requireRole(UserRole.SUPER_ADMIN), SettingsController.savePermissions);
 
+router.get('/migration-module-visibility', SettingsController.getMigrationModuleVisibility);
+router.put('/migration-module-visibility', requireRole(UserRole.ADMIN, UserRole.SUPER_ADMIN), SettingsController.setMigrationModuleVisibility);
+
 export default router;

@@ -453,10 +453,16 @@ export async function saveModulePermissions(
  * Super Admin gets universal access.
  */
 export async function getUserEffectivePermissions(user: HydratedDocument<IUser>) {
+  const migrationConfig = await SystemConfig.findOne({ key: 'HISTORICAL_MIGRATION_ENABLED' }).lean();
+  const isMigrationEnabled = migrationConfig ? Boolean(migrationConfig.value) : true;
+
   if (user.role === UserRole.SUPER_ADMIN) {
     const fullAccess: Record<string, { canView: boolean; canEdit: boolean }> = {};
     for (const mod of APP_MODULES) {
       fullAccess[mod.key] = { canView: true, canEdit: true };
+    }
+    if (!isMigrationEnabled) {
+      fullAccess['MIGRATIONS'] = { canView: false, canEdit: false };
     }
     return {
       roleOrDesignation: 'SUPER_ADMIN',
@@ -493,6 +499,10 @@ export async function getUserEffectivePermissions(user: HydratedDocument<IUser>)
       canView: typeof savedVal?.canView === 'boolean' ? savedVal.canView : defaultVal.canView,
       canEdit: typeof savedVal?.canEdit === 'boolean' ? savedVal.canEdit : defaultVal.canEdit,
     };
+  }
+
+  if (!isMigrationEnabled) {
+    resolvedModules['MIGRATIONS'] = { canView: false, canEdit: false };
   }
 
   // Safety hard lock: If designation is DIRECTOR, enforce read-only on PAYMENTS, MEMBERS, CUSTODY
